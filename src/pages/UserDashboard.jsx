@@ -15,10 +15,100 @@ export const UserDashboard = () => {
   const [category, setCategory] = useState('IT Support');
   const [urgency, setUrgency] = useState('Medium');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Comments logic
+  const [comments, setComments] = useState([]);
+  const [newComment, setNewComment] = useState('');
+  const [isSendingComment, setIsSendingComment] = useState(false);
 
   useEffect(() => {
     fetchTickets();
-  }, []);
+
+    const channel = supabase
+      .channel('user-grievances')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'grievances' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setTickets((prev) => [payload.new, ...prev]);
+          } else if (payload.eventType === 'UPDATE') {
+            setTickets((prev) => prev.map(t => t.id === payload.new.id ? payload.new : t));
+            
+            // If the selected ticket was updated, update it in the view too
+            setSelectedTicket((currentSelected) => {
+              if (currentSelected && currentSelected.id === payload.new.id) {
+                return payload.new;
+              }
+              return currentSelected;
+            });
+          } else if (payload.eventType === 'DELETE') {
+            setTickets((prev) => prev.filter(t => t.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    const commentChannel = supabase
+      .channel('ticket-comments')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'ticket_comments' },
+        (payload) => {
+          if (selectedTicket && payload.new.grievance_id === selectedTicket.id) {
+             fetchComments(selectedTicket.id);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      supabase.removeChannel(commentChannel);
+    };
+  }, [selectedTicket]);
+
+  const fetchComments = async (ticketId) => {
+    const { data, error } = await supabase
+      .from('ticket_comments')
+      .select(`
+        *,
+        profiles (full_name, role)
+      `)
+      .eq('grievance_id', ticketId)
+      .order('created_at', { ascending: true });
+    
+    if (data) setComments(data);
+  };
+
+  const handleSelectTicket = (ticket) => {
+    setSelectedTicket(ticket);
+    fetchComments(ticket.id);
+  };
+
+  const handleSendComment = async (e) => {
+    e.preventDefault();
+    if (!newComment.trim() || !selectedTicket) return;
+    
+    setIsSendingComment(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    const { error } = await supabase
+      .from('ticket_comments')
+      .insert([
+        { 
+          grievance_id: selectedTicket.id,
+          user_id: user.id,
+          message: newComment
+        }
+      ]);
+
+    if (!error) {
+      setNewComment('');
+      fetchComments(selectedTicket.id);
+    }
+    setIsSendingComment(false);
+  };
 
   const fetchTickets = async () => {
     setLoading(true);
@@ -119,7 +209,7 @@ export const UserDashboard = () => {
               </thead>
               <tbody className="divide-y divide-white/5">
                 {tickets.map((ticket, idx) => (
-                  <tr key={idx} onClick={() => setSelectedTicket(ticket)} className="hover:bg-white/5 transition-colors cursor-pointer group">
+                  <tr key={idx} onClick={() => handleSelectTicket(ticket)} className="hover:bg-white/5 transition-colors cursor-pointer group">
                     <td className="px-6 py-5 font-mono text-xs text-primary font-bold">{ticket.ticket_id}</td>
                     <td className="px-6 py-5 font-medium text-slate-200">{ticket.title}</td>
                     <td className="px-6 py-5">
@@ -211,7 +301,7 @@ export const UserDashboard = () => {
                 </div>
               </div>
 
-              <div className="p-8 space-y-6 text-left">
+              <div className="p-8 space-y-6 text-left max-h-[60vh] overflow-y-auto custom-scrollbar">
                 <div>
                   <h4 className="text-xs uppercase font-bold text-slate-500 tracking-widest mb-2">Category</h4>
                   <span className="bg-white/5 px-3 py-1.5 rounded-lg text-sm text-slate-300 font-medium border border-white/10">{selectedTicket.category}</span>
@@ -221,14 +311,45 @@ export const UserDashboard = () => {
                   <p className="text-slate-200 leading-relaxed bg-white/5 p-4 rounded-xl border border-white/10">{selectedTicket.description}</p>
                 </div>
                 
-                {selectedTicket.admin_comment && (
-                  <div className="bg-success/10 rounded-xl p-4 border border-success/20">
-                    <h4 className="text-xs uppercase font-bold text-success tracking-widest mb-2">
-                      Admin Resolution Note
-                    </h4>
-                    <p className="text-slate-200 leading-relaxed">{selectedTicket.admin_comment}</p>
+                {/* Comments Section */}
+                <div className="mt-8 pt-8 border-t border-white/10">
+                  <h4 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                    <Ticket size={16} className="text-primary" />
+                    Ticket Updates & Responses
+                  </h4>
+                  
+                  <div className="space-y-4 mb-4">
+                    {comments.length === 0 ? (
+                      <p className="text-slate-500 text-sm italic">No updates or comments yet.</p>
+                    ) : (
+                      comments.map((comment, i) => (
+                        <div key={i} className={`p-4 rounded-xl text-sm ${comment.profiles?.role === 'admin' ? 'bg-primary/10 border border-primary/20 ml-8' : 'bg-white/5 border border-white/10 mr-8'}`}>
+                          <div className="flex justify-between items-center mb-1">
+                            <span className={`font-bold ${comment.profiles?.role === 'admin' ? 'text-primary' : 'text-slate-300'}`}>
+                              {comment.profiles?.full_name || 'User'}
+                            </span>
+                            <span className="text-xs text-slate-500">{new Date(comment.created_at).toLocaleDateString()}</span>
+                          </div>
+                          <p className="text-slate-200">{comment.message}</p>
+                        </div>
+                      ))
+                    )}
                   </div>
-                )}
+
+                  <form onSubmit={handleSendComment} className="flex gap-2">
+                    <input 
+                      type="text" 
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Type a message or update..." 
+                      className="glass-input flex-1 text-sm py-2 px-4"
+                      required
+                    />
+                    <button type="submit" disabled={isSendingComment} className="bg-primary hover:bg-primary-dark text-white px-4 rounded-xl transition-colors disabled:opacity-50">
+                      <Send size={16} />
+                    </button>
+                  </form>
+                </div>
               </div>
             </motion.div>
           </div>

@@ -17,7 +17,7 @@ export const LoginPage = () => {
     setError('');
 
     if (isSignUp) {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -27,8 +27,14 @@ export const LoginPage = () => {
           }
         }
       });
-      if (error) setError(error.message);
-      else alert('Check your email for confirmation!');
+      if (error) {
+        setError(error.message);
+      } else if (data?.session) {
+        // Successfully signed up and logged in (email confirmation off)
+        console.log('Signed up and logged in automatically');
+      } else {
+        alert('Check your email for confirmation!');
+      }
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) setError(error.message);

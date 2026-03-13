@@ -23,12 +23,23 @@ export const ProfilePage = () => {
   const handleSave = async (e) => {
     e.preventDefault();
     setIsSaving(true);
-    const { error } = await supabase.auth.updateUser({
+    
+    // Update auth user metadata
+    const { error: authError } = await supabase.auth.updateUser({
       data: { full_name: fullName },
     });
-    if (!error) {
+    
+    // Update public profile table
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({ full_name: fullName })
+      .eq('id', user.id);
+
+    if (!authError && !profileError) {
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
+    } else {
+      alert((authError?.message || '') + ' ' + (profileError?.message || ''));
     }
     setIsSaving(false);
   };

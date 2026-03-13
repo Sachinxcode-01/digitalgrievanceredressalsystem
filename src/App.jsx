@@ -4,6 +4,7 @@ import { Layout } from './components/Layout';
 import { LoginPage } from './pages/LoginPage';
 import { UserDashboard } from './pages/UserDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
+import { ProfilePage } from './pages/ProfilePage';
 import { supabase, isMisconfigured } from './lib/supabase';
 
 // --- Setup Error Screen ---
@@ -102,6 +103,12 @@ function App() {
           path="/" 
           element={session ? <Layout user={{...session.user, role: profile?.role || 'user'}} onLogout={handleLogout}>
             {profile?.role === 'admin' ? <AdminDashboard /> : <UserDashboard />}
+          </Layout> : <Navigate to="/login" />} 
+        />
+        <Route 
+          path="/profile" 
+          element={session ? <Layout user={{...session.user, role: profile?.role || 'user'}} onLogout={handleLogout}>
+            <ProfilePage />
           </Layout> : <Navigate to="/login" />} 
         />
       </Routes>

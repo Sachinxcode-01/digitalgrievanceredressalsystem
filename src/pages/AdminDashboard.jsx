@@ -13,9 +13,99 @@ export const AdminDashboard = () => {
   const [statusFilter, setStatusFilter] = useState('All');
   const [categoryFilter, setCategoryFilter] = useState('All');
 
+  // Comments logic
+  const [comments, setComments] = useState([]);
+  const [newComment, setNewComment] = useState('');
+  const [isSendingComment, setIsSendingComment] = useState(false);
+
   useEffect(() => {
     fetchGlobalTickets();
-  }, []);
+
+    const channel = supabase
+      .channel('global-grievances')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'grievances' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setTickets((prev) => [payload.new, ...prev]);
+          } else if (payload.eventType === 'UPDATE') {
+            setTickets((prev) => prev.map(t => t.id === payload.new.id ? payload.new : t));
+            
+            // If the selected ticket was updated, update it in the view too
+            setSelectedTicket((currentSelected) => {
+              if (currentSelected && currentSelected.id === payload.new.id) {
+                return payload.new;
+              }
+              return currentSelected;
+            });
+          } else if (payload.eventType === 'DELETE') {
+            setTickets((prev) => prev.filter(t => t.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    const commentChannel = supabase
+      .channel('admin-ticket-comments')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'ticket_comments' },
+        (payload) => {
+          if (selectedTicket && payload.new.grievance_id === selectedTicket.id) {
+             fetchComments(selectedTicket.id);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      supabase.removeChannel(commentChannel);
+    };
+  }, [selectedTicket]);
+
+  const fetchComments = async (ticketId) => {
+    const { data, error } = await supabase
+      .from('ticket_comments')
+      .select(`
+        *,
+        profiles (full_name, role)
+      `)
+      .eq('grievance_id', ticketId)
+      .order('created_at', { ascending: true });
+    
+    if (data) setComments(data);
+  };
+
+  const handleSelectTicket = (ticket) => {
+    setSelectedTicket(ticket);
+    fetchComments(ticket.id);
+  };
+
+  const handleSendComment = async (e) => {
+    e.preventDefault();
+    if (!newComment.trim() || !selectedTicket) return;
+    
+    setIsSendingComment(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    const { error } = await supabase
+      .from('ticket_comments')
+      .insert([
+        { 
+          grievance_id: selectedTicket.id,
+          user_id: user.id,
+          message: newComment
+        }
+      ]);
+
+    if (!error) {
+      setNewComment('');
+      fetchComments(selectedTicket.id);
+    }
+    setIsSendingComment(false);
+  };
 
   const fetchGlobalTickets = async () => {
     setLoading(true);
@@ -148,7 +238,7 @@ export const AdminDashboard = () => {
                       <UrgencyBadge level={ticket.urgency} />
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button onClick={() => setSelectedTicket(ticket)} className="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-all">
+                      <button onClick={() => handleSelectTicket(ticket)} className="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-all">
                         <MoreVertical size={18} />
                       </button>
                     </td>
@@ -175,23 +265,61 @@ export const AdminDashboard = () => {
                 <button onClick={() => setSelectedTicket(null)} className="p-2 hover:bg-white/10 rounded-lg"><X size={24} /></button>
               </div>
 
-              <div className="p-8 space-y-6">
+              <div className="p-8 space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
                 <div>
                   <h4 className="text-xs uppercase font-bold text-slate-500 tracking-widest mb-2">Description</h4>
                   <p className="text-slate-200">{selectedTicket.description}</p>
                 </div>
 
-                <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                  <h4 className="text-xs uppercase font-bold text-slate-500 tracking-widest mb-2">Resolution Note</h4>
-                  <textarea 
-                    value={resolutionNote}
-                    onChange={(e) => setResolutionNote(e.target.value)}
-                    className="w-full bg-transparent border-none focus:ring-0 text-slate-300 resize-none min-h-[100px]"
-                    placeholder="Describe the steps taken..."
-                  ></textarea>
+                {/* Legacy Resolution Note (kept for old tickets) */}
+                {selectedTicket.admin_comment && (
+                  <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                    <h4 className="text-xs uppercase font-bold text-slate-500 tracking-widest mb-2">Resolution Note</h4>
+                    <p className="text-slate-300 min-h-[50px]">{selectedTicket.admin_comment}</p>
+                  </div>
+                )}
+
+                {/* Comments Section */}
+                <div className="mt-8 pt-8 border-t border-white/10">
+                  <h4 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                    <Ticket size={16} className="text-primary" />
+                    Ticket Updates & Responses
+                  </h4>
+                  
+                  <div className="space-y-4 mb-4">
+                    {comments.length === 0 ? (
+                      <p className="text-slate-500 text-sm italic">No updates or comments yet.</p>
+                    ) : (
+                      comments.map((comment, i) => (
+                        <div key={i} className={`p-4 rounded-xl text-sm ${comment.profiles?.role === 'admin' ? 'bg-primary/10 border border-primary/20 ml-8' : 'bg-white/5 border border-white/10 mr-8'}`}>
+                          <div className="flex justify-between items-center mb-1">
+                            <span className={`font-bold ${comment.profiles?.role === 'admin' ? 'text-primary' : 'text-slate-300'}`}>
+                              {comment.profiles?.full_name || 'User'}
+                            </span>
+                            <span className="text-xs text-slate-500">{new Date(comment.created_at).toLocaleDateString()}</span>
+                          </div>
+                          <p className="text-slate-200">{comment.message}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  
+                  <form onSubmit={handleSendComment} className="flex gap-2">
+                    <input 
+                      type="text" 
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Type a message or response to the user..." 
+                      className="glass-input flex-1 text-sm py-2 px-4"
+                      required
+                    />
+                    <button type="submit" disabled={isSendingComment} className="bg-primary hover:bg-primary-dark text-white px-4 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-2">
+                      Send
+                    </button>
+                  </form>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 mt-8 pt-4 border-t border-white/10">
                    <button onClick={() => handleUpdateStatus('In-Progress')} className="btn-ghost flex-1">Mark In-Progress</button>
                    <button onClick={() => handleUpdateStatus('Resolved')} className="btn-primary flex-1 bg-success hover:bg-success/80 flex items-center justify-center gap-2">
                     <CheckCircle2 size={18} />
