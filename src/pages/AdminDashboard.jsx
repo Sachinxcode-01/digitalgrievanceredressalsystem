@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Ticket, CheckCircle, Clock, AlertTriangle, TrendingUp, Search, MoreVertical, X, CheckCircle2 } from 'lucide-react';
+import { Users, Ticket, CheckCircle, Clock, AlertTriangle, TrendingUp, Search, MoreVertical, X, CheckCircle2, Download } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, BarChart, Bar, XAxis } from 'recharts';
+import confetti from 'canvas-confetti';
+import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
 
 export const AdminDashboard = () => {
@@ -125,10 +128,55 @@ export const AdminDashboard = () => {
       .eq('id', selectedTicket.id);
     
     if (!error) {
+      if (status === 'Resolved') {
+        confetti({
+          particleCount: 150,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#10b981', '#3b82f6', '#ec4899']
+        });
+        toast.success(`Ticket ${selectedTicket.ticket_id} resolved!`);
+      } else {
+        toast.success(`Ticket marked as ${status}`);
+      }
       setSelectedTicket(null);
       setResolutionNote('');
       fetchGlobalTickets();
+    } else {
+      toast.error('Failed to update ticket status');
     }
+  };
+
+  const handleExportCSV = () => {
+    if (tickets.length === 0) {
+      toast.error("No tickets to export");
+      return;
+    }
+    const headers = ['Ticket ID', 'Title', 'Category', 'Urgency', 'Status', 'User ID', 'Created At'];
+    const csvRows = [
+      headers.join(','),
+      ...tickets.map(t => [
+        t.ticket_id,
+        `"${t.title.replace(/"/g, '""')}"`,
+        t.category,
+        t.urgency,
+        t.status,
+        t.user_id,
+        new Date(t.created_at).toLocaleString()
+      ].join(','))
+    ];
+
+    const csvData = csvRows.join('\n');
+    const blob = new Blob([csvData], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.setAttribute('hidden', '');
+    a.setAttribute('href', url);
+    a.setAttribute('download', `grievances_report_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    toast.success('CSV Report downloaded exported');
   };
 
   const adminStats = [
@@ -145,13 +193,33 @@ export const AdminDashboard = () => {
     return matchesSearch && matchesStatus && matchesCategory;
   });
 
+  // Analytics Data
+  const categoryData = [
+    { name: 'IT Support', value: tickets.filter(t => t.category === 'IT Support').length },
+    { name: 'Maintenance', value: tickets.filter(t => t.category === 'Maintenance').length },
+    { name: 'Academic', value: tickets.filter(t => t.category === 'Academic').length },
+    { name: 'Financial', value: tickets.filter(t => t.category === 'Financial').length },
+  ].filter(d => d.value > 0);
+
+  const statusData = [
+    { name: 'Pending', count: tickets.filter(t => t.status === 'Pending').length },
+    { name: 'In-Progress', count: tickets.filter(t => t.status === 'In-Progress').length },
+    { name: 'Resolved', count: tickets.filter(t => t.status === 'Resolved').length },
+  ];
+
+  const PIE_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#10b981'];
+
   return (
     <div className="space-y-8">
-      <div className="flex items-end justify-between">
+      <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold font-['Outfit'] text-white">Administration Control</h2>
           <p className="text-slate-400">Review and resolve organization-wide grievances.</p>
         </div>
+        <button onClick={handleExportCSV} className="btn-ghost flex items-center gap-2 text-sm bg-white/5 hover:bg-white/10">
+          <Download size={16} />
+          Export CSV Report
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -164,6 +232,50 @@ export const AdminDashboard = () => {
             <h3 className="text-3xl font-bold text-white">{stat.value}</h3>
           </div>
         ))}
+      </div>
+
+      {/* Advanced Analytics Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="glass-card p-6">
+          <h3 className="font-bold text-lg text-white mb-6">Distribution by Category</h3>
+          <div className="h-[250px] w-full flex items-center justify-center">
+            {tickets.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={categoryData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                    {categoryData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip contentStyle={{ backgroundColor: '#1a1f2e', borderColor: '#ffffff20', borderRadius: '12px', color: '#fff' }} itemStyle={{ color: '#fff' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-slate-500 text-sm">No data available for charts.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="glass-card p-6">
+          <h3 className="font-bold text-lg text-white mb-6">Resolution Velocity</h3>
+          <div className="h-[250px] w-full flex items-center justify-center">
+            {tickets.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={statusData}>
+                  <XAxis dataKey="name" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+                  <RechartsTooltip cursor={{ fill: '#ffffff10' }} contentStyle={{ backgroundColor: '#1a1f2e', borderColor: '#ffffff20', borderRadius: '12px' }} />
+                  <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                    {statusData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.name === 'Resolved' ? '#10b981' : entry.name === 'In-Progress' ? '#f59e0b' : '#64748b'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+             ) : (
+                <p className="text-slate-500 text-sm">No data available for charts.</p>
+             )}
+          </div>
+        </div>
       </div>
 
       <div className="glass-card">

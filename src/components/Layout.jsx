@@ -6,7 +6,7 @@ import { Link, useLocation } from 'react-router-dom';
 export const Layout = ({ children, user, onLogout }) => {
   const location = useLocation();
   return (
-    <div className="flex h-screen bg-background text-slate-200 overflow-hidden">
+    <div className="flex h-screen bg-transparent text-slate-200 overflow-hidden">
       {/* Sidebar */}
       <aside className="w-64 bg-white/5 backdrop-blur-xl border-r border-white/10 flex flex-col">
         <div className="p-6">

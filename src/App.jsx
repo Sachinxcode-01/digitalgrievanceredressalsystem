@@ -6,6 +6,7 @@ import { UserDashboard } from './pages/UserDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { ProfilePage } from './pages/ProfilePage';
 import { supabase, isMisconfigured } from './lib/supabase';
+import { Toaster } from 'react-hot-toast';
 
 // --- Setup Error Screen ---
 const SetupError = () => (
@@ -93,26 +94,45 @@ function App() {
   );
 
   return (
-    <Router>
-      <Routes>
-        <Route 
-          path="/login" 
-          element={!session ? <LoginPage /> : <Navigate to="/" />} 
-        />
-        <Route 
-          path="/" 
-          element={session ? <Layout user={{...session.user, role: profile?.role || 'user'}} onLogout={handleLogout}>
-            {profile?.role === 'admin' ? <AdminDashboard /> : <UserDashboard />}
-          </Layout> : <Navigate to="/login" />} 
-        />
-        <Route 
-          path="/profile" 
-          element={session ? <Layout user={{...session.user, role: profile?.role || 'user'}} onLogout={handleLogout}>
-            <ProfilePage />
-          </Layout> : <Navigate to="/login" />} 
-        />
-      </Routes>
-    </Router>
+    <>
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          style: {
+            background: '#1a1f2e',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.1)',
+            backdropFilter: 'blur(10px)',
+          },
+          success: {
+            iconTheme: {
+              primary: '#10b981',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
+      <Router>
+        <Routes>
+          <Route 
+            path="/login" 
+            element={!session ? <LoginPage /> : <Navigate to="/" />} 
+          />
+          <Route 
+            path="/" 
+            element={session ? <Layout user={{...session.user, role: profile?.role || 'user'}} onLogout={handleLogout}>
+              {profile?.role === 'admin' ? <AdminDashboard /> : <UserDashboard />}
+            </Layout> : <Navigate to="/login" />} 
+          />
+          <Route 
+            path="/profile" 
+            element={session ? <Layout user={{...session.user, role: profile?.role || 'user'}} onLogout={handleLogout}>
+              <ProfilePage />
+            </Layout> : <Navigate to="/login" />} 
+          />
+        </Routes>
+      </Router>
+    </>
   );
 }
 

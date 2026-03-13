@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Clock, CheckCircle2, AlertCircle, Filter, X, Send, Ticket } from 'lucide-react';
+import { Plus, Clock, CheckCircle2, AlertCircle, Filter, X, Send, Ticket, Sparkles, Loader2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
 
 export const UserDashboard = () => {
@@ -20,6 +21,51 @@ export const UserDashboard = () => {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [isSendingComment, setIsSendingComment] = useState(false);
+
+  // AI Assist logic
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  const handleAiAnalyze = () => {
+    if (!description.trim()) {
+      toast.error("Please enter a description first so the AI can analyze it!");
+      return;
+    }
+    setIsAnalyzing(true);
+    
+    // Simulate AI processing time with a fun delay
+    setTimeout(() => {
+      const lowerDesc = description.toLowerCase();
+      
+      // Smart category matching logic
+      if (lowerDesc.includes('fee') || lowerDesc.includes('pay') || lowerDesc.includes('money') || lowerDesc.includes('scholarship')) {
+        setCategory('Financial');
+      } else if (lowerDesc.includes('class') || lowerDesc.includes('teacher') || lowerDesc.includes('grade') || lowerDesc.includes('course')) {
+        setCategory('Academic');
+      } else if (lowerDesc.includes('clean') || lowerDesc.includes('water') || lowerDesc.includes('broken') || lowerDesc.includes('wall') || lowerDesc.includes('door')) {
+        setCategory('Maintenance');
+      } else {
+        setCategory('IT Support');
+      }
+      
+      // Smart urgency matching logic
+      if (lowerDesc.includes('urgent') || lowerDesc.includes('emergency') || lowerDesc.includes('now') || lowerDesc.includes('crash') || lowerDesc.includes('immediate')) {
+        setUrgency('High');
+      } else if (lowerDesc.includes('when you can') || lowerDesc.includes('low') || lowerDesc.includes('later') || lowerDesc.includes('suggestion')) {
+        setUrgency('Low');
+      } else {
+        setUrgency('Medium');
+      }
+      
+      // Auto-generate title if blank
+      if (!title) {
+        let snippet = description.split(' ').slice(0, 4).join(' ');
+        setTitle(`${snippet}... Request`);
+      }
+      
+      setIsAnalyzing(false);
+      toast.success("AI auto-filled category and urgency!");
+    }, 1500);
+  };
 
   useEffect(() => {
     fetchTickets();
@@ -147,8 +193,9 @@ export const UserDashboard = () => {
       setTitle('');
       setDescription('');
       fetchTickets();
+      toast.success('Your grievance has been submitted successfully.');
     } else {
-      alert(error.message);
+      toast.error(error.message);
     }
     setIsSubmitting(false);
   };
@@ -263,9 +310,20 @@ export const UserDashboard = () => {
                   <label className="text-sm font-medium text-slate-300">Subject</label>
                   <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Short summary" className="glass-input w-full" required />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">Detailed Description</label>
-                  <textarea rows="4" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe your problem..." className="glass-input w-full resize-none py-3" required></textarea>
+                <div className="space-y-2 relative">
+                  <div className="flex justify-between items-center">
+                    <label className="text-sm font-medium text-slate-300">Detailed Description</label>
+                    <button 
+                      type="button" 
+                      onClick={handleAiAnalyze}
+                      disabled={isAnalyzing}
+                      className="flex items-center gap-1.5 text-xs font-bold bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 text-white px-3 py-1.5 rounded-full shadow-lg shadow-purple-500/30 transition-all disabled:opacity-50"
+                    >
+                      {isAnalyzing ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                      {isAnalyzing ? 'AI Analyzing...' : 'AI Auto-Fill'}
+                    </button>
+                  </div>
+                  <textarea rows="4" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe your problem... (Click AI Auto-Fill to automatically set category and urgency!)" className="glass-input w-full resize-none py-3" required></textarea>
                 </div>
                 <div className="flex items-center gap-4 pt-4">
                   <button type="button" onClick={() => setShowModal(false)} className="btn-ghost flex-1">Cancel</button>

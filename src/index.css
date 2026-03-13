@@ -19,8 +19,13 @@
 
 @layer base {
   body {
-    @apply bg-background text-slate-200 font-['Inter'] antialiased;
-    background-image: theme('backgroundImage.mesh-gradient');
+    @apply text-slate-200 font-['Inter'] antialiased;
+    background-color: #0b1120;
+    background-image: 
+      linear-gradient(to bottom right, rgba(15, 23, 42, 0.85), rgba(10, 15, 29, 0.95)),
+      url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=100&w=2072&auto=format&fit=crop');
+    background-size: cover;
+    background-position: center;
     background-attachment: fixed;
   }
 
@@ -31,7 +36,7 @@
 
 @layer components {
   .glass-card {
-    @apply bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl shadow-xl;
+    @apply bg-white/5 backdrop-blur-[24px] border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.4)];
   }
 
   .glass-input {
