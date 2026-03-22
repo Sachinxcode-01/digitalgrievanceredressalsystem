@@ -3,6 +3,7 @@ import { LogOut, LayoutDashboard, Ticket, Users, Bell, Search, User, Briefcase, 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation, NavLink } from 'react-router-dom';
 import { BackgroundGradientAnimation } from './ui/background-gradient-animation';
+import ResolveBot from './ui/ResolveBot';
 
 export const Layout = ({ children, user, onLogout }) => {
   const location = useLocation();
@@ -170,6 +171,8 @@ export const Layout = ({ children, user, onLogout }) => {
             <span className="text-[9px] font-black uppercase tracking-widest">Exit</span>
           </button>
         </div>
+        {/* --- Floating AI Resolve Bot --- */}
+        {user?.role !== 'admin' && <ResolveBot />}
       </div>
     </BackgroundGradientAnimation>
   );

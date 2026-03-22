@@ -17,14 +17,15 @@ app.get('/', (req, res) => {
   res.json({ status: 'OK', message: 'Digital Grievance System API is active' });
 });
 
-// Modular Routes
 const grievanceRoutes = require('./routes/grievanceRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const authRoutes = require('./routes/authRoutes');
+const chatRoutes = require('./routes/chatRoutes');
 
 app.use('/api/grievances', grievanceRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/chat', chatRoutes);
 
 // --- Production Deployment: Serve frontend ---
 if (process.env.NODE_ENV === 'production') {
