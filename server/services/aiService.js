@@ -1,3 +1,5 @@
+const geminiService = require('./geminiService');
+
 /**
  * Analyzes the grievance description and provides smart triage suggestions.
  * 
@@ -9,6 +11,14 @@ const analyzeGrievance = async (description) => {
     throw new Error('Description is required for AI analysis');
   }
 
+  // --- Neural Triage (Attempt Upgrade) ---
+  const neuralResult = await geminiService.analyzeGrievance(description);
+  if (neuralResult && neuralResult.category && neuralResult.urgency) {
+    console.log("🧠 Neural AI Analysis Success:", neuralResult);
+    return neuralResult;
+  }
+
+  console.log("🔄 Falling back to Keyword Matching Logic...");
   const lowerDesc = description.toLowerCase();
   
   let category = 'IT Support';

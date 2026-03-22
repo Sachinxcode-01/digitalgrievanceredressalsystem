@@ -1,11 +1,19 @@
 const express = require('express');
 const router = express.Router();
+const geminiService = require('../services/geminiService');
 
 router.post('/', async (req, res) => {
   try {
     const { message } = req.body;
     if (!message) return res.status(400).json({ reply: "I didn't quite catch that." });
     
+    // --- Neural AI Intercept (Gemini Pro) ---
+    const neuralReply = await geminiService.getChatResponse(message);
+    if (neuralReply) {
+      return res.json({ reply: neuralReply });
+    }
+
+    // --- Legacy Fallback Logic ---
     const text = message.toLowerCase();
     let reply = "I'm a digital assistant. Could you provide a bit more detail about your issue so I can help you correctly categorize it before we submit a ticket?";
 
@@ -20,10 +28,7 @@ router.post('/', async (req, res) => {
       reply = "Hello there! I am your AI Resolve Assistant. Before you file a manual ticket, describe your issue to me and I will see if I can resolve it instantly!";
     }
 
-    // Artificial delay to simulate "thinking" effect
-    setTimeout(() => {
-      res.json({ reply });
-    }, 1200);
+    res.json({ reply });
 
   } catch (error) {
     res.status(500).json({ error: 'Failed to process AI chat message' });
