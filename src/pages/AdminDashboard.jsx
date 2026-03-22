@@ -23,6 +23,10 @@ export const AdminDashboard = ({ sessionUser, userProfile }) => {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [isSendingComment, setIsSendingComment] = useState(false);
+  
+  // AI Suggestions
+  const [aiSuggestion, setAiSuggestion] = useState('');
+  const [isAiSuggesting, setIsAiSuggesting] = useState(false);
 
   useEffect(() => {
     fetchGlobalTickets();
@@ -87,6 +91,27 @@ export const AdminDashboard = ({ sessionUser, userProfile }) => {
   const handleSelectTicket = (ticket) => {
     setSelectedTicket(ticket);
     fetchComments(ticket.id);
+    fetchAiSuggestion(ticket);
+  };
+
+  const fetchAiSuggestion = async (ticket) => {
+    setAiSuggestion('');
+    setIsAiSuggesting(true);
+    try {
+      const response = await fetch('/api/ai/suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticket })
+      });
+      const data = await response.json();
+      if (data.suggestion) {
+        setAiSuggestion(data.suggestion);
+      }
+    } catch (err) {
+      console.error("AI Suggestion Error:", err);
+    } finally {
+      setIsAiSuggesting(false);
+    }
   };
 
   const handleSendComment = async (e) => {
@@ -417,23 +442,39 @@ export const AdminDashboard = ({ sessionUser, userProfile }) => {
                 )}
 
                 {/* AI Assistant for Admin */}
-                <div className="p-6 bg-primary/5 rounded-2xl border border-primary/20 relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 p-3 opacity-20 group-hover:opacity-100 transition-opacity">
-                    <TrendingUp size={40} className="text-primary" />
-                  </div>
+                <div className="p-6 bg-indigo-500/5 rounded-2xl border border-indigo-500/20 relative overflow-hidden group">
+                  <div className="absolute -top-4 -right-4 w-24 h-24 bg-indigo-500/10 rounded-full blur-2xl group-hover:bg-indigo-500/20 transition-all"></div>
                   <div className="relative z-10">
-                    <h4 className="text-xs font-bold text-primary uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
-                       <TrendingUp size={14} /> AI Suggested Response
-                    </h4>
-                    <p className="text-slate-300 text-sm mb-4 italic">
-                      {generateAiSuggestion(selectedTicket)}
-                    </p>
-                    <button 
-                      onClick={() => setNewComment(generateAiSuggestion(selectedTicket))}
-                      className="text-[10px] font-bold uppercase tracking-widest px-4 py-2 bg-primary/20 text-primary rounded-lg border border-primary/30 hover:bg-primary/30 transition-all"
-                    >
-                      Use Suggestion
-                    </button>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] flex items-center gap-2">
+                        <TrendingUp size={14} /> Neural Resolution Draft
+                      </h4>
+                      <div className="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 text-[8px] font-black uppercase tracking-widest border border-indigo-500/20">
+                         Gemini 1.5 Pro
+                      </div>
+                    </div>
+                    
+                    {isAiSuggesting ? (
+                      <div className="flex items-center gap-3 py-2">
+                        <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                        <p className="text-xs text-slate-500 italic font-medium">Neural engine drafting response...</p>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-slate-300 text-sm mb-4 leading-relaxed font-medium">
+                          {aiSuggestion || "Select a ticket to generate a smart resolution draft."}
+                        </p>
+                        {aiSuggestion && (
+                          <button 
+                            onClick={() => setNewComment(aiSuggestion)}
+                            className="text-[10px] font-black uppercase tracking-widest px-5 py-2.5 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-500/20 hover:bg-indigo-500 transition-all flex items-center gap-2"
+                          >
+                            <Ticket size={14} />
+                            Deploy Suggestion
+                          </button>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -493,26 +534,4 @@ export const AdminDashboard = ({ sessionUser, userProfile }) => {
   );
 };
 
-// Local badges removed, using shared components from src/components/ui/
-
-const generateAiSuggestion = (ticket) => {
-  if (!ticket) return "";
-  const desc = ticket.description.toLowerCase();
-  const cat = ticket.category;
-
-  if (cat === 'IT Support') {
-     if (desc.includes('password') || desc.includes('login')) return "We've reset your access credentials. Please try logging in again after 5 minutes.";
-     if (desc.includes('wifi') || desc.includes('internet')) return "IT team has been dispatched to check the router in your wing. Expected resolution by EOD.";
-     return "The technical team has received your request and is currently investigating the software/hardware issue.";
-  }
-  if (cat === 'Maintenance') {
-     return "A field technician has been assigned to inspect the reported site. We will update you once the maintenance work begins.";
-  }
-  if (cat === 'Financial') {
-     return "Your request has been forwarded to the accounts department for verification. This process typically takes 2-3 business days.";
-  }
-  if (cat === 'Academic') {
-     return "Your grievance has been shared with the department head. An academic counselor will contact you shortly to discuss this.";
-  }
-  return "Thank you for reporting this. We are currently reviewing the details and will get back to you with a resolution soon.";
-};
+export default AdminDashboard;

@@ -69,6 +69,39 @@ const geminiService = {
       console.error("Gemini Chat Neural Error:", err);
       return null;
     }
+  },
+
+  /**
+   * Neural Admin Suggestion Prototype
+   * Helps admins draft professional and effective resolutions.
+   */
+  async generateResolutionSuggestion(ticket) {
+    if (!genAI) return null;
+
+    try {
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const prompt = `
+        You are a resolution specialist. Draft a professional, empathetic, and actionable response for the following ticket:
+        Ticket ID: ${ticket.ticket_id}
+        Subject: ${ticket.title}
+        Category: ${ticket.category}
+        Description: "${ticket.description}"
+
+        Rules for response:
+        1. Professional and empathetic tone.
+        2. State specific next steps (e.g. "We have notified the [Category] department...").
+        3. Mention our goal for resolution within 48 hours.
+        4. Max 3 sentences.
+        5. Do NOT include placeholders like [Name]. Use "The support team" instead.
+      `;
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      return response.text().trim();
+    } catch (err) {
+      console.error("Gemini Resolution Suggestion Error:", err);
+      return null;
+    }
   }
 };
 
