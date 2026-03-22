@@ -5,6 +5,8 @@ import { LoginPage } from './pages/LoginPage';
 import { UserDashboard } from './pages/UserDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { ProfilePage } from './pages/ProfilePage';
+import { PublicStatusPage } from './pages/PublicStatusPage';
+import { BackgroundGradientAnimationDemo } from './components/ui/demo';
 import { supabase, isMisconfigured } from './lib/supabase';
 import { Toaster } from 'react-hot-toast';
 
@@ -44,46 +46,93 @@ const SetupError = () => (
   </div>
 );
 
+import { LandingPage } from './pages/LandingPage';
+
 function App() {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Show setup error immediately if env vars are missing
   if (isMisconfigured) return <SetupError />;
+  
+  const fetchProfile = async (session) => {
+    if (!session?.user) {
+      setLoading(false);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', session.user.id)
+      .single();
+    
+    if (data) {
+      setProfile(data);
+    } else {
+      // Fallback: Use metadata from Auth if profile row doesn't exist yet
+      setProfile({
+        id: session.user.id,
+        full_name: session.user.user_metadata?.full_name || 'New User',
+        role: session.user.user_metadata?.role || 'user',
+        notifications_enabled: true
+      });
+    }
+    setLoading(false);
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (session) fetchProfile(session.user.id);
-      else setLoading(false);
+      fetchProfile(session);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      if (session) fetchProfile(session.user.id);
+      if (session) fetchProfile(session);
       else {
         setProfile(null);
         setLoading(false);
       }
     });
 
-    return () => subscription.unsubscribe();
+    // Handle Mock/Demo Logins
+    const handleDemo = (e) => {
+      const { role } = e.detail;
+      const mockSession = {
+        user: { 
+          id: 'demo-id-' + Math.random(), 
+          email: `${role}@demo.internal`,
+          user_metadata: { full_name: `System ${role}`, role } 
+        }
+      };
+      setSession(mockSession);
+      setProfile({
+        id: mockSession.user.id,
+        full_name: mockSession.user.user_metadata.full_name,
+        role: mockSession.user.user_metadata.role,
+        notifications_enabled: true
+      });
+      setLoading(false);
+    };
+
+    window.addEventListener('demo-login', handleDemo);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('demo-login', handleDemo);
+    };
   }, []);
 
-  const fetchProfile = async (userId) => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    
-    if (data) setProfile(data);
-    setLoading(false);
-  };
-
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error('Logout error:', err);
+    } finally {
+      setSession(null);
+      setProfile(null);
+    }
   };
 
   if (loading) return (
@@ -114,22 +163,22 @@ function App() {
       />
       <Router>
         <Routes>
+          <Route path="/" element={!session ? <LandingPage /> : <Navigate to="/dashboard" />} />
+          <Route path="/login" element={!session ? <LoginPage /> : <Navigate to="/dashboard" />} />
           <Route 
-            path="/login" 
-            element={!session ? <LoginPage /> : <Navigate to="/" />} 
-          />
-          <Route 
-            path="/" 
-            element={session ? <Layout user={{...session.user, role: profile?.role || 'user'}} onLogout={handleLogout}>
-              {profile?.role === 'admin' ? <AdminDashboard /> : <UserDashboard />}
+            path="/dashboard" 
+            element={session ? <Layout user={{...session.user, role: profile?.role || 'user', notifications_enabled: profile?.notifications_enabled}} onLogout={handleLogout}>
+              {profile?.role === 'admin' ? <AdminDashboard sessionUser={session.user} userProfile={profile} /> : <UserDashboard sessionUser={session.user} userProfile={profile} />}
             </Layout> : <Navigate to="/login" />} 
           />
           <Route 
             path="/profile" 
-            element={session ? <Layout user={{...session.user, role: profile?.role || 'user'}} onLogout={handleLogout}>
-              <ProfilePage />
+            element={session ? <Layout user={{...session.user, role: profile?.role || 'user', notifications_enabled: profile?.notifications_enabled}} onLogout={handleLogout}>
+              <ProfilePage sessionUser={session.user} userProfile={profile} />
             </Layout> : <Navigate to="/login" />} 
           />
+          <Route path="/track" element={<PublicStatusPage />} />
+          <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Router>
     </>

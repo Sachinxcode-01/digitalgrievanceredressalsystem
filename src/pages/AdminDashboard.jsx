@@ -5,8 +5,11 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, B
 import confetti from 'canvas-confetti';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
+import { grievanceService } from '../api/grievanceService';
+import StatusBadge from '../components/ui/StatusBadge';
+import UrgencyBadge from '../components/ui/UrgencyBadge';
 
-export const AdminDashboard = () => {
+export const AdminDashboard = ({ sessionUser, userProfile }) => {
   const [tickets, setTickets] = useState([]);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [resolutionNote, setResolutionNote] = useState('');
@@ -91,14 +94,13 @@ export const AdminDashboard = () => {
     if (!newComment.trim() || !selectedTicket) return;
     
     setIsSendingComment(true);
-    const { data: { user } } = await supabase.auth.getUser();
     
     const { error } = await supabase
       .from('ticket_comments')
       .insert([
         { 
           grievance_id: selectedTicket.id,
-          user_id: user.id,
+          user_id: sessionUser.id,
           message: newComment
         }
       ]);
@@ -112,13 +114,14 @@ export const AdminDashboard = () => {
 
   const fetchGlobalTickets = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('grievances')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (data) setTickets(data);
-    setLoading(false);
+    try {
+      const data = await grievanceService.getAll();
+      setTickets(data);
+    } catch (err) {
+      toast.error('Could not fetch global grievances');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleUpdateStatus = async (status) => {
@@ -180,10 +183,16 @@ export const AdminDashboard = () => {
   };
 
   const adminStats = [
+    { label: 'High Priority', value: tickets.filter(t => t.urgency === 'High' && t.status !== 'Resolved').length, icon: <AlertTriangle />, color: 'text-error' },
     { label: 'Pending Action', value: tickets.filter(t => t.status === 'Pending').length, icon: <Clock />, color: 'text-warning' },
-    { label: 'Resolved Today', value: tickets.filter(t => t.status === 'Resolved').length, icon: <CheckCircle />, color: 'text-success' },
-    { label: 'Total Volume', value: tickets.length, icon: <Ticket />, color: 'text-primary' },
+    { label: 'Resolved (Total)', value: tickets.filter(t => t.status === 'Resolved').length, icon: <CheckCircle />, color: 'text-success' },
   ];
+
+  const getPriorityScore = (ticket) => {
+    const urgencyMap = { 'High': 3, 'Medium': 2, 'Low': 1 };
+    const ageInDays = (new Date() - new Date(ticket.created_at)) / (1000 * 60 * 60 * 24);
+    return (urgencyMap[ticket.urgency] || 1) * (1 + ageInDays);
+  };
 
   const filteredTickets = tickets.filter(ticket => {
     const matchesSearch = ticket.ticket_id.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -192,6 +201,8 @@ export const AdminDashboard = () => {
     const matchesCategory = categoryFilter === 'All' || ticket.category === categoryFilter;
     return matchesSearch && matchesStatus && matchesCategory;
   });
+
+  const sortedTickets = [...filteredTickets].sort((a, b) => getPriorityScore(b) - getPriorityScore(a));
 
   // Analytics Data
   const categoryData = [
@@ -216,21 +227,32 @@ export const AdminDashboard = () => {
           <h2 className="text-3xl font-bold font-['Outfit'] text-white">Administration Control</h2>
           <p className="text-slate-400">Review and resolve organization-wide grievances.</p>
         </div>
-        <button onClick={handleExportCSV} className="btn-ghost flex items-center gap-2 text-sm bg-white/5 hover:bg-white/10">
+        <motion.button 
+          whileHover={{ scale: 1.05 }} 
+          whileTap={{ scale: 0.95 }}
+          onClick={handleExportCSV} 
+          className="btn-premium !py-3 !px-6 !text-xs"
+        >
           <Download size={16} />
           Export CSV Report
-        </button>
+        </motion.button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {adminStats.map((stat, idx) => (
-          <div key={idx} className="glass-card p-6">
+          <motion.div 
+            key={idx} 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: idx * 0.1 }}
+            className="glass-card p-8 group border-white/[0.03]"
+          >
             <div className="flex items-center gap-4 mb-4">
-              <div className={`p-3 rounded-xl bg-white/5 ${stat.color}`}>{stat.icon}</div>
-              <span className="text-sm font-medium text-slate-400">{stat.label}</span>
+              <div className={`p-4 rounded-[20px] bg-white/[0.03] ${stat.color} group-hover:bg-white/[0.08] transition-colors`}>{stat.icon}</div>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">{stat.label}</span>
             </div>
-            <h3 className="text-3xl font-bold text-white">{stat.value}</h3>
-          </div>
+            <h3 className="text-4xl font-black text-white">{stat.value}</h3>
+          </motion.div>
         ))}
       </div>
 
@@ -332,14 +354,17 @@ export const AdminDashboard = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {filteredTickets.map((ticket, idx) => (
-                  <tr key={idx} className="hover:bg-white/5 transition-colors group">
+                {sortedTickets.map((ticket, idx) => (
+                  <tr key={idx} className={`hover:bg-white/5 transition-colors group ${getPriorityScore(ticket) > 5 ? 'border-l-2 border-error/50' : ''}`}>
                     <td className="px-6 py-4">
                        <StatusBadge status={ticket.status} />
                     </td>
                     <td className="px-6 py-4">
                       <div>
-                        <p className="font-bold text-white mb-0.5">{ticket.ticket_id}</p>
+                        <p className="font-bold text-white mb-0.5 flex items-center gap-2">
+                          {ticket.ticket_id}
+                          {getPriorityScore(ticket) > 8 && <TrendingUp size={12} className="text-error animate-pulse" />}
+                        </p>
                         <p className="text-xs text-slate-500 truncate max-w-[200px]">{ticket.title}</p>
                       </div>
                     </td>
@@ -350,7 +375,7 @@ export const AdminDashboard = () => {
                       <UrgencyBadge level={ticket.urgency} />
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button onClick={() => handleSelectTicket(ticket)} className="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-all">
+                      <button onClick={() => handleSelectTicket(ticket)} className="btn-primary !p-2 !rounded-lg !bg-white/5 hover:!bg-white/10">
                         <MoreVertical size={18} />
                       </button>
                     </td>
@@ -391,6 +416,27 @@ export const AdminDashboard = () => {
                   </div>
                 )}
 
+                {/* AI Assistant for Admin */}
+                <div className="p-6 bg-primary/5 rounded-2xl border border-primary/20 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-3 opacity-20 group-hover:opacity-100 transition-opacity">
+                    <TrendingUp size={40} className="text-primary" />
+                  </div>
+                  <div className="relative z-10">
+                    <h4 className="text-xs font-bold text-primary uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+                       <TrendingUp size={14} /> AI Suggested Response
+                    </h4>
+                    <p className="text-slate-300 text-sm mb-4 italic">
+                      {generateAiSuggestion(selectedTicket)}
+                    </p>
+                    <button 
+                      onClick={() => setNewComment(generateAiSuggestion(selectedTicket))}
+                      className="text-[10px] font-bold uppercase tracking-widest px-4 py-2 bg-primary/20 text-primary rounded-lg border border-primary/30 hover:bg-primary/30 transition-all"
+                    >
+                      Use Suggestion
+                    </button>
+                  </div>
+                </div>
+
                 {/* Comments Section */}
                 <div className="mt-8 pt-8 border-t border-white/10">
                   <h4 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
@@ -425,19 +471,19 @@ export const AdminDashboard = () => {
                       className="glass-input flex-1 text-sm py-2 px-4"
                       required
                     />
-                    <button type="submit" disabled={isSendingComment} className="bg-primary hover:bg-primary-dark text-white px-4 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-2">
+                    <button type="submit" disabled={isSendingComment} className="btn-primary px-4 py-2 !rounded-xl !text-sm">
                       Send
                     </button>
                   </form>
                 </div>
 
-                <div className="flex items-center gap-4 mt-8 pt-4 border-t border-white/10">
-                   <button onClick={() => handleUpdateStatus('In-Progress')} className="btn-ghost flex-1">Mark In-Progress</button>
-                   <button onClick={() => handleUpdateStatus('Resolved')} className="btn-primary flex-1 bg-success hover:bg-success/80 flex items-center justify-center gap-2">
-                    <CheckCircle2 size={18} />
-                    Resolve Ticket
-                   </button>
-                </div>
+                 <div className="flex items-center gap-4 mt-12 pt-8 border-t border-white/[0.05]">
+                    <button onClick={() => handleUpdateStatus('In-Progress')} className="btn-ghost flex-1">Mark In-Progress</button>
+                    <button onClick={() => handleUpdateStatus('Resolved')} className="btn-premium flex-1">
+                     <CheckCircle2 size={18} />
+                     Resolve Ticket
+                    </button>
+                 </div>
               </div>
             </motion.div>
           </div>
@@ -447,25 +493,26 @@ export const AdminDashboard = () => {
   );
 };
 
-const StatusBadge = ({ status }) => {
-  const styles = {
-    'Pending': 'text-slate-500 bg-slate-500/10 border-slate-500/20',
-    'In-Progress': 'text-warning bg-warning/10 border-warning/20',
-    'Resolved': 'text-success bg-success/10 border-success/20',
-  };
-  return <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter border ${styles[status]}`}>{status}</span>;
-};
+// Local badges removed, using shared components from src/components/ui/
 
-const UrgencyBadge = ({ level }) => {
-  const styles = {
-    'High': 'text-error',
-    'Medium': 'text-warning',
-    'Low': 'text-success'
-  };
-  return (
-    <div className="flex items-center gap-2">
-      <span className={`w-2 h-2 rounded-full ${level === 'High' ? 'bg-error shadow-[0_0_8px_rgba(239,68,68,0.5)]' : level === 'Medium' ? 'bg-warning' : 'bg-success'}`}></span>
-      <span className={`text-xs font-bold uppercase tracking-wider ${styles[level]}`}>{level}</span>
-    </div>
-  );
+const generateAiSuggestion = (ticket) => {
+  if (!ticket) return "";
+  const desc = ticket.description.toLowerCase();
+  const cat = ticket.category;
+
+  if (cat === 'IT Support') {
+     if (desc.includes('password') || desc.includes('login')) return "We've reset your access credentials. Please try logging in again after 5 minutes.";
+     if (desc.includes('wifi') || desc.includes('internet')) return "IT team has been dispatched to check the router in your wing. Expected resolution by EOD.";
+     return "The technical team has received your request and is currently investigating the software/hardware issue.";
+  }
+  if (cat === 'Maintenance') {
+     return "A field technician has been assigned to inspect the reported site. We will update you once the maintenance work begins.";
+  }
+  if (cat === 'Financial') {
+     return "Your request has been forwarded to the accounts department for verification. This process typically takes 2-3 business days.";
+  }
+  if (cat === 'Academic') {
+     return "Your grievance has been shared with the department head. An academic counselor will contact you shortly to discuss this.";
+  }
+  return "Thank you for reporting this. We are currently reviewing the details and will get back to you with a resolution soon.";
 };

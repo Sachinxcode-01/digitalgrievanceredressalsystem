@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Clock, CheckCircle2, AlertCircle, Filter, X, Send, Ticket, Sparkles, Loader2 } from 'lucide-react';
+import { Plus, Clock, CheckCircle2, AlertCircle, Filter, X, Send, Ticket, Sparkles, Loader2, MailCheck, ArrowRight, TrendingUp } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '../lib/supabase';
+import { grievanceService } from '../api/grievanceService';
+import StatusBadge from '../components/ui/StatusBadge';
+import UrgencyBadge from '../components/ui/UrgencyBadge';
+import TimelineStep from '../components/ui/TimelineStep';
 
-export const UserDashboard = () => {
+export const UserDashboard = ({ sessionUser, userProfile }) => {
   const [showModal, setShowModal] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [tickets, setTickets] = useState([]);
@@ -25,36 +30,17 @@ export const UserDashboard = () => {
   // AI Assist logic
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  const handleAiAnalyze = () => {
+  const handleAiAnalyze = async () => {
     if (!description.trim()) {
       toast.error("Please enter a description first so the AI can analyze it!");
       return;
     }
     setIsAnalyzing(true);
     
-    // Simulate AI processing time with a fun delay
-    setTimeout(() => {
-      const lowerDesc = description.toLowerCase();
-      
-      // Smart category matching logic
-      if (lowerDesc.includes('fee') || lowerDesc.includes('pay') || lowerDesc.includes('money') || lowerDesc.includes('scholarship')) {
-        setCategory('Financial');
-      } else if (lowerDesc.includes('class') || lowerDesc.includes('teacher') || lowerDesc.includes('grade') || lowerDesc.includes('course')) {
-        setCategory('Academic');
-      } else if (lowerDesc.includes('clean') || lowerDesc.includes('water') || lowerDesc.includes('broken') || lowerDesc.includes('wall') || lowerDesc.includes('door')) {
-        setCategory('Maintenance');
-      } else {
-        setCategory('IT Support');
-      }
-      
-      // Smart urgency matching logic
-      if (lowerDesc.includes('urgent') || lowerDesc.includes('emergency') || lowerDesc.includes('now') || lowerDesc.includes('crash') || lowerDesc.includes('immediate')) {
-        setUrgency('High');
-      } else if (lowerDesc.includes('when you can') || lowerDesc.includes('low') || lowerDesc.includes('later') || lowerDesc.includes('suggestion')) {
-        setUrgency('Low');
-      } else {
-        setUrgency('Medium');
-      }
+    try {
+      const data = await grievanceService.analyze(description);
+      setCategory(data.category);
+      setUrgency(data.urgency);
       
       // Auto-generate title if blank
       if (!title) {
@@ -62,9 +48,15 @@ export const UserDashboard = () => {
         setTitle(`${snippet}... Request`);
       }
       
+      toast.success("AI auto-filled category and urgency via backend!");
+    } catch (err) {
+      toast.error("Failed to reach AI backend. Using fallback.");
+      // Fallback
+      setCategory('IT Support');
+      setUrgency('Medium');
+    } finally {
       setIsAnalyzing(false);
-      toast.success("AI auto-filled category and urgency!");
-    }, 1500);
+    }
   };
 
   useEffect(() => {
@@ -137,14 +129,13 @@ export const UserDashboard = () => {
     if (!newComment.trim() || !selectedTicket) return;
     
     setIsSendingComment(true);
-    const { data: { user } } = await supabase.auth.getUser();
     
     const { error } = await supabase
       .from('ticket_comments')
       .insert([
         { 
           grievance_id: selectedTicket.id,
-          user_id: user.id,
+          user_id: sessionUser.id,
           message: newComment
         }
       ]);
@@ -158,46 +149,62 @@ export const UserDashboard = () => {
 
   const fetchTickets = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('grievances')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (data) setTickets(data);
-    setLoading(false);
+    try {
+      const data = await grievanceService.getAll();
+      setTickets(data);
+    } catch (err) {
+      toast.error('Could not load tickets');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  // derived activity feed
+  const activityFeed = [
+    ...tickets.map(t => ({ 
+      id: t.id, 
+      type: 'TICKET', 
+      title: 'New Grievance', 
+      desc: t.title, 
+      date: new Date(t.created_at),
+      status: t.status 
+    })),
+    ...comments.map(c => ({ 
+      id: c.id, 
+      type: 'COMMENT', 
+      title: c.profiles?.role === 'admin' ? 'Admin Response' : 'New Comment', 
+      desc: c.message, 
+      date: new Date(c.created_at) 
+    }))
+  ].sort((a, b) => b.date - a.date).slice(0, 5);
 
   const handleCreateGrievance = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    const { data: { user } } = await supabase.auth.getUser();
     
     const ticketId = `TKT-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    const { error } = await supabase
-      .from('grievances')
-      .insert([
-        { 
-          ticket_id: ticketId,
-          user_id: user.id,
-          title, 
-          description, 
-          category, 
-          urgency,
-          status: 'Pending'
-        }
-      ]);
+    try {
+      await grievanceService.create({ 
+        ticket_id: ticketId,
+        user_id: sessionUser.id,
+        email: sessionUser.email || sessionUser.user_metadata?.email,
+        title, 
+        description, 
+        category, 
+        urgency
+      });
 
-    if (!error) {
       setShowModal(false);
       setTitle('');
       setDescription('');
       fetchTickets();
       toast.success('Your grievance has been submitted successfully.');
-    } else {
-      toast.error(error.message);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   const stats = [
@@ -206,6 +213,8 @@ export const UserDashboard = () => {
     { label: 'Resolved', value: tickets.filter(t => t.status === 'Resolved').length, icon: <CheckCircle2 size={20} />, color: 'bg-success' },
   ];
 
+  const notificationsEnabled = userProfile?.notifications_enabled !== false;
+
   return (
     <div className="space-y-8">
       <div className="flex items-end justify-between">
@@ -213,67 +222,151 @@ export const UserDashboard = () => {
           <h2 className="text-3xl font-bold text-white mb-2 font-['Outfit']">Dashboard Overview</h2>
           <p className="text-slate-400">Manage and track your reported grievances.</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2">
+        <motion.button 
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setShowModal(true)} 
+          className="btn-premium"
+        >
           <Plus size={20} />
           Report New Grievance
-        </button>
+        </motion.button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {stats.map((stat, idx) => (
-          <div key={idx} className="glass-card p-6 flex items-center justify-between">
+          <motion.div 
+            key={idx} 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: idx * 0.1 }}
+            className="glass-card p-8 flex items-center justify-between"
+          >
             <div>
-              <p className="text-slate-400 text-sm font-medium mb-1">{stat.label}</p>
-              <h3 className="text-3xl font-bold text-white">{stat.value}</h3>
+              <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-2">{stat.label}</p>
+              <h3 className="text-4xl font-black text-white">{stat.value}</h3>
             </div>
-            <div className={`p-4 ${stat.color}/20 text-white rounded-2xl shadow-inner`}>
+            <div className={`p-5 rounded-[24px] bg-white/[0.03] border border-white/[0.05] ${stat.color.replace('bg-', 'text-')} shadow-inner`}>
               {stat.icon}
             </div>
-          </div>
+          </motion.div>
         ))}
       </div>
 
-      <div className="glass-card overflow-hidden">
-        <div className="p-6 border-b border-white/10 flex items-center justify-between">
-          <h3 className="font-bold text-lg">My Grievances</h3>
+      {!notificationsEnabled && (
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="p-1 rounded-2xl bg-gradient-to-r from-primary/50 via-secondary/50 to-primary/50 animate-rainbow-anim bg-[length:200%_auto]"
+        >
+          <div className="bg-slate-900 rounded-[15px] p-6 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+                <MailCheck size={24} />
+              </div>
+              <div>
+                <h4 className="text-lg font-bold text-white">Enable Email Notifications</h4>
+                <p className="text-slate-400 text-sm">Don't miss out! Get instant updates on your grievance resolution status.</p>
+              </div>
+            </div>
+            <button 
+              onClick={async () => {
+                if (sessionUser?.id?.startsWith('demo-')) {
+                   toast.success('Email notifications enabled! (Demo)');
+                   return;
+                }
+                const { error } = await supabase.from('profiles').update({ notifications_enabled: true }).eq('id', sessionUser.id);
+                if (!error) {
+                  toast.success('Email notifications enabled!');
+                  window.location.reload(); // Refresh to update state, or use a prop-based refresh
+                }
+              }}
+              className="btn-primary flex items-center gap-2 whitespace-nowrap"
+            >
+              Enable Now
+              <ArrowRight size={18} />
+            </button>
+          </div>
+        </motion.div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-8">
+          <div className="glass-card overflow-hidden">
+            <div className="p-6 border-b border-white/10 flex items-center justify-between">
+              <h3 className="font-bold text-lg">My Grievances</h3>
+            </div>
+            <div className="overflow-x-auto">
+              {loading ? (
+                <div className="p-20 text-center text-slate-500">Loading your tickets...</div>
+              ) : tickets.length === 0 ? (
+                <div className="p-20 text-center text-slate-500">No grievances found. Create one to get started.</div>
+              ) : (
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-white/5 text-left text-xs uppercase tracking-wider text-slate-400">
+                      <th className="px-6 py-4 font-semibold">Ticket ID</th>
+                      <th className="px-6 py-4 font-semibold">Subject</th>
+                      <th className="px-6 py-4 font-semibold text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {tickets.map((ticket, idx) => (
+                      <tr key={idx} onClick={() => handleSelectTicket(ticket)} className="hover:bg-white/5 transition-colors cursor-pointer group">
+                        <td className="px-6 py-5 font-mono text-xs text-primary font-bold">{ticket.ticket_id}</td>
+                        <td className="px-6 py-5 font-medium text-slate-200">{ticket.title}</td>
+                        <td className="px-6 py-5 text-right">
+                          <StatusBadge status={ticket.status} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          {loading ? (
-            <div className="p-20 text-center text-slate-500">Loading your tickets...</div>
-          ) : tickets.length === 0 ? (
-            <div className="p-20 text-center text-slate-500">No grievances found. Create one to get started.</div>
-          ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="bg-white/5 text-left text-xs uppercase tracking-wider text-slate-400">
-                  <th className="px-6 py-4 font-semibold">Ticket ID</th>
-                  <th className="px-6 py-4 font-semibold">Subject</th>
-                  <th className="px-6 py-4 font-semibold">Category</th>
-                  <th className="px-6 py-4 font-semibold">Urgency</th>
-                  <th className="px-6 py-4 font-semibold">Status</th>
-                  <th className="px-6 py-4 text-right">Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {tickets.map((ticket, idx) => (
-                  <tr key={idx} onClick={() => handleSelectTicket(ticket)} className="hover:bg-white/5 transition-colors cursor-pointer group">
-                    <td className="px-6 py-5 font-mono text-xs text-primary font-bold">{ticket.ticket_id}</td>
-                    <td className="px-6 py-5 font-medium text-slate-200">{ticket.title}</td>
-                    <td className="px-6 py-5">
-                      <span className="bg-white/5 px-2 py-1 rounded text-xs text-slate-400">{ticket.category}</span>
-                    </td>
-                    <td className="px-6 py-5">
-                      <UrgencyBadge level={ticket.urgency} />
-                    </td>
-                    <td className="px-6 py-5">
-                      <StatusBadge status={ticket.status} />
-                    </td>
-                    <td className="px-6 py-5 text-right text-sm text-slate-500">{new Date(ticket.created_at).toLocaleDateString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+
+        <div className="space-y-8">
+          <div className="glass-card p-6">
+            <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
+              <TrendingUp size={20} className="text-secondary" />
+              Recent Activity
+            </h3>
+            <div className="space-y-6">
+              {activityFeed.length === 0 ? (
+                <p className="text-slate-500 text-sm italic">No recent activity.</p>
+              ) : (
+                activityFeed.map((item, idx) => (
+                  <div key={idx} className="flex gap-4 relative">
+                    {idx !== activityFeed.length - 1 && (
+                      <div className="absolute left-[11px] top-6 bottom-[-24px] w-[2px] bg-white/5" />
+                    )}
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 z-10 ${
+                      item.type === 'TICKET' ? 'bg-primary/20 text-primary' : 'bg-secondary/20 text-secondary'
+                    }`}>
+                      {item.type === 'TICKET' ? <Ticket size={12} /> : <CheckCircle2 size={12} />}
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-bold text-white">{item.title}</p>
+                      <p className="text-xs text-slate-400 line-clamp-1">{item.desc}</p>
+                      <p className="text-[10px] text-slate-500 font-mono">
+                        {formatDistanceToNow(item.date, { addSuffix: true })}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="glass-card p-6 bg-gradient-to-br from-primary/10 to-transparent border-primary/20">
+            <h4 className="text-sm font-bold text-white mb-2">Need faster resolution?</h4>
+            <p className="text-xs text-slate-400 mb-4">Our AI assistant can help triage your grievance to the right department immediately.</p>
+            <button onClick={() => setShowModal(true)} className="w-full py-2 bg-primary/20 hover:bg-primary/30 text-primary text-xs font-bold rounded-lg border border-primary/30 transition-all uppercase tracking-widest">
+              Quick Submit
+            </button>
+          </div>
         </div>
       </div>
 
@@ -317,7 +410,7 @@ export const UserDashboard = () => {
                       type="button" 
                       onClick={handleAiAnalyze}
                       disabled={isAnalyzing}
-                      className="flex items-center gap-1.5 text-xs font-bold bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 text-white px-3 py-1.5 rounded-full shadow-lg shadow-purple-500/30 transition-all disabled:opacity-50"
+                      className="btn-primary !py-1.5 !px-3 !text-[10px] !rounded-full shadow-lg transition-all disabled:opacity-50"
                     >
                       {isAnalyzing ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
                       {isAnalyzing ? 'AI Analyzing...' : 'AI Auto-Fill'}
@@ -325,9 +418,9 @@ export const UserDashboard = () => {
                   </div>
                   <textarea rows="4" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe your problem... (Click AI Auto-Fill to automatically set category and urgency!)" className="glass-input w-full resize-none py-3" required></textarea>
                 </div>
-                <div className="flex items-center gap-4 pt-4">
+                <div className="flex items-center gap-4 pt-8">
                   <button type="button" onClick={() => setShowModal(false)} className="btn-ghost flex-1">Cancel</button>
-                  <button disabled={isSubmitting} type="submit" className="btn-primary flex-1 flex items-center justify-center gap-2">
+                  <button disabled={isSubmitting} type="submit" className="btn-premium flex-1">
                     {isSubmitting ? 'Submitting...' : 'Submit Ticket'}
                     <Send size={18} />
                   </button>
@@ -368,6 +461,33 @@ export const UserDashboard = () => {
                   <h4 className="text-xs uppercase font-bold text-slate-500 tracking-widest mb-2">Description</h4>
                   <p className="text-slate-200 leading-relaxed bg-white/5 p-4 rounded-xl border border-white/10">{selectedTicket.description}</p>
                 </div>
+
+                {/* Tracking Progress Timeline */}
+                <div className="py-6">
+                  <h4 className="text-xs uppercase font-bold text-slate-500 tracking-widest mb-4">Resolution Timeline</h4>
+                  <div className="space-y-0 relative">
+                    <div className="absolute left-[15px] top-2 bottom-2 w-0.5 bg-white/5" />
+                    
+                    <TimelineStep 
+                      done={true} 
+                      label="Reported" 
+                      date={new Date(selectedTicket.created_at).toLocaleDateString()}
+                      desc="Grievance successfully logged into the system."
+                    />
+                    <TimelineStep 
+                      done={selectedTicket.status !== 'Pending'} 
+                      active={selectedTicket.status === 'In-Progress'}
+                      label="In-Progress" 
+                      desc="An administrator is currently reviewing your request."
+                    />
+                    <TimelineStep 
+                      done={selectedTicket.status === 'Resolved'} 
+                      active={selectedTicket.status === 'Resolved'}
+                      label="Resolved" 
+                      desc="The issue has been addressed and the ticket is closed."
+                    />
+                  </div>
+                </div>
                 
                 {/* Comments Section */}
                 <div className="mt-8 pt-8 border-t border-white/10">
@@ -403,7 +523,7 @@ export const UserDashboard = () => {
                       className="glass-input flex-1 text-sm py-2 px-4"
                       required
                     />
-                    <button type="submit" disabled={isSendingComment} className="bg-primary hover:bg-primary-dark text-white px-4 rounded-xl transition-colors disabled:opacity-50">
+                    <button type="submit" disabled={isSendingComment} className="btn-primary px-3 py-2 !rounded-xl">
                       <Send size={16} />
                     </button>
                   </form>
@@ -417,25 +537,5 @@ export const UserDashboard = () => {
   );
 };
 
-const StatusBadge = ({ status }) => {
-  const styles = {
-    'Pending': 'bg-slate-500/10 text-slate-400 border border-slate-500/20',
-    'In-Progress': 'bg-warning/10 text-warning border border-warning/20',
-    'Resolved': 'bg-success/10 text-success border border-success/20',
-  };
-  return <span className={`status-badge ${styles[status]}`}>{status}</span>;
-}
+// Shared UI components imported from src/components/ui/
 
-const UrgencyBadge = ({ level }) => {
-  const styles = {
-    'Low': 'text-success',
-    'Medium': 'text-warning',
-    'High': 'text-error font-bold underline underline-offset-4',
-  };
-  return (
-    <div className="flex items-center gap-2">
-      <div className={`w-1.5 h-1.5 rounded-full ${level === 'High' ? 'bg-error animate-pulse' : level === 'Medium' ? 'bg-warning' : 'bg-success'}`}></div>
-      <span className={`text-xs font-semibold ${styles[level]}`}>{level}</span>
-    </div>
-  );
-}
