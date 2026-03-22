@@ -2,7 +2,6 @@
   "name": "digital-grievance-system",
   "private": true,
   "version": "0.0.0",
-  "type": "module",
   "scripts": {
     "dev:client": "vite",
     "dev:server": "nodemon server/index.js",
