@@ -37,45 +37,37 @@ export const LoginPage = () => {
       let authError = null;
 
       if (isVerifying) {
-        const { data, error } = await supabase.auth.verifyOtp({
-          email,
-          token: otp,
-          type: isSignUp ? 'signup' : 'email'
+        // --- Call Custom Node.js Verify OTP API ---
+        const response = await fetch('/api/auth/verify-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, otp })
         });
+        const data = await response.json();
         
-        if (error) authError = error;
-        else if (data?.session) {
-          setSuccessMsg('Identity verified! Preparing your dashboard...');
-        }
-      } else if (isSignUp) {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              full_name: fullName,
-              role: email.toLowerCase().includes('admin') ? 'admin' : 'user'
-            }
-          }
-        });
-        if (error) authError = error;
-        else if (data?.session) {
-          setSuccessMsg('Account created successfully! Auto-logging in...');
-        } else {
-          setIsVerifying(true);
-          setSuccessMsg('Check your email for a verification code!');
-        }
+        if (data.error) throw new Error(data.error);
+        
+        setSuccessMsg('Identity verified! Syncing terminal...');
+        // Simulate a legitimate login via the Demo-Login event (Bridging Custom Auth to App State)
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('demo-login', { 
+            detail: { role: email.toLowerCase().includes('admin') ? 'admin' : 'user' } 
+          }));
+        }, 1500);
       } else if (isMagicLink) {
-        const { error } = await supabase.auth.signInWithOtp({ 
-          email,
-          options: { emailRedirectTo: window.location.origin }
+        // --- Call Custom Node.js Send OTP API ---
+        const response = await fetch('/api/auth/send-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
         });
-        if (error) authError = error;
-        else {
-          setSuccessMsg('Check your email for the magic code!');
-          setIsVerifying(true);
-        }
-      } else {
+        const data = await response.json();
+        
+        if (data.error) throw new Error(data.error);
+        
+        setSuccessMsg('Check your email for the 6-digit access key!');
+        setIsVerifying(true);
+      } else if (isSignUp) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) authError = error;
         else setSuccessMsg('Access granted. Welcome back.');
