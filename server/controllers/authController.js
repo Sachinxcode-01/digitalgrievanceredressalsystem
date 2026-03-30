@@ -1,4 +1,5 @@
-const { sendOTPEmail } = require('../services/emailService');
+const { sendOTPEmail, sendWelcomeEmail } = require('../services/emailService');
+
 
 // Global store for OTPs for simple state management.
 // In a real application, you'd store this in Redis or Supabase.
@@ -56,7 +57,20 @@ const verifyOtp = (req, res) => {
   res.json({ message: 'OTP verified successfully.', token: 'dummy_jwt_token_for_auth' });
 };
 
+const sendWelcome = async (req, res) => {
+  const { email, fullName } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email required.' });
+  try {
+    await sendWelcomeEmail(email, fullName || 'New User');
+    res.json({ message: 'Welcome email transmitted.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to send welcome email.' });
+  }
+};
+
 module.exports = {
   sendOtp,
-  verifyOtp
+  verifyOtp,
+  sendWelcome
 };
+

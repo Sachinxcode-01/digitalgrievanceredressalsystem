@@ -52,6 +52,12 @@ function App() {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [theme, setTheme] = useState(localStorage.getItem('app-theme') || 'ocean');
+
+  useEffect(() => {
+    document.body.className = theme === 'midnight' ? 'theme-midnight' : '';
+    localStorage.setItem('app-theme', theme);
+  }, [theme]);
 
   if (isMisconfigured) return <SetupError />;
   
@@ -83,36 +89,57 @@ function App() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      fetchProfile(session);
+      if (session) {
+        setSession(session);
+        fetchProfile(session);
+      } else {
+        // Check for local guest session
+        const stored = localStorage.getItem('demo-session');
+        if (stored) {
+          const mock = JSON.parse(stored);
+          setSession(mock.session);
+          setProfile(mock.profile);
+          setLoading(false);
+        } else {
+          setLoading(false);
+        }
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session) fetchProfile(session);
-      else {
+      if (session) {
+        setSession(session);
+        fetchProfile(session);
+      } else if (!localStorage.getItem('demo-session')) {
         setProfile(null);
+        setSession(null);
         setLoading(false);
       }
     });
 
     // Handle Mock/Demo Logins
     const handleDemo = (e) => {
-      const { role } = e.detail;
+      const { role, email, fullName } = e.detail;
       const mockSession = {
         user: { 
           id: 'demo-id-' + Math.random(), 
-          email: `${role}@demo.internal`,
-          user_metadata: { full_name: `System ${role}`, role } 
+          email: email || `${role}@demo.internal`,
+          user_metadata: { 
+            full_name: fullName || (email ? email.split('@')[0] : `System ${role}`), 
+            role 
+          } 
         }
       };
-      setSession(mockSession);
-      setProfile({
+      const profileData = {
         id: mockSession.user.id,
         full_name: mockSession.user.user_metadata.full_name,
         role: mockSession.user.user_metadata.role,
         notifications_enabled: true
-      });
+      };
+
+      setSession(mockSession);
+      setProfile(profileData);
+      localStorage.setItem('demo-session', JSON.stringify({ session: mockSession, profile: profileData }));
       setLoading(false);
     };
 
@@ -130,6 +157,7 @@ function App() {
     } catch (err) {
       console.error('Logout error:', err);
     } finally {
+      localStorage.removeItem('demo-session');
       setSession(null);
       setProfile(null);
     }
@@ -167,13 +195,13 @@ function App() {
           <Route path="/login" element={!session ? <LoginPage /> : <Navigate to="/dashboard" />} />
           <Route 
             path="/dashboard" 
-            element={session ? <Layout user={{...session.user, role: profile?.role || 'user', notifications_enabled: profile?.notifications_enabled}} onLogout={handleLogout}>
+            element={session ? <Layout user={{...session.user, role: profile?.role || 'user', notifications_enabled: profile?.notifications_enabled}} onLogout={handleLogout} theme={theme} setTheme={setTheme}>
               {profile?.role === 'admin' ? <AdminDashboard sessionUser={session.user} userProfile={profile} /> : <UserDashboard sessionUser={session.user} userProfile={profile} />}
             </Layout> : <Navigate to="/login" />} 
           />
           <Route 
             path="/profile" 
-            element={session ? <Layout user={{...session.user, role: profile?.role || 'user', notifications_enabled: profile?.notifications_enabled}} onLogout={handleLogout}>
+            element={session ? <Layout user={{...session.user, role: profile?.role || 'user', notifications_enabled: profile?.notifications_enabled}} onLogout={handleLogout} theme={theme} setTheme={setTheme}>
               <ProfilePage sessionUser={session.user} userProfile={profile} />
             </Layout> : <Navigate to="/login" />} 
           />

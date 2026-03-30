@@ -23,6 +23,7 @@ const analyzeGrievance = async (description) => {
   
   let category = 'IT Support';
   let urgency = 'Medium';
+  let frustration_index = 1;
 
   // Smart category matching logic
   if (lowerDesc.includes('fee') || lowerDesc.includes('pay') || lowerDesc.includes('money') || lowerDesc.includes('scholarship')) {
@@ -36,11 +37,17 @@ const analyzeGrievance = async (description) => {
   // Smart urgency matching logic
   if (lowerDesc.includes('urgent') || lowerDesc.includes('emergency') || lowerDesc.includes('now') || lowerDesc.includes('crash') || lowerDesc.includes('immediate')) {
     urgency = 'High';
+    frustration_index = 8;
   } else if (lowerDesc.includes('when you can') || lowerDesc.includes('low') || lowerDesc.includes('later') || lowerDesc.includes('suggestion')) {
     urgency = 'Low';
+    frustration_index = 1;
+  } else if (lowerDesc.includes('mad') || lowerDesc.includes('angry') || lowerDesc.includes('terrible') || lowerDesc.includes('worst')) {
+    frustration_index = 9;
+  } else {
+    frustration_index = 4;
   }
 
-  return { category, urgency };
+  return { category, urgency, frustration_index };
 };
 
 module.exports = {

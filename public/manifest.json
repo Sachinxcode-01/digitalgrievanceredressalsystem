@@ -1,0 +1,20 @@
+{
+  "short_name": "ResolveNow",
+  "name": "Digital grievance Redressal System",
+  "icons": [
+    {
+      "src": "logo_192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "logo_512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#4361ee",
+  "background_color": "#000814"
+}

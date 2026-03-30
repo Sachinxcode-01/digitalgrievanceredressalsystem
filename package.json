@@ -6,10 +6,15 @@
     "dev:client": "vite",
     "dev:server": "nodemon server/index.js",
     "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
-    "build": "vite build",
+    "build": "vite build && node scripts/verify-build.js",
+    "build:verified": "npm run build && npm start",
     "start": "node server/index.js",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:stop": "pm2 stop digital-grievance-system",
+    "pm2:logs": "pm2 logs digital-grievance-system",
     "lint": "eslint .",
     "preview": "vite preview"
+
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

@@ -1,32 +1,39 @@
 import React from 'react';
-import { LogOut, LayoutDashboard, Ticket, Users, Bell, Search, User, Briefcase, Settings } from 'lucide-react';
+import { LogOut, LayoutDashboard, Ticket, Users, Search, User, Briefcase, Settings, Moon, Sun, Shield, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation, NavLink } from 'react-router-dom';
 import { BackgroundGradientAnimation } from './ui/background-gradient-animation';
+import { NeuralOverlay } from './ui/NeuralOverlay';
+import { NotificationCenter } from './ui/NotificationCenter';
 import ResolveBot from './ui/ResolveBot';
 
-export const Layout = ({ children, user, onLogout }) => {
+export const Layout = ({ children, user, onLogout, theme, setTheme }) => {
   const location = useLocation();
 
   const navItems = [
-    { path: '/', icon: LayoutDashboard, label: 'Overview' },
+    { path: '/dashboard?tab=overview', icon: LayoutDashboard, label: 'Overview' },
     { path: '/profile', icon: User, label: 'Account' },
     { path: '/track', icon: Ticket, label: 'Tickets' },
   ];
 
   if (user?.role === 'admin') {
-    navItems.push({ path: '/admin', icon: Briefcase, label: 'Admin Panel' });
+    navItems.splice(1, 0, 
+      { path: '/dashboard?tab=grievances', icon: Shield, label: 'Sector Protocol' },
+      { path: '/dashboard?tab=security', icon: ShieldAlert, label: 'Firewall Audit' }
+    );
   }
+
 
   return (
     <BackgroundGradientAnimation 
       interactive={true} 
-      gradientBackgroundStart="rgb(0, 8, 20)" 
-      gradientBackgroundEnd="rgb(0, 4, 12)"
-      firstColor="67, 97, 238"    /* Indigo-Blue */
-      secondColor="114, 9, 183"   /* Rich Purple */
+      gradientBackgroundStart={theme === 'midnight' ? "rgb(2, 2, 5)" : "rgb(0, 8, 20)"} 
+      gradientBackgroundEnd={theme === 'midnight' ? "rgb(0, 0, 0)" : "rgb(0, 4, 12)"}
+      firstColor={theme === 'midnight' ? "157, 78, 221" : "67, 97, 238"} 
+      secondColor={theme === 'midnight' ? "60, 9, 108" : "114, 9, 183"}
       thirdColor="0, 0, 0"
     >
+      <NeuralOverlay theme={theme} />
       <div className="flex h-screen overflow-hidden relative z-50">
         {/* --- Desktop Sidebar Component --- */}
         <motion.aside 
@@ -64,14 +71,15 @@ export const Layout = ({ children, user, onLogout }) => {
                   }
                 `}
               >
-                <item.icon size={20} className="relative z-10" />
-                <span className="font-bold text-sm uppercase tracking-widest relative z-10">{item.label}</span>
-                {/* Visual Active Indicator Dot */}
-                <NavLink to={item.path}>
-                    {({ isActive }) => isActive && (
-                        <motion.div layoutId="navDot" className="absolute left-0 w-1.5 h-6 bg-primary rounded-r-full shadow-[0_0_10px_rgba(67,97,238,0.8)] z-20" />
+                {({ isActive }) => (
+                  <>
+                    {isActive && (
+                      <motion.div layoutId="navDot" className="absolute left-0 w-1.5 h-6 bg-primary rounded-r-full shadow-[0_0_10px_rgba(67,97,238,0.8)] z-20" />
                     )}
-                </NavLink>
+                    <item.icon size={20} className="relative z-10" />
+                    <span className="font-bold text-sm uppercase tracking-widest relative z-10">{item.label}</span>
+                  </>
+                )}
               </NavLink>
             ))}
           </nav>
@@ -100,38 +108,60 @@ export const Layout = ({ children, user, onLogout }) => {
                 Control Center / <span className="text-white">Sector {location.pathname === '/' ? '01' : '02'}</span>
               </motion.h2>
               
-              <div className="hidden lg:flex items-center gap-4 bg-white/5 border border-white/10 rounded-2xl px-6 py-2.5 w-80">
-                <Search size={18} className="text-slate-500" />
-                <input type="text" placeholder="Scan Universal ID..." className="bg-transparent border-none outline-none text-[11px] font-bold text-white placeholder:text-slate-600 uppercase tracking-widest w-full" />
+              <div className="hidden lg:flex items-center gap-4 bg-white/5 border border-white/10 rounded-2xl px-6 py-2.5 w-80 group/search focus-within:border-primary/50 transition-all">
+                <Search size={18} className="text-slate-500 group-focus-within/search:text-primary transition-colors" />
+                <input 
+                  type="text" 
+                  placeholder="Scan Universal ID..." 
+                  className="bg-transparent border-none outline-none text-[11px] font-bold text-white placeholder:text-slate-600 uppercase tracking-widest w-full" 
+                  onKeyPress={(e) => { if(e.key === 'Enter') alert('Search Protocol: Sector scan initiated for "' + e.target.value + '"'); }}
+                />
               </div>
+
             </div>
             
             <div className="flex items-center gap-8">
               <div className="flex items-center gap-2">
-                <button className="p-3 text-slate-400 hover:text-white transition-colors relative group">
-                  <Bell size={20} />
-                  <span className="absolute top-3 right-3 w-2 h-2 bg-primary rounded-full animate-ping" />
-                  <span className="absolute top-3 right-3 w-2 h-2 bg-primary rounded-full" />
+                <NotificationCenter />
+                <button 
+                  onClick={() => setTheme(prev => prev === 'ocean' ? 'midnight' : 'ocean')}
+                  className="p-3 text-slate-400 hover:text-white transition-colors"
+                  title="Toggle Global Theme"
+                >
+                  {theme === 'ocean' ? <Moon size={20} /> : <Sun size={20} />}
                 </button>
-                <button className="p-3 text-slate-400 hover:text-white transition-colors">
+                <Link 
+                  to="/profile"
+                  className="p-3 text-slate-400 hover:text-white transition-colors"
+                  title="System Settings"
+                >
                   <Settings size={20} />
-                </button>
+                </Link>
+
               </div>
 
               <div className="w-[1px] h-8 bg-white/10" />
               
               <motion.div 
-                whileHover={{ y: -1 }}
-                className="flex items-center gap-4 bg-white/5 px-6 py-3 rounded-2xl border border-white/10 cursor-pointer"
+                whileHover={{ y: -1, scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => window.location.href = '/profile'}
+                className="flex items-center gap-4 bg-white/5 px-6 py-3 rounded-2xl border border-white/10 cursor-pointer hover:bg-white/[0.08] transition-all"
               >
                 <div className="text-right hidden sm:block">
                   <p className="text-[10px] font-black text-white uppercase tracking-widest leading-none mb-1">{user?.user_metadata?.full_name || 'System Operator'}</p>
                   <p className="text-[9px] text-primary font-black uppercase tracking-widest leading-none opacity-70">{user?.role || 'authorized'}</p>
                 </div>
-                <div className="w-10 h-10 bg-gradient-to-tr from-primary to-secondary rounded-xl flex items-center justify-center font-black text-white text-xs border border-white/10 shadow-lg shadow-primary/20">
-                  {(user?.user_metadata?.full_name || 'U')[0]}
+                <div className="w-10 h-10 bg-gradient-to-tr from-primary to-secondary rounded-xl flex items-center justify-center font-black text-white text-xs border border-white/10 shadow-lg shadow-primary/20 overflow-hidden">
+                  {user?.user_metadata?.avatar_url ? (
+                    <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    ((user?.user_metadata?.full_name || 'U')[0]).toUpperCase()
+                  )}
                 </div>
+
               </motion.div>
+
             </div>
           </header>
 

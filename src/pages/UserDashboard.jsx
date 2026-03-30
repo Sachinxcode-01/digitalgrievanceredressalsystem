@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Clock, CheckCircle2, AlertCircle, Filter, X, Send, Ticket, Sparkles, Loader2, MailCheck, ArrowRight, TrendingUp } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { RainbowButton } from '../components/ui/RainbowButton';
+import { Plus, Clock, CheckCircle2, AlertCircle, Filter, X, Send, Ticket, Sparkles, Loader2, MailCheck, ArrowRight, TrendingUp } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '../lib/supabase';
 import { grievanceService } from '../api/grievanceService';
@@ -11,6 +12,15 @@ import TimelineStep from '../components/ui/TimelineStep';
 
 export const UserDashboard = ({ sessionUser, userProfile }) => {
   const [showModal, setShowModal] = useState(false);
+  const searchParams = new URL(window.location.href).searchParams;
+
+  useEffect(() => {
+    if (searchParams.get('tab') === 'grievances') {
+      const el = document.getElementById('grievances-table');
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [window.location.search]);
+
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,7 +30,10 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('IT Support');
   const [urgency, setUrgency] = useState('Medium');
+  const [frustrationIndex, setFrustrationIndex] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [attachment, setAttachment] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
   
   // Comments logic
   const [comments, setComments] = useState([]);
@@ -41,21 +54,65 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
       const data = await grievanceService.analyze(description);
       setCategory(data.category);
       setUrgency(data.urgency);
+      setFrustrationIndex(data.frustration_index || 1);
       
+      // Handle Multilingual Translation if returned
+      if (data.english_translation && data.english_translation.trim() !== "") {
+        setDescription((prev) => `${prev}\n\n--- English Translation (AI) ---\n${data.english_translation}`);
+      }
+
       // Auto-generate title if blank
       if (!title) {
         let snippet = description.split(' ').slice(0, 4).join(' ');
         setTitle(`${snippet}... Request`);
       }
       
-      toast.success("AI auto-filled category and urgency via backend!");
-    } catch (err) {
+      toast.success("AI auto-filled details and translated if necessary!");
+    } catch {
       toast.error("Failed to reach AI backend. Using fallback.");
       // Fallback
       setCategory('IT Support');
       setUrgency('Medium');
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("File too large. Max 5MB.");
+        return;
+      }
+      setAttachment(file);
+      toast.success(`Selected: ${file.name}`);
+    }
+  };
+
+  const uploadFile = async (file) => {
+    setIsUploading(true);
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random().toString(36).substring(2, 10)}_${Date.now()}.${fileExt}`;
+    const filePath = `user_${sessionUser.id}/${fileName}`;
+    
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from('attachments')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('attachments')
+        .getPublicUrl(filePath);
+
+      return data.publicUrl;
+    } catch (err) {
+      toast.error(`File upload failed: ${err.message}`);
+      throw err;
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -107,7 +164,7 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
   }, [selectedTicket]);
 
   const fetchComments = async (ticketId) => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('ticket_comments')
       .select(`
         *,
@@ -150,9 +207,13 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
   const fetchTickets = async () => {
     setLoading(true);
     try {
-      const data = await grievanceService.getAll();
+      // For demo users, fall back to getAll since their IDs aren't in DB
+      const isDemoUser = sessionUser?.id?.startsWith('demo-');
+      const data = isDemoUser 
+        ? await grievanceService.getAll()
+        : await grievanceService.getByUser(sessionUser.id);
       setTickets(data);
-    } catch (err) {
+    } catch {
       toast.error('Could not load tickets');
     } finally {
       setLoading(false);
@@ -185,6 +246,11 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
     const ticketId = `TKT-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
     try {
+      let fileUrl = null;
+      if (attachment) {
+        fileUrl = await uploadFile(attachment);
+      }
+
       await grievanceService.create({ 
         ticket_id: ticketId,
         user_id: sessionUser.id,
@@ -192,7 +258,9 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
         title, 
         description, 
         category, 
-        urgency
+        urgency,
+        frustration_index: frustrationIndex,
+        attachment_url: fileUrl
       });
 
       setShowModal(false);
@@ -200,6 +268,13 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
       setDescription('');
       fetchTickets();
       toast.success('Your grievance has been submitted successfully.');
+      window.dispatchEvent(new CustomEvent('app-notification', {
+        detail: {
+          title: 'Grievance Transmitted',
+          message: `Ticket ${ticketId} has been securely logged. Status: Pending.`,
+          type: 'success'
+        }
+      }));
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -292,10 +367,11 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
-          <div className="glass-card overflow-hidden">
+          <div className="glass-card overflow-hidden" id="grievances-table">
             <div className="p-6 border-b border-white/10 flex items-center justify-between">
               <h3 className="font-bold text-lg">My Grievances</h3>
             </div>
+
             <div className="overflow-x-auto">
               {loading ? (
                 <div className="p-20 text-center text-slate-500">Loading your tickets...</div>
@@ -363,9 +439,9 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
           <div className="glass-card p-6 bg-gradient-to-br from-primary/10 to-transparent border-primary/20">
             <h4 className="text-sm font-bold text-white mb-2">Need faster resolution?</h4>
             <p className="text-xs text-slate-400 mb-4">Our AI assistant can help triage your grievance to the right department immediately.</p>
-            <button onClick={() => setShowModal(true)} className="w-full py-2 bg-primary/20 hover:bg-primary/30 text-primary text-xs font-bold rounded-lg border border-primary/30 transition-all uppercase tracking-widest">
-              Quick Submit
-            </button>
+            <RainbowButton onClick={() => setShowModal(true)} className="w-full !py-2.5 !rounded-xl !bg-primary/20 hover:!bg-primary/40 border border-primary/30 text-[10px]">
+              <Plus size={14} /> Quick Submit Grievance
+            </RainbowButton>
           </div>
         </div>
       </div>
@@ -418,12 +494,26 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
                   </div>
                   <textarea rows="4" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe your problem... (Click AI Auto-Fill to automatically set category and urgency!)" className="glass-input w-full resize-none py-3" required></textarea>
                 </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-300">Supporting Documents (Max 5MB)</label>
+                  <div className="relative group overflow-hidden rounded-xl border border-white/10 hover:border-primary/50 transition-all bg-white/5 p-4 flex items-center justify-between cursor-pointer">
+                    <input 
+                      type="file" 
+                      onChange={handleFileChange}
+                      className="absolute inset-0 opacity-0 cursor-pointer z-10" 
+                    />
+                    <div className="flex items-center gap-3 text-slate-400 group-hover:text-primary transition-colors">
+                      <Plus size={20} />
+                      <span className="text-sm font-medium">{attachment ? attachment.name : 'Click to add an image or PDF'}</span>
+                    </div>
+                  </div>
+                </div>
                 <div className="flex items-center gap-4 pt-8">
                   <button type="button" onClick={() => setShowModal(false)} className="btn-ghost flex-1">Cancel</button>
-                  <button disabled={isSubmitting} type="submit" className="btn-premium flex-1">
+                  <RainbowButton disabled={isSubmitting} type="submit" className="flex-1 !bg-primary/90 hover:!bg-primary">
                     {isSubmitting ? 'Submitting...' : 'Submit Ticket'}
                     <Send size={18} />
-                  </button>
+                  </RainbowButton>
                 </div>
               </form>
             </motion.div>
@@ -461,6 +551,20 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
                   <h4 className="text-xs uppercase font-bold text-slate-500 tracking-widest mb-2">Description</h4>
                   <p className="text-slate-200 leading-relaxed bg-white/5 p-4 rounded-xl border border-white/10">{selectedTicket.description}</p>
                 </div>
+
+                {selectedTicket.attachment_url && (
+                  <div className="pt-2">
+                    <h4 className="text-xs uppercase font-bold text-slate-500 tracking-widest mb-2 text-primary">Supporting Evidence</h4>
+                    <a 
+                      href={selectedTicket.attachment_url} 
+                      target="_blank" 
+                      rel="noreferrer"
+                      className="flex items-center gap-2 p-3 rounded-xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 transition-all group w-fit text-[10px] font-black uppercase tracking-[0.2em]"
+                    >
+                      <Plus size={14} className="rotate-45" /> View Uploaded Document
+                    </a>
+                  </div>
+                )}
 
                 {/* Tracking Progress Timeline */}
                 <div className="py-6">

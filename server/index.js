@@ -13,9 +13,16 @@ app.use(cors());
 app.use(express.json());
 
 // Main Health Check
-app.get('/', (req, res) => {
-  res.json({ status: 'OK', message: 'Digital Grievance System API is active' });
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'Operational', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    env: process.env.NODE_ENV || 'production',
+    service: 'Digital Grievance API'
+  });
 });
+
 
 const grievanceRoutes = require('./routes/grievanceRoutes');
 const aiRoutes = require('./routes/aiRoutes');
@@ -27,14 +34,21 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/chat', chatRoutes);
 
-// --- Production Deployment: Serve frontend ---
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../dist')));
-  app.get('*', (req, res) => {
-    if (req.path.startsWith('/api')) return res.status(404).json({ error: 'API route not found' });
-    res.sendFile(path.join(__dirname, '../dist/index.html'));
+// --- Production/Deployment: Serve frontend ---
+const distPath = path.join(__dirname, '../dist');
+app.use(express.static(distPath));
+
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api')) return res.status(404).json({ error: 'API route not found' });
+  
+  // Only serve index.html if it exists, otherwise return 404
+  const indexPath = path.join(distPath, 'index.html');
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      res.status(404).send('Frontend not built. Run "npm run build" first.');
+    }
   });
-}
+});
 
 // Error Handling
 app.use((err, req, res, next) => {

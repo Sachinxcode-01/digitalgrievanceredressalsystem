@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Send, Bot, User } from 'lucide-react';
+import { MessageCircle, X, Send, Bot, User, Volume2 } from 'lucide-react';
 
 export const ResolveBot = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -10,6 +10,17 @@ export const ResolveBot = () => {
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
+  const synthRef = useRef(window.speechSynthesis);
+
+  const speakText = (text) => {
+    if (synthRef.current) {
+      synthRef.current.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 1.1;
+      utterance.pitch = 0.9;
+      synthRef.current.speak(utterance);
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -106,8 +117,19 @@ export const ResolveBot = () => {
                   <div className={`w-8 h-8 rounded-full flex flex-shrink-0 items-center justify-center ${msg.isBot ? 'bg-primary/20 text-primary' : 'bg-white/10 text-white'}`}>
                     {msg.isBot ? <Bot size={16} /> : <User size={16} />}
                   </div>
-                  <div className={`p-3 rounded-2xl max-w-[80%] text-sm ${msg.isBot ? 'bg-primary/10 border border-primary/20 text-slate-200 rounded-tl-sm' : 'bg-white/10 border border-white/10 text-white rounded-tr-sm'}`}>
-                    {msg.text}
+                  <div className="relative group/msg">
+                    <div className={`p-3 rounded-2xl text-sm ${msg.isBot ? 'bg-primary/10 border border-primary/20 text-slate-200 rounded-tl-sm' : 'bg-white/10 border border-white/10 text-white rounded-tr-sm'}`}>
+                      {msg.text}
+                    </div>
+                    {msg.isBot && (
+                      <button 
+                        onClick={() => speakText(msg.text)}
+                        className="absolute -right-8 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-white/5 opacity-0 group-hover/msg:opacity-100 transition-all hover:bg-white/10 text-primary border border-white/5"
+                        title="Read aloud"
+                      >
+                        <Volume2 size={12} />
+                      </button>
+                    )}
                   </div>
                 </motion.div>
               ))}

@@ -168,8 +168,42 @@ const sendAdminNotification = async (ticketId, title, category, urgency) => {
   return info;
 };
 
+/**
+ * Sends a welcome email after account creation.
+ */
+const sendWelcomeEmail = async (email, fullName) => {
+  const transporter = await transporterPromise;
+  if (!transporter) return;
+
+  const content = `
+    <p>Hello <b>${fullName}</b>,</p>
+    <p>Welcome to the <b>Digital Grievance System</b>. Your institutional account has been successfully initialized and secured.</p>
+    <div style="background-color: #f8fafc; padding: 20px; border-left: 4px solid #10b981; margin: 25px 0; border-radius: 4px;">
+      <h3 style="margin-top: 0; color: #065f46;">Account Status: Active</h3>
+      <p style="margin: 5px 0;"><strong>Identity:</strong> ${email}</p>
+      <p style="margin: 5px 0;"><strong> Clearance:</strong> Level 1 (General Access)</p>
+    </div>
+    <p>You can now log in to submit grievances, track existing tickets, and access your secure user profile.</p>
+    <a href="${process.env.VITE_FRONTEND_URL || '#'}" class="btn" style="background: #10b981;">Access Secure Portal</a>
+    <p style="margin-top: 30px; font-size: 12px; color: #94a3b8;">If you did not initiate this account creation, please contact our security team immediately.</p>
+  `;
+
+  const mailOptions = {
+    from: '"Digital Grievance System" <security@grievance.system>',
+    to: email,
+    subject: 'Identity Confirmed: Welcome to Digital Grievance System',
+    html: getBaseTemplate('Account Activation Successful', content)
+  };
+
+  const info = await transporter.sendMail(mailOptions);
+  console.log(`\n📨 Welcome Email Sent to: ${email}`);
+  return info;
+};
+
 module.exports = {
   sendOTPEmail,
   sendGrievanceEmail,
-  sendAdminNotification
+  sendAdminNotification,
+  sendWelcomeEmail
 };
+

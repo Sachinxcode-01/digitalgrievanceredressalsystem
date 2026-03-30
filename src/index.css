@@ -1,21 +1,59 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
-@theme {
-  --color-background: #000814; /* Deep Ocean Night */
-  --color-primary: #4361ee; /* Deep Indigo-Blue */
-  --color-primary-bright: #4895ef;
-  --color-secondary: #7209b7; /* Rich Purple */
-  --color-accent: #f43f5e; /* Keeping original accent as it wasn't specified to change */
+:root {
+  --color-background-ocean: #000814;
+  --color-primary-ocean: #4361ee;
+  --color-primary-bright-ocean: #4895ef;
+  --color-secondary-ocean: #7209b7;
+  --color-glass-glow-ocean: rgba(67, 97, 238, 0.15);
+
+  --color-background-midnight: #020205;
+  --color-primary-midnight: #9d4edd;
+  --color-primary-bright-midnight: #c77dff;
+  --color-secondary-midnight: #3c096c;
+  --color-glass-glow-midnight: rgba(157, 78, 221, 0.15);
+
+  /* Current Active Theme Defaults */
+  --background: var(--color-background-ocean);
+  --primary: var(--color-primary-ocean);
+  --primary-bright: var(--color-primary-bright-ocean);
+  --secondary: var(--color-secondary-ocean);
+  --glass-glow: var(--color-glass-glow-ocean);
+
   --color-glass: rgba(255, 255, 255, 0.05);
   --color-glass-border: rgba(255, 255, 255, 0.1);
-  --color-glass-glow: rgba(67, 97, 238, 0.15); /* New glow using primary indigo */
   --color-success: #10b981;
   --color-warning: #f59e0b;
   --color-error: #ef4444;
 
   --font-sans: 'Plus Jakarta Sans', sans-serif;
   --font-heading: 'Outfit', sans-serif;
+}
+
+.theme-midnight {
+  --background: var(--color-background-midnight);
+  --primary: var(--color-primary-midnight);
+  --primary-bright: var(--color-primary-bright-midnight);
+  --secondary: var(--color-secondary-midnight);
+  --glass-glow: var(--color-glass-glow-midnight);
+}
+
+@theme {
+  --color-background: var(--background);
+  --color-primary: var(--primary);
+  --color-primary-bright: var(--primary-bright);
+  --color-secondary: var(--secondary);
+  --color-glass-glow: var(--glass-glow);
+  --color-accent: #f43f5e;
+  --color-glass: var(--color-glass);
+  --color-glass-border: var(--color-glass-border);
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-error: var(--color-error);
+
+  --font-sans: var(--font-sans);
+  --font-heading: var(--font-heading);
 
   /* Background Animations */
   --animate-first: moveVertical 30s ease infinite;
@@ -157,4 +195,41 @@
 .animate-rainbow {
   background-size: 200% auto;
   animation: rainbow-anim 10s linear infinite;
+}
+
+.rainbow-border {
+  background: var(--color-background);
+}
+
+.rainbow-border::before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(
+    45deg,
+    #ff0000, #ff7300, #fffb00, #48ff00, #00ffd5, #002bff, #7a00ff, #ff00c8, #ff0000
+  );
+  background-size: 400%;
+  z-index: -1;
+  filter: blur(5px);
+  width: calc(100% + 4px);
+  height: calc(100% + 4px);
+  animation: rainbow-anim 20s linear infinite;
+  opacity: 0.8;
+  border-radius: 0.8rem;
+}
+
+.rainbow-border::after {
+  content: "";
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  right: 0px;
+  bottom: 0px;
+  background: var(--color-background);
+  z-index: -1;
+  border-radius: 0.75rem;
 }

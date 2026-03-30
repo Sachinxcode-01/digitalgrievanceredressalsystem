@@ -3,13 +3,21 @@ const { sendGrievanceEmail, sendAdminNotification } = require('../services/email
 
 /**
  * Fetch all grievances ordered by creation date.
+ * Supports optional ?user_id= query parameter for user-specific filtering.
  */
 const getAllGrievances = async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { user_id } = req.query;
+    let query = supabase
       .from('grievances')
       .select('*')
       .order('created_at', { ascending: false });
+
+    if (user_id) {
+      query = query.eq('user_id', user_id);
+    }
+
+    const { data, error } = await query;
     
     if (error) throw error;
     res.json(data);
@@ -22,7 +30,7 @@ const getAllGrievances = async (req, res) => {
  * Handle new grievance creation.
  */
 const createGrievance = async (req, res) => {
-  const { ticket_id, user_id, email, title, description, category, urgency } = req.body;
+  const { ticket_id, user_id, email, title, description, category, urgency, frustration_index } = req.body;
   try {
     const { data, error } = await supabase
       .from('grievances')
@@ -34,6 +42,7 @@ const createGrievance = async (req, res) => {
           description, 
           category, 
           urgency,
+          frustration_index: frustration_index || 1,
           status: 'Pending'
         }
       ])

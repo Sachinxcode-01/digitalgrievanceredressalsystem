@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Ticket, Clock, CheckCircle2, AlertCircle, ChevronLeft } from 'lucide-react';
+import { Search, Ticket, Clock, CheckCircle2, AlertCircle, ChevronLeft, Activity } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
 import { BackgroundGradientAnimation } from '../components/ui/background-gradient-animation';
+import { NeuralOverlay } from '../components/ui/NeuralOverlay';
 
 export const PublicStatusPage = () => {
   const [ticketId, setTicketId] = useState('');
@@ -46,6 +47,7 @@ export const PublicStatusPage = () => {
       firstColor="67, 97, 238"    /* Indigo-Blue */
       secondColor="114, 9, 183"   /* Rich Purple */
     >
+      <NeuralOverlay theme="ocean" />
       <div className="min-h-screen p-6 flex flex-col items-center justify-center relative z-50">
         <div className="w-full max-w-2xl space-y-8 text-center">
           <Link to="/" className="inline-flex items-center gap-2 text-slate-500 hover:text-white transition-all uppercase tracking-widest text-[10px] font-black">
@@ -131,9 +133,31 @@ export const PublicStatusPage = () => {
                   </div>
                 </div>
 
-                <div className="p-6 bg-white/[0.02] rounded-3xl border border-white/5">
-                   <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-4">Original Transmission</h4>
-                   <p className="text-slate-400 leading-relaxed italic text-sm font-medium">"{ticket.description}"</p>
+                <div className="p-6 bg-white/[0.02] rounded-3xl border border-white/5 space-y-6">
+                   <div>
+                     <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-4">Original Transmission</h4>
+                     <p className="text-slate-400 leading-relaxed italic text-sm font-medium">"{ticket.description}"</p>
+                   </div>
+                   
+                   {ticket.frustration_index > 0 && (
+                     <div className="pt-4 border-t border-white/[0.03]">
+                       <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] mb-3 flex items-center gap-2">
+                         <Activity size={14} /> Neural Sentiment Audit
+                       </h4>
+                       <div className="flex items-center gap-4">
+                         <div className="flex-1 bg-white/5 h-2 rounded-full overflow-hidden">
+                           <motion.div 
+                             initial={{ width: 0 }}
+                             animate={{ width: `${ticket.frustration_index * 10}%` }}
+                             className={`h-full ${ticket.frustration_index >= 7 ? 'bg-error shadow-[0_0_10px_rgba(239,68,68,0.5)]' : 'bg-primary'}`}
+                           />
+                         </div>
+                         <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                           {ticket.frustration_index >= 7 ? 'Critical Impact' : ticket.frustration_index >= 4 ? 'Moderate Friction' : 'Standard Priority'}
+                         </span>
+                       </div>
+                     </div>
+                   )}
                 </div>
 
                 <div className="flex justify-center pt-4">

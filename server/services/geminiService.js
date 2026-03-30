@@ -20,13 +20,21 @@ const geminiService = {
     try {
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const prompt = `
-        You are an institutional grievance analyzer. Analyze this grievance description:
+        You are an institutional grievance analyzer. Analyze this grievance description for sentiment and urgency:
         "${description}"
 
         Rules:
         1. Categorize as: 'Financial', 'Academic', 'Maintenance', or 'IT Support'.
         2. Assign Urgency: 'High', 'Medium', or 'Low'.
-        3. Respond ONLY in JSON format: { "category": "...", "urgency": "..." }
+        3. Assign a frustration_index: Integer 1-10 (1 = calm/polite, 10 = extremely angry/frustrated/aggressive).
+        4. Detect the language of the description. If it is NOT English, provide an English translation. If it is English, return an empty string.
+        5. Respond ONLY in JSON format exactly like this:
+           {
+             "category": "...",
+             "urgency": "...",
+             "frustration_index": 5,
+             "english_translation": "..."
+           }
       `;
 
       const result = await model.generateContent(prompt);
@@ -101,6 +109,70 @@ const geminiService = {
     } catch (err) {
       console.error("Gemini Resolution Suggestion Error:", err);
       return null;
+    }
+  },
+
+  /**
+   * Neural Specialist Briefing
+   * Generates technical context for a specific department.
+   */
+  async generateDepartmentBriefing(ticket, department) {
+    if (!genAI) return null;
+
+    try {
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const prompt = `
+        You are an AI assistant briefing a specialist in the ${department} department.
+        Subject: ${ticket.title}
+        Description: ${ticket.description}
+        Category: ${ticket.category}
+        Urgency: ${ticket.urgency}
+        Current Frustration: ${ticket.frustration_index}/10
+        
+        Task: Provide a 2-sentence highly technical summary and the immediate first step for a human specialist in ${department} to solve this.
+        Tone: Professional, succinct, and internal-facing.
+      `;
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      return response.text().trim();
+    } catch (err) {
+      console.error("Gemini Department Briefing Error:", err);
+      return "Error generating briefing. Please review manually.";
+    }
+  },
+
+  /**
+   * Performance Analysis Summary
+   * Summarizes monthly trends for executive reports.
+   */
+  async generatePerformanceSummary(tickets) {
+    if (!genAI || tickets.length === 0) return "Not enough data for AI analysis.";
+
+    try {
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const stats = {
+        total:  tickets.length,
+        cats:   tickets.reduce((acc, t) => { acc[t.category] = (acc[t.category] || 0) + 1; return acc; }, {}),
+        urg:    tickets.reduce((acc, t) => { acc[t.urgency] = (acc[t.urgency] || 0) + 1; return acc; }, {}),
+        f_avg: (tickets.reduce((acc, t) => acc + (t.frustration_index || 0), 0) / tickets.length).toFixed(1)
+      };
+
+      const prompt = `
+        You are a senior auditor for an institutional grievance system.
+        Total Tickets: ${stats.total}
+        Categories: ${JSON.stringify(stats.cats)}
+        Urgency distribution: ${JSON.stringify(stats.urg)}
+        Average User Frustration: ${stats.f_avg}/10
+        
+        Task: Provide a 3-paragraph executive summary analyze institutional bottlenecks, sentiment trends, and one actionable recommendation for the institution.
+        Tone: Professional, analytic, and assertive.
+      `;
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      return response.text().trim();
+    } catch (err) {
+      console.error("Gemini Performance Summary Error:", err);
+      return "Performance analysis engine unreachable.";
     }
   }
 };

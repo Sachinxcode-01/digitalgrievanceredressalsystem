@@ -51,7 +51,12 @@ A high-performance, enterprise-grade full-stack platform for institutional griev
     - Enable **Google** and **Azure** providers in your Supabase Auth Dashboard.
     - Set the **Redirect URLs** in Supabase to both `http://localhost:5173` and your Production Application URL.
 
-3.  **Run Development:**
+4.  **Supabase Storage Config:**
+    To support large-scale image and document uploads:
+    - Create a new public bucket in Supabase named `attachments`.
+    - Set the upload policy to public for all users (or authenticated only).
+
+5.  **Run Development:**
     ```bash
     npm run dev
     ```
