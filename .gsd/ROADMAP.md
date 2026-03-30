@@ -1,72 +1,54 @@
 ---
-milestone: Intelligent Grievance Management
-version: 1.0.0
-updated: 2026-03-22T10:30:00Z
+milestone: Institutional Scalability & Public Launch
+version: 2.1.0
+updated: 2026-03-29T11:03:00Z
 ---
 
 # Roadmap
 
-> **Current Phase:** 2 - Intelligence & Generative AI
-> **Status:** planning
+> **Current Phase:** Phase 8: Production Hardening & Global Access
+> **Status:** 👷 IN PROGRESS
 
-## Must-Haves (from SPEC)
+## Must-Haves (Milestone 2)
 
-- [x] Secure Auth (Supabase)
-- [x] Multi-user Dashboards (Grievant/Admin)
-- [x] Real-time Database Persistence (Supabase)
-- [x] AI-Powered Triage (Categorization & Urgency)
-- [x] Live SMTP Email Notifications (NodeMailer)
-- [x] Automated ResolveBot AI Chat Interface
-- [ ] Production Cloud Deployment (Render.com)
-- [ ] Neural Generative AI Integration (Gemini Key)
+- [ ] Successful Public Deployment (Render.com/Vercel)
+- [x] Institutional SSO Integration (Google/Microsoft OAuth)
+- [ ] Scalable Document/Evidence Storage (Supabase Buckets)
+- [ ] Multilingual Triage Support (AI Auto-translation)
+- [ ] Real-time Admin Monitoring & Security Audits
+- [ ] High-Availability Infrastructure Verification
 
 ---
 
 ## Phases
 
-### Phase 1: Foundation & Triage Core
+### Phase 8: Production Hardening & Global Access ✅
 **Status:** ✅ Complete
-**Objective:** Establish the full-stack portal with basic AI triage and real-world email delivery.
-**Requirements:** REQ-01 (Auth), REQ-02 (API), REQ-03 (SMTP)
-
+**Objective:** Finalize the build for public consumption and ensure it survives global traffic.
 **Plans:**
-- [x] Plan 1.1: Core Auth & Dashboards
-- [x] Plan 1.2: SMTP Live Email Routing
-- [x] Plan 1.3: Triage Algorithms & ResolveBot UI
+- [x] Plan 8.1: CI/CD Pipeline & Build Hardening
+
+
+### Phase 9: Advanced Authentication ✅
+**Status:** ✅ Complete
+**Objective:** Integrate official institutional login protocols.
+**Plans:**
+- [x] Plan 9.1: Finalize Institutional SSO Documentation
+
+### Phase 10: Scalable Intelligence & Storage 🌑
+**Status:** 🌑 Not Started
+**Objective:** Handle large-scale attachments and multilingual inputs.
 
 ---
 
-### Phase 2: Neural Intelligence Upgrade
-**Status:** 🔄 In Progress
-**Objective:** Replace algorithmic pattern-matching with true generative AI using Gemini Neural Network.
-**Depends on:** Phase 1
-
-**Plans:**
-- [ ] Plan 2.1: Gemini API Key Integration
-- [ ] Plan 2.2: Generative Triage Response
-- [ ] Plan 2.3: True Conversational ResolveBot
-
----
-
-### Phase 3: Production Scale & Deployment
-**Status:** ⬜ Not Started
-**Objective:** Finalize the codebase for the global web and deploy to Render.
-**Depends on:** Phase 2
-
-**Plans:**
-- [x] Plan 3.1: Environment Variable Hardening
-- [ ] Plan 3.2: Render.com Cloud Deployment
-- [ ] Plan 3.3: Post-Launch Verification
-
----
-
-## Progress Summary
+## Progress Summary (Milestone 2)
 
 | Phase | Status | Plans | Complete |
 |-------|--------|-------|----------|
-| 1 | ✅ | 3/3 | 100% |
-| 2 | 🔄 | 0/3 | 0% |
-| 3 | 🔄 | 1/3 | 33% |
+| 8 | ✅ | 1/1 | 100% |
+
+| 9 | ✅ | 1/1 | 100% |
+| 10 | 🌑 | 0/0 | 0% |
 
 ---
 
@@ -74,6 +56,7 @@ updated: 2026-03-22T10:30:00Z
 
 | Phase | Started | Completed | Duration |
 |-------|---------|-----------|----------|
-| 1 | 2026-03-21 | 2026-03-22 | 24 Hours |
-| 2 | 2026-03-22 | — | — |
-| 3 | — | — | — |
+| 8 | 2026-03-29 | - | - |
+| 9 | 2026-03-30 | 2026-03-30 | 1 day |
+
+
