@@ -19,11 +19,17 @@ const register = async (req, res, next) => {
     }
 
     // 1. Check if user already exists
-    const { data: existingUser, error: checkError } = await supabase
+    let query = supabase
       .from('users')
-      .select('id, email, mobile_number')
-      .or(`email.eq.${email},mobile_number.eq.${mobileNumber}`)
-      .maybeSingle();
+      .select('id, email, mobile_number');
+      
+    if (mobileNumber && mobileNumber.trim() !== '') {
+      query = query.or(`email.eq.${email},mobile_number.eq.${mobileNumber.trim()}`);
+    } else {
+      query = query.eq('email', email);
+    }
+
+    const { data: existingUser, error: checkError } = await query.maybeSingle();
 
     if (existingUser) {
       const field = existingUser.email === email ? 'Email address' : 'Mobile number';

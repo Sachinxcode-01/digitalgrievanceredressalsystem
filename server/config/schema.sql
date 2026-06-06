@@ -140,12 +140,14 @@ ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 -- Users policies: Only allow user to select/update their own credentials
 CREATE POLICY user_self_read ON users FOR SELECT USING (id = auth.uid() OR role = 'super admin');
 CREATE POLICY user_self_update ON users FOR UPDATE USING (id = auth.uid() OR role = 'super admin');
+CREATE POLICY user_anonymous_insert ON users FOR INSERT WITH CHECK (true);
 
 -- Profiles policies: Users can view all profiles (academic lookup), but only edit their own.
 CREATE POLICY profile_read_all ON user_profiles FOR SELECT USING (true);
 CREATE POLICY profile_write_self ON user_profiles FOR ALL USING (user_id = auth.uid() OR EXISTS (
     SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role IN ('admin', 'super admin')
 ));
+CREATE POLICY profile_anonymous_insert ON user_profiles FOR INSERT WITH CHECK (true);
 
 -- Sessions policies: Users can view and delete their own sessions.
 CREATE POLICY session_owner_all ON sessions FOR ALL USING (user_id = auth.uid() OR EXISTS (
