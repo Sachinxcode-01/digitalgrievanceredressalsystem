@@ -4,6 +4,7 @@ const supabase = require('../config/supabase');
 const { sendOTPEmail, sendWelcomeEmail, sendPasswordChangedEmail, sendSecurityAlertEmail } = require('../services/emailService');
 const { sendOTPSMS } = require('../services/smsService');
 const { createSession, rotateSession, revokeSession, logAudit } = require('../services/sessionService');
+const configService = require('../services/configService');
 
 /**
  * Register a new user
@@ -73,7 +74,8 @@ const register = async (req, res, next) => {
 
     // 5. Generate and dispatch OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 minutes
+    const otpExpirySec = parseInt(configService.getSetting('otp_expiry_seconds', 300));
+    const expiresAt = new Date(Date.now() + otpExpirySec * 1000).toISOString();
 
     // Store verification record
     const { error: otpError } = await supabase
@@ -313,7 +315,8 @@ const login = async (req, res, next) => {
       }
 
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+      const otpExpirySec = parseInt(configService.getSetting('otp_expiry_seconds', 300));
+      const expiresAt = new Date(Date.now() + otpExpirySec * 1000).toISOString();
 
       await supabase.from('otp_verifications').delete().eq(email ? 'email' : 'phone', identifier).eq('purpose', 'login');
       await supabase.from('otp_verifications').insert([{
@@ -334,10 +337,12 @@ const login = async (req, res, next) => {
     const passwordMatch = await bcrypt.compare(password, user.password_hash);
     if (!passwordMatch) {
       const attempts = user.failed_login_attempts + 1;
+      const maxAttempts = parseInt(configService.getSetting('max_login_attempts', 5));
+      const lockoutDurationMin = parseInt(configService.getSetting('lockout_duration_minutes', 15));
       
-      if (attempts >= 5) {
+      if (attempts >= maxAttempts) {
         // Lockout user
-        const lockoutTime = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+        const lockoutTime = new Date(Date.now() + lockoutDurationMin * 60 * 1000).toISOString();
         await supabase
           .from('users')
           .update({ failed_login_attempts: 0, lockout_until: lockoutTime })
@@ -346,9 +351,9 @@ const login = async (req, res, next) => {
         await logAudit(user.id, 'ACCOUNT_LOCKED', req.ip, req.headers['user-agent']);
         
         // Dispatch security lockout email
-        await sendSecurityAlertEmail(user.id, 'Your account has been temporarily locked for 15 minutes due to 5 consecutive failed login attempts.', user.email).catch(console.error);
+        await sendSecurityAlertEmail(user.id, `Your account has been temporarily locked for ${lockoutDurationMin} minutes due to ${maxAttempts} consecutive failed login attempts.`, user.email).catch(console.error);
         
-        return res.status(403).json({ error: 'Too many incorrect attempts. Account locked for 15 minutes.' });
+        return res.status(403).json({ error: `Too many incorrect attempts. Account locked for ${lockoutDurationMin} minutes.` });
       } else {
         await supabase
           .from('users')
@@ -357,12 +362,13 @@ const login = async (req, res, next) => {
 
         await logAudit(user.id, 'LOGIN_FAILED', req.ip, req.headers['user-agent'], { attempts });
         
-        // Warning email after 3 consecutive failures
-        if (attempts >= 3) {
-          await sendSecurityAlertEmail(user.id, `Warning: Multiple consecutive failed login attempts detected. Current count: ${attempts}/5.`, user.email).catch(console.error);
+        // Warning email after threshold (e.g., 3 consecutive failures)
+        const warnThreshold = Math.max(1, Math.floor(maxAttempts * 0.6));
+        if (attempts >= warnThreshold) {
+          await sendSecurityAlertEmail(user.id, `Warning: Multiple consecutive failed login attempts detected. Current count: ${attempts}/${maxAttempts}.`, user.email).catch(console.error);
         }
         
-        return res.status(401).json({ error: `Incorrect password. ${5 - attempts} attempts remaining.` });
+        return res.status(401).json({ error: `Incorrect password. ${maxAttempts - attempts} attempts remaining.` });
       }
     }
 
@@ -384,7 +390,8 @@ const login = async (req, res, next) => {
       }
 
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+      const otpExpirySec = parseInt(configService.getSetting('otp_expiry_seconds', 300));
+      const expiresAt = new Date(Date.now() + otpExpirySec * 1000).toISOString();
       
       await supabase.from('otp_verifications').delete().eq('email', user.email).eq('purpose', 'registration');
       await supabase.from('otp_verifications').insert([{
@@ -506,7 +513,8 @@ const forgotPassword = async (req, res, next) => {
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+    const otpExpirySec = parseInt(configService.getSetting('otp_expiry_seconds', 300));
+    const expiresAt = new Date(Date.now() + otpExpirySec * 1000).toISOString();
 
     await supabase.from('otp_verifications').delete().eq('email', email).eq('purpose', 'forgot_password');
     await supabase.from('otp_verifications').insert([{

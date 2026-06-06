@@ -91,8 +91,65 @@ const authorizeRoles = (...allowedRoles) => {
   };
 };
 
+/**
+ * Permission-Based Access Control Middleware.
+ * Resolves user role, queries its permissions from the database, and enforces them.
+ */
+const authorizePermissions = (...requiredPermissions) => {
+  return async (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized session.' });
+    }
+
+    const userRole = req.user.role;
+    
+    // Super admins bypass all permission checks
+    if (userRole === 'super admin') {
+      return next();
+    }
+
+    try {
+      if (!supabase) {
+        return res.status(500).json({ error: 'Database service unavailable' });
+      }
+
+      // Query permissions associated with the user's role
+      const { data: roleData, error } = await supabase
+        .from('roles')
+        .select(`
+          id,
+          role_permissions (
+            permissions (name)
+          )
+        `)
+        .eq('name', userRole)
+        .maybeSingle();
+
+      if (error || !roleData) {
+        return res.status(403).json({ error: `Access denied. Role [${userRole}] has no registered permissions.` });
+      }
+
+      const permissions = (roleData.role_permissions || []).map(rp => rp.permissions?.name).filter(Boolean);
+
+      // Verify that all required permissions are granted to the role
+      const hasAllPermissions = requiredPermissions.every(perm => permissions.includes(perm));
+
+      if (!hasAllPermissions) {
+        return res.status(403).json({
+          error: `Insufficient permissions. Required privileges: [${requiredPermissions.join(', ')}]. Access denied for role: ${userRole}`
+        });
+      }
+
+      next();
+    } catch (err) {
+      next(err);
+    }
+  };
+};
+
 module.exports = {
   authenticateToken,
   authorizeRoles,
+  authorizePermissions,
   JWT_SECRET
 };

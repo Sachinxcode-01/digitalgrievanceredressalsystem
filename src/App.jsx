@@ -31,6 +31,8 @@ const AccountSecurityPage = React.lazy(() => import('./pages/settings/AccountSec
 const AdminUsersPage = React.lazy(() => import('./pages/admin/AdminUsersPage'));
 const AdminAuditPage = React.lazy(() => import('./pages/admin/AdminAuditPage'));
 const SuperAdminSystemPage = React.lazy(() => import('./pages/admin/SuperAdminSystemPage'));
+const AdminCompliancePage = React.lazy(() => import('./pages/admin/AdminCompliancePage'));
+const AdminRolesPage = React.lazy(() => import('./pages/admin/AdminRolesPage'));
 const AdminGrievancesPage = React.lazy(() => import('./pages/admin/AdminGrievancesPage').then(m => ({ default: m.AdminGrievancesPage })));
 const AdminGrievanceDetailsPage = React.lazy(() => import('./pages/admin/AdminGrievanceDetailsPage').then(m => ({ default: m.AdminGrievanceDetailsPage })));
 
@@ -191,6 +193,34 @@ function AppContent() {
                     <RoleGuard allowedRoles={['super admin']} fallback={<Navigate to="/dashboard" />}>
                       <Layout user={user} onLogout={logout} theme={theme} setTheme={setTheme}>
                         <SuperAdminSystemPage />
+                      </Layout>
+                    </RoleGuard>
+                  </ProtectedRoute>
+                } 
+              />
+
+              {/* Admin Compliance Dashboard */}
+              <Route 
+                path="/admin/compliance" 
+                element={
+                  <ProtectedRoute>
+                    <RoleGuard allowedRoles={['admin', 'super admin']} fallback={<Navigate to="/dashboard" />}>
+                      <Layout user={user} onLogout={logout} theme={theme} setTheme={setTheme}>
+                        <AdminCompliancePage />
+                      </Layout>
+                    </RoleGuard>
+                  </ProtectedRoute>
+                } 
+              />
+
+              {/* Admin Roles & Permissions Management */}
+              <Route 
+                path="/admin/roles" 
+                element={
+                  <ProtectedRoute>
+                    <RoleGuard allowedRoles={['admin', 'super admin']} fallback={<Navigate to="/dashboard" />}>
+                      <Layout user={user} onLogout={logout} theme={theme} setTheme={setTheme}>
+                        <AdminRolesPage />
                       </Layout>
                     </RoleGuard>
                   </ProtectedRoute>

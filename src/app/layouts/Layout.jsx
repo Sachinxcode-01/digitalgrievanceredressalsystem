@@ -20,6 +20,7 @@ export const Layout = ({ children, user, onLogout, theme, setTheme }) => {
         { path: '/admin/grievances', icon: Ticket, label: 'Grievances' },
         { path: '/admin/users', icon: Users, label: 'Users' },
         { path: '/admin/health', icon: Activity, label: 'Analytics' },
+        { path: '/admin/compliance', icon: Shield, label: 'Compliance' },
         { path: '/admin/audit', icon: ShieldAlert, label: 'Audit Logs' },
         { path: '/security', icon: Settings, label: 'Settings' },
       ]
@@ -33,6 +34,7 @@ export const Layout = ({ children, user, onLogout, theme, setTheme }) => {
 
   if (user?.role === 'super admin') {
     navItems.splice(navItems.length - 1, 0, { path: '/admin/system', icon: Lock, label: 'System Control' });
+    navItems.splice(navItems.length - 1, 0, { path: '/admin/roles', icon: Lock, label: 'Roles & Perms' });
   }
 
   return (

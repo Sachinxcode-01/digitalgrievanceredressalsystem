@@ -49,6 +49,10 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
   const [isScanningTable, setIsScanningTable] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
+  // Realtime Admin Activity Feed
+  const [activityLogs, setActivityLogs] = useState([]);
+  const [profileMap, setProfileMap] = useState({});
+
   // Navigation Tabs
   const initialTab = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(
@@ -275,6 +279,50 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
       supabase.removeChannel(presenceChannel);
     };
   }, [sessionUser?.id]);
+
+  useEffect(() => {
+    const fetchActivityFeed = async () => {
+      try {
+        const { data: profiles } = await supabase.from('user_profiles').select('user_id, full_name');
+        const pMap = {};
+        (profiles || []).forEach(p => {
+          pMap[p.user_id] = p.full_name;
+        });
+        setProfileMap(pMap);
+
+        const { data: logs } = await supabase
+          .from('admin_activity_logs')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(10);
+        setActivityLogs(logs || []);
+      } catch (err) {
+        console.error('Failed to fetch admin activity feed:', err);
+      }
+    };
+
+    fetchActivityFeed();
+
+    const activityChannel = supabase
+      .channel('admin-activity-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'admin_activity_logs' }, payload => {
+        setActivityLogs(prev => [payload.new, ...prev.slice(0, 9)]);
+        
+        const adminId = payload.new.admin_id;
+        if (adminId && !profileMap[adminId]) {
+          supabase.from('user_profiles').select('user_id, full_name').eq('user_id', adminId).single().then(({ data }) => {
+            if (data) {
+              setProfileMap(prev => ({ ...prev, [data.user_id]: data.full_name }));
+            }
+          });
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(activityChannel);
+    };
+  }, []);
 
   const fetchComments = async (ticketId) => {
     const { data } = await supabase
@@ -752,7 +800,7 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
               
               {/* Left Registry Log */}
-              <div className={`${selectedTicket ? 'lg:col-span-2' : 'lg:col-span-3'} space-y-6 transition-all duration-300`}>
+              <div className={`${selectedTicket || activityLogs.length > 0 ? 'lg:col-span-2' : 'lg:col-span-3'} space-y-6 transition-all duration-300`}>
                 <div className="bg-surface border border-border/80 rounded-xl shadow-xs overflow-hidden">
                   <div className="p-5 border-b border-border/60 bg-background/30 flex flex-col sm:flex-row gap-4 sm:items-center justify-between">
                     <div className="flex flex-wrap items-center gap-3">
@@ -925,8 +973,9 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
 
               {/* Right Column: Split Screen Detailed Inspector */}
               <AnimatePresence>
-                {selectedTicket && (
+                {selectedTicket ? (
                   <motion.div 
+                    key="inspector"
                     initial={{ opacity: 0, x: 15 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 15 }}
@@ -1159,6 +1208,56 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
                       </div>
                     </div>
                   </motion.div>
+                ) : (
+                  /* Admin Activity Feed Widget */
+                  activityLogs.length > 0 && (
+                    <motion.div 
+                      key="activity-feed"
+                      initial={{ opacity: 0, x: 15 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 15 }}
+                      className="lg:col-span-1 bg-surface border border-border/80 rounded-xl p-5 sticky top-24 max-h-[85vh] overflow-y-auto custom-scrollbar flex flex-col gap-5 shadow-xs text-left"
+                    >
+                      <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                        <div>
+                          <h4 className="text-xs font-extrabold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                            <Activity size={14} className="text-primary-bright animate-pulse" /> Live Admin Operations
+                          </h4>
+                          <p className="text-[9px] text-muted-foreground mt-0.5">Real-time audit log of active administrators.</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        {activityLogs.map((log) => {
+                          const adminName = profileMap[log.admin_id] || 'System Operator';
+                          const targetName = log.target_user_id ? (profileMap[log.target_user_id] || 'Target User') : null;
+                          const actionFormatted = log.action.replace(/_/g, ' ');
+
+                          return (
+                            <div key={log.id} className="p-3 bg-background border border-border/60 rounded-xl space-y-2 text-xs relative overflow-hidden group hover:border-primary-bright/20 transition-all duration-200">
+                              <div className="flex justify-between items-center gap-2">
+                                <span className="px-2 py-0.5 rounded bg-primary-bright/5 text-primary-bright border border-primary-bright/15 text-[8px] font-mono font-bold uppercase tracking-wider">
+                                  {log.action}
+                                </span>
+                                <span className="text-[8px] font-mono text-muted-foreground font-bold">
+                                  {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
+                                </span>
+                              </div>
+                              <p className="text-foreground leading-snug font-medium text-[11px]">
+                                <span className="font-bold text-foreground">{adminName}</span> performed <span className="italic text-primary-bright font-semibold">{actionFormatted}</span>
+                                {targetName && <span> on <span className="font-bold text-foreground">{targetName}</span></span>}
+                              </p>
+                              {log.details && Object.keys(log.details).length > 0 && (
+                                <div className="text-[9px] font-mono text-muted-foreground bg-muted/20 p-2 rounded border border-border/40 max-h-24 overflow-y-auto">
+                                  <pre className="whitespace-pre-wrap">{JSON.stringify(log.details, null, 2)}</pre>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  )
                 )}
               </AnimatePresence>
             </div>

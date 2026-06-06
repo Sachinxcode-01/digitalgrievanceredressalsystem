@@ -3,24 +3,47 @@ const dotenv = require('dotenv');
 const path = require('path');
 const notificationQueue = require('./notificationQueue');
 const supabase = require('../config/supabase');
+const configService = require('./configService');
 
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
-let transporterPromise;
+let currentTransporter = null;
+let activeSmtpConfigHash = null;
 
-// Initialize mail transporter (Real SMTP or Ethereal fallback)
-if (process.env.SMTP_EMAIL && process.env.SMTP_PASSWORD) {
-  transporterPromise = Promise.resolve(nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.SMTP_EMAIL,
-      pass: process.env.SMTP_PASSWORD
-    }
-  }));
-  console.log('📧 Real SMTP Email active for notifications.');
-} else {
-  transporterPromise = nodemailer.createTestAccount().then((account) => {
-    const transporter = nodemailer.createTransport({
+/**
+ * Returns a cached transporter or creates a new one if settings changed.
+ */
+const getTransporter = async () => {
+  const emailEnabled = configService.getSetting('enable_email_notifications', true);
+  if (!emailEnabled) {
+    throw new Error('Email notification delivery is disabled in system settings.');
+  }
+
+  const host = configService.getSetting('smtp_host', process.env.SMTP_HOST || 'smtp.ethereal.email');
+  const port = parseInt(configService.getSetting('smtp_port', process.env.SMTP_PORT || 587));
+  const user = configService.getSetting('smtp_username', process.env.SMTP_EMAIL || '');
+  const pass = configService.getSetting('smtp_password', process.env.SMTP_PASSWORD || '');
+  const ssl = configService.getSetting('smtp_ssl', false);
+
+  const configHash = `${host}:${port}:${user}:${pass}:${ssl}`;
+  if (currentTransporter && activeSmtpConfigHash === configHash) {
+    return currentTransporter;
+  }
+
+  // Initialize SMTP transport
+  if (user && pass && host !== 'smtp.ethereal.email') {
+    currentTransporter = nodemailer.createTransport({
+      host,
+      port,
+      secure: ssl,
+      auth: { user, pass }
+    });
+    activeSmtpConfigHash = configHash;
+    console.log('📧 Dynamic Real SMTP Transporter initialized.');
+  } else {
+    // Fallback Ethereal test mail
+    const account = await nodemailer.createTestAccount();
+    currentTransporter = nodemailer.createTransport({
       host: 'smtp.ethereal.email',
       port: 587,
       secure: false,
@@ -29,12 +52,12 @@ if (process.env.SMTP_EMAIL && process.env.SMTP_PASSWORD) {
         pass: account.pass
       }
     });
-    console.log('📧 Ethereal Test Email fallback active for notifications.');
-    return transporter;
-  }).catch(err => {
-    console.error('Failed to create a test email account', err);
-  });
-}
+    activeSmtpConfigHash = configHash;
+    console.log('📧 Dynamic Ethereal Test Email Transporter initialized.');
+  }
+
+  return currentTransporter;
+};
 
 /**
  * Strips HTML tags for plain-text fallback.
@@ -56,6 +79,9 @@ const getBaseTemplate = (title, content, type = 'user') => {
     : 'linear-gradient(135deg, #090e1a 0%, #1e3a8a 100%)';
   const accentColor = type === 'admin' ? '#7209b7' : '#4361ee';
   
+  const institutionName = configService.getSetting('institution_name', 'ResolveNow');
+  const supportEmail = configService.getSetting('support_email', 'support@resolvenow.system');
+
   return `
 <!DOCTYPE html>
 <html>
@@ -190,8 +216,8 @@ const getBaseTemplate = (title, content, type = 'user') => {
         ${content}
       </div>
       <div class="footer">
-        <p>© ${new Date().getFullYear()} ResolveNow Network Operations Center</p>
-        <p>Support channel: <a href="mailto:support@resolvenow.system">support@resolvenow.system</a></p>
+        <p>© ${new Date().getFullYear()} ${institutionName} Network Operations Center</p>
+        <p>Support channel: <a href="mailto:${supportEmail}">${supportEmail}</a></p>
         <p>This is an automated operational dispatch. Do not reply.</p>
       </div>
     </div>
@@ -202,15 +228,46 @@ const getBaseTemplate = (title, content, type = 'user') => {
 };
 
 /**
+ * Placeholder interpolation helper
+ */
+const interpolateTemplate = (text, variables = {}) => {
+  let result = text;
+  Object.entries(variables).forEach(([key, val]) => {
+    const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
+    result = result.replace(regex, val !== undefined && val !== null ? val : '');
+  });
+  return result;
+};
+
+/**
+ * Queries templates from database with fallbacks
+ */
+const getEmailTemplate = async (name, fallbackSubject, fallbackBody) => {
+  try {
+    if (supabase) {
+      const { data, error } = await supabase.from('email_templates').select('subject, body').eq('name', name).maybeSingle();
+      if (data && !error) {
+        return { subject: data.subject, body: data.body };
+      }
+    }
+  } catch (err) {
+    console.error(`[Email Service] Template fetch failed for ${name}:`, err.message);
+  }
+  return { subject: fallbackSubject, body: fallbackBody };
+};
+
+/**
  * Core enqueuing function
  */
 const queueEmail = (email, subject, htmlContent, label) => {
   const taskFn = async () => {
-    const transporter = await transporterPromise;
-    if (!transporter) throw new Error("Email service failed to initialize");
+    const transporter = await getTransporter();
     
+    const senderName = configService.getSetting('sender_name', 'ResolveNow Core Dispatch');
+    const senderEmail = configService.getSetting('sender_email', 'no-reply@resolvenow.system');
+
     const mailOptions = {
-      from: '"ResolveNow Core Dispatch" <no-reply@resolvenow.system>',
+      from: `"${senderName}" <${senderEmail}>`,
       to: email,
       subject,
       html: htmlContent,
@@ -230,7 +287,6 @@ const queueEmail = (email, subject, htmlContent, label) => {
 
 /**
  * Preferences guard helper.
- * Filters out notifications based on granular user preferences (JSONB)
  */
 const checkPreferenceAndQueue = async (userId, preferenceKey, subject, htmlContent, label, fallbackEmail = null) => {
   let recipientEmail = fallbackEmail;
@@ -272,18 +328,24 @@ const checkPreferenceAndQueue = async (userId, preferenceKey, subject, htmlConte
 // ==========================================
 
 const sendWelcomeEmail = async (email, fullName, userId = null) => {
-  const content = `
-    <p>Hello <strong>${fullName}</strong>,</p>
+  const fallbackSubject = 'Welcome to ResolveNow: Identity Verified';
+  const fallbackBody = `
+    <p>Hello <strong>{{fullName}}</strong>,</p>
     <p>Welcome to the <strong>ResolveNow Institutional Network</strong>. Your account registration was successful and your access has been initialized.</p>
     <div class="card">
       <h3>Access Dossier</h3>
-      <p style="margin: 5px 0;"><strong>Identity Reference:</strong> ${email}</p>
+      <p style="margin: 5px 0;"><strong>Identity Reference:</strong> {{email}}</p>
       <p style="margin: 5px 0;"><strong>Portal Status:</strong> Operational</p>
     </div>
     <p>Use the link below to enter the console and track your filings.</p>
     <a href="${process.env.VITE_FRONTEND_URL || 'http://localhost:5173'}" class="btn">Enter Secure Portal</a>
   `;
-  return checkPreferenceAndQueue(userId, 'status_updates', 'Welcome to ResolveNow: Identity Verified', getBaseTemplate('Identity Verified', content), 'Welcome Dossier', email);
+
+  const { subject, body } = await getEmailTemplate('welcome_email', fallbackSubject, fallbackBody);
+  const interpolatedSubject = interpolateTemplate(subject, { fullName, email });
+  const interpolatedBody = interpolateTemplate(body, { fullName, email });
+
+  return checkPreferenceAndQueue(userId, 'status_updates', interpolatedSubject, getBaseTemplate('Identity Verified', interpolatedBody), 'Welcome Dossier', email);
 };
 
 const sendOTPEmail = async (email, otp, purpose = 'registration') => {
@@ -291,18 +353,25 @@ const sendOTPEmail = async (email, otp, purpose = 'registration') => {
     purpose === 'login' ? 'login authentication' :
     purpose === 'forgot_password' ? 'password recovery' : 'account registration';
 
-  const content = `
+  const fallbackSubject = 'Secure OTP Code: {{otp}}';
+  const fallbackBody = `
     <p>Hello,</p>
-    <p>A One-Time Password (OTP) has been generated to verify your identity for <strong>${purposeText}</strong>.</p>
-    <div class="highlight">${otp}</div>
+    <p>A One-Time Password (OTP) has been generated to verify your identity for <strong>{{purpose}}</strong>.</p>
+    <div class="highlight">{{otp}}</div>
     <p>For your security, this code is valid for exactly <strong>5 minutes</strong>. Do not share this credential with anyone.</p>
     <p>If you did not initiate this request, contact system security response immediately.</p>
   `;
-  return queueEmail(email, `Secure OTP Code: ${otp}`, getBaseTemplate('Authentication Dispatch', content), 'OTP Verification');
+
+  const { subject, body } = await getEmailTemplate('otp_email', fallbackSubject, fallbackBody);
+  const interpolatedSubject = interpolateTemplate(subject, { otp, purpose: purposeText });
+  const interpolatedBody = interpolateTemplate(body, { otp, purpose: purposeText });
+
+  return queueEmail(email, interpolatedSubject, getBaseTemplate('Authentication Dispatch', interpolatedBody), 'OTP Verification');
 };
 
 const sendPasswordChangedEmail = async (userId) => {
-  const content = `
+  const fallbackSubject = 'ResolveNow: Password Changed Successfully';
+  const fallbackBody = `
     <p>Hello,</p>
     <p>This is confirmation that the password for your ResolveNow account has been <strong>successfully updated</strong>.</p>
     <p>All other active sessions on different browsers and devices have been automatically terminated for safety.</p>
@@ -311,7 +380,10 @@ const sendPasswordChangedEmail = async (userId) => {
       <p style="margin: 0; color: #f87171;">If you did not authorize this change, please recover your account immediately or notify system security.</p>
     </div>
   `;
-  return checkPreferenceAndQueue(userId, 'password_changed', 'ResolveNow: Password Changed Successfully', getBaseTemplate('Security Event: Password Updated', content), 'Password Changed Alert');
+
+  const { subject, body } = await getEmailTemplate('password_changed_email', fallbackSubject, fallbackBody);
+
+  return checkPreferenceAndQueue(userId, 'password_changed', subject, getBaseTemplate('Security Event: Password Updated', body), 'Password Changed Alert');
 };
 
 const sendNewDeviceLoginEmail = async (userId, device, browser, time, location = 'Unknown') => {
@@ -335,67 +407,91 @@ const sendNewDeviceLoginEmail = async (userId, device, browser, time, location =
 // ==========================================
 
 const sendGrievanceEmail = async (email, ticketId, title, userId = null) => {
-  const content = `
+  const fallbackSubject = 'Grievance Recorded: #{{ticketId}}';
+  const fallbackBody = `
     <p>Hello,</p>
     <p>We have successfully registered your grievance. An administrative officer will review the report shortly.</p>
     <div class="card">
       <h3>Filing Metadata</h3>
-      <p style="margin: 5px 0;"><strong>Ticket ID:</strong> #${ticketId}</p>
-      <p style="margin: 5px 0;"><strong>Subject sector:</strong> ${title}</p>
+      <p style="margin: 5px 0;"><strong>Ticket ID:</strong> #{{ticketId}}</p>
+      <p style="margin: 5px 0;"><strong>Subject sector:</strong> {{title}}</p>
       <p style="margin: 5px 0;"><strong>Processing Status:</strong> Pending Review</p>
     </div>
     <p>Use the link below to track real-time milestones and read administrator updates.</p>
-    <a href="${process.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/track?ticketId=${ticketId}" class="btn">Track Filing Milestones</a>
+    <a href="${process.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/track?ticketId={{ticketId}}" class="btn">Track Filing Milestones</a>
   `;
-  return checkPreferenceAndQueue(userId, 'status_updates', `Grievance Recorded: #${ticketId}`, getBaseTemplate('Filing Confirmation', content), 'Ticket Confirmation', email);
+
+  const { subject, body } = await getEmailTemplate('grievance_created_email', fallbackSubject, fallbackBody);
+  const interpolatedSubject = interpolateTemplate(subject, { ticketId, title });
+  const interpolatedBody = interpolateTemplate(body, { ticketId, title });
+
+  return checkPreferenceAndQueue(userId, 'status_updates', interpolatedSubject, getBaseTemplate('Filing Confirmation', interpolatedBody), 'Ticket Confirmation', email);
 };
 
 const sendGrievanceAssignedEmail = async (officerEmail, ticketId, title, priority, category) => {
-  const content = `
+  const fallbackSubject = 'ASSIGNMENT ALERT: Ticket #{{ticketId}}';
+  const fallbackBody = `
     <p>Hello Officer,</p>
     <p>A new grievance ticket has been assigned to your review queue.</p>
     <div class="card">
       <h3>Assignment Parameters</h3>
-      <p style="margin: 5px 0;"><strong>Ticket ID:</strong> #${ticketId}</p>
-      <p style="margin: 5px 0;"><strong>Subject:</strong> ${title}</p>
-      <p style="margin: 5px 0;"><strong>Category Group:</strong> ${category}</p>
-      <p style="margin: 5px 0;"><strong>Urgency Rating:</strong> ${priority}</p>
+      <p style="margin: 5px 0;"><strong>Ticket ID:</strong> #{{ticketId}}</p>
+      <p style="margin: 5px 0;"><strong>Subject:</strong> {{title}}</p>
+      <p style="margin: 5px 0;"><strong>Category Group:</strong> {{category}}</p>
+      <p style="margin: 5px 0;"><strong>Urgency Rating:</strong> {{priority}}</p>
     </div>
     <a href="${process.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/admin/dashboard?tab=grievances" class="btn" style="background: #7209b7;">Open Command Panel</a>
   `;
-  return queueEmail(officerEmail, `ASSIGNMENT ALERT: Ticket #${ticketId}`, getBaseTemplate('Officer Task Assigned', content, 'admin'), 'Assignment Alert');
+
+  const { subject, body } = await getEmailTemplate('grievance_assigned_email', fallbackSubject, fallbackBody);
+  const interpolatedSubject = interpolateTemplate(subject, { ticketId, title, category, priority });
+  const interpolatedBody = interpolateTemplate(body, { ticketId, title, category, priority });
+
+  return queueEmail(officerEmail, interpolatedSubject, getBaseTemplate('Officer Task Assigned', interpolatedBody, 'admin'), 'Assignment Alert');
 };
 
 const sendGrievanceStatusUpdatedEmail = async (userId, ticketId, title, oldStatus, newStatus) => {
-  const content = `
+  const fallbackSubject = 'ResolveNow Status Update: #{{ticketId}}';
+  const fallbackBody = `
     <p>Hello,</p>
-    <p>Your grievance filing <strong>#${ticketId}</strong> has advanced to a new status milestone.</p>
+    <p>Your grievance filing <strong>#{{ticketId}}</strong> has advanced to a new status milestone.</p>
     <div class="card" style="text-align: center; background: rgba(67, 97, 238, 0.05);">
       <p style="font-size: 16px; margin: 0;">
-        <span style="color: #64748b; text-decoration: line-through;">${oldStatus}</span> 
+        <span style="color: #64748b; text-decoration: line-through;">{{oldStatus}}</span> 
         <strong style="color: #38bdf8; margin: 0 15px;">➡️</strong> 
-        <strong style="color: #38bdf8; text-transform: uppercase;">${newStatus}</strong>
+        <strong style="color: #38bdf8; text-transform: uppercase;">{{newStatus}}</strong>
       </p>
     </div>
-    <p>Subject: <em>"${title}"</em></p>
+    <p>Subject: <em>\"{{title}}\"</em></p>
     <a href="${process.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/dashboard" class="btn">View Timeline Log</a>
   `;
-  return checkPreferenceAndQueue(userId, 'status_updates', `ResolveNow Status Update: #${ticketId}`, getBaseTemplate('Timeline Milestone Updated', content), 'Status Milestone Update');
+
+  const { subject, body } = await getEmailTemplate('grievance_status_updated_email', fallbackSubject, fallbackBody);
+  const interpolatedSubject = interpolateTemplate(subject, { ticketId, title, oldStatus, newStatus });
+  const interpolatedBody = interpolateTemplate(body, { ticketId, title, oldStatus, newStatus });
+
+  return checkPreferenceAndQueue(userId, 'status_updates', interpolatedSubject, getBaseTemplate('Timeline Milestone Updated', interpolatedBody), 'Status Milestone Update');
 };
 
 const sendResolutionCompletedEmail = async (userId, ticketId, title, notes, time) => {
-  const content = `
+  const fallbackSubject = 'RESOLVED: Grievance #{{ticketId}} Resolved';
+  const fallbackBody = `
     <p>Hello,</p>
-    <p>Your grievance filing <strong>#${ticketId}</strong> has been successfully resolved.</p>
+    <p>Your grievance filing <strong>#{{ticketId}}</strong> has been successfully resolved.</p>
     <div class="card">
       <h3>Resolution Statement</h3>
-      <p style="font-style: italic;">"${notes || 'Resolution executed without supplementary notes.'}"</p>
-      <p style="margin: 15px 0 0 0; font-size: 12px; color: #64748b;"><strong>Resolved At:</strong> ${time}</p>
+      <p style="font-style: italic;">\"{{notes}}\"</p>
+      <p style="margin: 15px 0 0 0; font-size: 12px; color: #64748b;"><strong>Resolved At:</strong> {{time}}</p>
     </div>
     <p>Your feedback is valuable to our quality metrics. Please take a brief moment to rate the redressal process.</p>
     <a href="${process.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/dashboard" class="btn" style="background: #10b981;">Complete Feedback Survey</a>
   `;
-  return checkPreferenceAndQueue(userId, 'status_updates', `RESOLVED: Grievance #${ticketId} Resolved`, getBaseTemplate('Redressal Verification Complete', content), 'Resolution Complete');
+
+  const { subject, body } = await getEmailTemplate('resolution_completed_email', fallbackSubject, fallbackBody);
+  const interpolatedSubject = interpolateTemplate(subject, { ticketId, title, notes, time: new Date(time).toLocaleString() });
+  const interpolatedBody = interpolateTemplate(body, { ticketId, title, notes, time: new Date(time).toLocaleString() });
+
+  return checkPreferenceAndQueue(userId, 'status_updates', interpolatedSubject, getBaseTemplate('Redressal Verification Complete', interpolatedBody), 'Resolution Complete');
 };
 
 const sendCommentAddedEmail = async (targetUserId, commentText, ticketId, authorName) => {
@@ -435,7 +531,7 @@ const sendNewGrievanceAlertEmail = async (ticketId, title, category, urgency) =>
 };
 
 const sendEscalatedGrievanceAlertEmail = async (ticketId, title, category, frustrationIndex) => {
-  const seniorAdminEmail = process.env.ADMIN_EMAIL; // Route to main administrator
+  const seniorAdminEmail = process.env.ADMIN_EMAIL;
   if (!seniorAdminEmail) return;
 
   const content = `
@@ -559,9 +655,6 @@ const sendAccountDeletionEmail = async (email, fullName) => {
 // REAL-TIME SYSTEM DATABASE HOOKS
 // ==========================================
 
-/**
- * Triggered on insert to ticket_comments table.
- */
 const handleCommentAddedEvent = async (commentRow) => {
   try {
     const { data: grievance } = await supabase
@@ -589,10 +682,8 @@ const handleCommentAddedEvent = async (commentRow) => {
     const isAdminComment = authorUser?.role === 'admin' || authorUser?.role === 'super admin';
     
     if (isAdminComment) {
-      // Send comment notice to citizen
       await sendCommentAddedEmail(grievance.user_id, commentRow.message, grievance.ticket_id, authorName);
     } else {
-      // Send notification alert to Admin team
       const adminEmail = process.env.ADMIN_EMAIL;
       if (adminEmail) {
         const content = `
@@ -612,23 +703,17 @@ const handleCommentAddedEvent = async (commentRow) => {
   }
 };
 
-/**
- * Triggered on update to grievances table.
- */
 const handleGrievanceUpdatedEvent = async (newRow, oldRow) => {
   try {
     const isStatusChanged = oldRow && oldRow.status !== newRow.status;
     
     if (isStatusChanged) {
-      // 1. Dispatch Status Updated Email
       await sendGrievanceStatusUpdatedEmail(newRow.user_id, newRow.ticket_id, newRow.title, oldRow.status, newRow.status);
 
-      // 2. If status is Escalated, trigger alert email to senior admin
       if (newRow.status === 'Escalated') {
         await sendEscalatedGrievanceAlertEmail(newRow.ticket_id, newRow.title, newRow.category, newRow.frustration_index);
       }
       
-      // 3. If status is Resolved, trigger Resolution Completed email
       if (newRow.status === 'Resolved') {
         await sendResolutionCompletedEmail(newRow.user_id, newRow.ticket_id, newRow.title, newRow.resolution_notes, newRow.updated_at);
       }
@@ -638,7 +723,28 @@ const handleGrievanceUpdatedEvent = async (newRow, oldRow) => {
   }
 };
 
+const sendBroadcastEmail = async (emailList, subject, body) => {
+  const htmlContent = getBaseTemplate(subject, body, 'user');
+  for (const email of emailList) {
+    queueEmail(email, subject, htmlContent, 'Broadcast Email');
+  }
+};
+
+const sendSpecialistBriefing = async (officerEmail, department, ticketId, briefing) => {
+  const content = `
+    <p>Hello Specialist,</p>
+    <p>A ticket briefing has been generated for your review in the <strong>${department}</strong> department.</p>
+    <div class="card">
+      <h3>Briefing Details (Ticket #${ticketId})</h3>
+      <p style="white-space: pre-line;">${briefing}</p>
+    </div>
+    <a href="${process.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/admin/dashboard?tab=grievances" class="btn" style="background: #7209b7;">Open Command Panel</a>
+  `;
+  return queueEmail(officerEmail, `Specialist Briefing: Ticket #${ticketId}`, getBaseTemplate('Departmental Specialist Briefing', content, 'admin'), 'Specialist Briefing');
+};
+
 module.exports = {
+  getTransporter,
   sendWelcomeEmail,
   sendOTPEmail,
   sendPasswordChangedEmail,
@@ -656,6 +762,8 @@ module.exports = {
   sendMaintenanceNotificationEmail,
   sendSecurityAlertEmail,
   sendAccountDeletionEmail,
+  sendBroadcastEmail,
+  sendSpecialistBriefing,
   handleCommentAddedEvent,
   handleGrievanceUpdatedEvent
 };

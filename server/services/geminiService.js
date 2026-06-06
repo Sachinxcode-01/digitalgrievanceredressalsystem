@@ -1,10 +1,30 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const dotenv = require('dotenv');
 const path = require('path');
+const configService = require('./configService');
 
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
-const genAI = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
+let genAIInstance = null;
+let activeApiKey = null;
+
+/**
+ * Returns a dynamically instantiated GoogleGenerativeAI instance based on current settings
+ */
+const getGenAI = () => {
+  const apiKey = configService.getSetting('gemini_api_key', process.env.GEMINI_API_KEY || '');
+  if (!apiKey) {
+    return null;
+  }
+
+  if (genAIInstance && activeApiKey === apiKey) {
+    return genAIInstance;
+  }
+
+  genAIInstance = new GoogleGenerativeAI(apiKey);
+  activeApiKey = apiKey;
+  return genAIInstance;
+};
 
 /**
  * Core AI Service Engine (Gemini Pro)
@@ -15,18 +35,33 @@ const geminiService = {
    * Performs deep semantic analysis to categorize and prioritize grievances.
    */
   async analyzeGrievance(description) {
-    if (!genAI) return null; // Fallback to legacy logic in aiService
+    const genAI = getGenAI();
+    if (!genAI) {
+      console.warn('[Gemini Service] API Key unconfigured. Skipping AI grievance analysis.');
+      return null;
+    }
+
+    // Check configuration toggles
+    const categorizationEnabled = configService.getSetting('enable_ai_categorization', true);
+    const sentimentEnabled = configService.getSetting('enable_sentiment_analysis', true);
+    const urgencyEnabled = configService.getSetting('enable_urgency_detection', true);
+
+    if (!categorizationEnabled && !sentimentEnabled && !urgencyEnabled) {
+      return null;
+    }
 
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const modelName = configService.getSetting('gemini_model', 'gemini-1.5-flash');
+      const model = genAI.getGenerativeModel({ model: modelName });
+      
       const prompt = `
         You are an institutional grievance analyzer. Analyze this grievance description for sentiment and urgency:
         "${description}"
 
         Rules:
-        1. Categorize as: 'Financial', 'Academic', 'Maintenance', or 'IT Support'.
-        2. Assign Urgency: 'High', 'Medium', or 'Low'.
-        3. Assign a frustration_index: Integer 1-10 (1 = calm/polite, 10 = extremely angry/frustrated/aggressive).
+        1. Categorize as: 'Financial', 'Academic', 'Maintenance', or 'IT Support'. (Set to 'IT Support' if categorization is disabled: ${!categorizationEnabled}).
+        2. Assign Urgency: 'High', 'Medium', or 'Low'. (Set to 'Low' if urgency detection is disabled: ${!urgencyEnabled}).
+        3. Assign a frustration_index: Integer 1-10 (1 = calm/polite, 10 = extremely angry/frustrated/aggressive). (Set to 1 if sentiment analysis is disabled: ${!sentimentEnabled}).
         4. Detect the language of the description. If it is NOT English, provide an English translation. If it is English, return an empty string.
         5. Respond ONLY in JSON format exactly like this:
            {
@@ -42,10 +77,10 @@ const geminiService = {
       const text = response.text();
       
       // Extract JSON (strip markdown if necessary)
-      const cleanJson = text.replace(/```json|```/g, "").trim();
+      const cleanJson = text.replace(/```json|```/g, '').trim();
       return JSON.parse(cleanJson);
     } catch (err) {
-      console.error("Gemini Neural Triage Error:", err);
+      console.error('Gemini Neural Triage Error:', err);
       return null;
     }
   },
@@ -55,10 +90,13 @@ const geminiService = {
    * Conversational resolution bot.
    */
   async getChatResponse(userMessage) {
+    const genAI = getGenAI();
     if (!genAI) return null;
 
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const modelName = configService.getSetting('gemini_model', 'gemini-1.5-flash');
+      const model = genAI.getGenerativeModel({ model: modelName });
+      
       const prompt = `
         You are the "ResolveBot", an AI helpful assistant for institutional grievances.
         User says: "${userMessage}"
@@ -74,20 +112,23 @@ const geminiService = {
       const response = await result.response;
       return response.text();
     } catch (err) {
-      console.error("Gemini Chat Neural Error:", err);
+      console.error('Gemini Chat Neural Error:', err);
       return null;
     }
   },
 
   /**
    * Neural Chat Intercept Stream
-   * Yields responses chunk-by-chunk from Gemini Pro.
+   * Yields responses chunk-by-chunk from Gemini.
    */
   async *getChatResponseStream(userMessage) {
+    const genAI = getGenAI();
     if (!genAI) return;
 
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const modelName = configService.getSetting('gemini_model', 'gemini-1.5-flash');
+      const model = genAI.getGenerativeModel({ model: modelName });
+      
       const prompt = `
         You are the "ResolveBot", an AI helpful assistant for institutional grievances.
         User says: "${userMessage}"
@@ -104,21 +145,28 @@ const geminiService = {
         yield chunk.text();
       }
     } catch (err) {
-      console.error("Gemini Chat Neural Stream Error:", err);
+      console.error('Gemini Chat Neural Stream Error:', err);
       throw err;
     }
   },
-
 
   /**
    * Neural Admin Suggestion Prototype
    * Helps admins draft professional and effective resolutions.
    */
   async generateResolutionSuggestion(ticket) {
+    const genAI = getGenAI();
     if (!genAI) return null;
 
+    const suggestionsEnabled = configService.getSetting('enable_ai_suggestions', true);
+    if (!suggestionsEnabled) {
+      return 'AI suggestions are disabled in settings.';
+    }
+
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const modelName = configService.getSetting('gemini_model', 'gemini-1.5-flash');
+      const model = genAI.getGenerativeModel({ model: modelName });
+      
       const prompt = `
         You are a resolution specialist. Draft a professional, empathetic, and actionable response for the following ticket:
         Ticket ID: ${ticket.ticket_id}
@@ -138,7 +186,7 @@ const geminiService = {
       const response = await result.response;
       return response.text().trim();
     } catch (err) {
-      console.error("Gemini Resolution Suggestion Error:", err);
+      console.error('Gemini Resolution Suggestion Error:', err);
       return null;
     }
   },
@@ -148,10 +196,13 @@ const geminiService = {
    * Generates technical context for a specific department.
    */
   async generateDepartmentBriefing(ticket, department) {
+    const genAI = getGenAI();
     if (!genAI) return null;
 
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const modelName = configService.getSetting('gemini_model', 'gemini-1.5-flash');
+      const model = genAI.getGenerativeModel({ model: modelName });
+      
       const prompt = `
         You are an AI assistant briefing a specialist in the ${department} department.
         Subject: ${ticket.title}
@@ -167,8 +218,8 @@ const geminiService = {
       const response = await result.response;
       return response.text().trim();
     } catch (err) {
-      console.error("Gemini Department Briefing Error:", err);
-      return "Error generating briefing. Please review manually.";
+      console.error('Gemini Department Briefing Error:', err);
+      return 'Error generating briefing. Please review manually.';
     }
   },
 
@@ -177,10 +228,13 @@ const geminiService = {
    * Summarizes monthly trends for executive reports.
    */
   async generatePerformanceSummary(tickets) {
-    if (!genAI || tickets.length === 0) return "Not enough data for AI analysis.";
+    const genAI = getGenAI();
+    if (!genAI || tickets.length === 0) return 'Not enough data for AI analysis or Gemini is unconfigured.';
 
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const modelName = configService.getSetting('gemini_model', 'gemini-1.5-flash');
+      const model = genAI.getGenerativeModel({ model: modelName });
+      
       const stats = {
         total:  tickets.length,
         cats:   tickets.reduce((acc, t) => { acc[t.category] = (acc[t.category] || 0) + 1; return acc; }, {}),
@@ -202,20 +256,23 @@ const geminiService = {
       const response = await result.response;
       return response.text().trim();
     } catch (err) {
-      console.error("Gemini Performance Summary Error:", err);
-      return "Performance analysis engine unreachable.";
+      console.error('Gemini Performance Summary Error:', err);
+      return 'Performance analysis engine unreachable.';
     }
   },
 
   /**
    * Neural Vision Evidence Analysis
-   * Validates photographic evidence using Gemini 1.5 Flash.
+   * Validates photographic evidence using Gemini.
    */
   async analyzeImage(base64Image, mimeType) {
+    const genAI = getGenAI();
     if (!genAI) return null;
 
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const modelName = configService.getSetting('gemini_model', 'gemini-1.5-flash');
+      const model = genAI.getGenerativeModel({ model: modelName });
+      
       const prompt = `
         Analyze this image evidence for a grievance report. 
         Identify what is in the image, the severity of any visible issues (e.g. broken equipment, mess, leak, etc.), 
@@ -226,7 +283,7 @@ const geminiService = {
         {
           inlineData: {
             data: base64Image,
-            mimeType: mimeType || "image/jpeg"
+            mimeType: mimeType || 'image/jpeg'
           }
         }
       ];
@@ -235,8 +292,8 @@ const geminiService = {
       const response = await result.response;
       return response.text().trim();
     } catch (err) {
-      console.error("Gemini Vision Analysis Error:", err);
-      return "Vision analysis failed. Manual verification required.";
+      console.error('Gemini Vision Analysis Error:', err);
+      return 'Vision analysis failed. Manual verification required.';
     }
   },
 
@@ -245,10 +302,13 @@ const geminiService = {
    * Drafts a professional institutional announcement based on admin intent.
    */
   async composeBroadcastEmail(intent, tone = 'professional') {
-    if (!genAI) return "AI composition system offline.";
+    const genAI = getGenAI();
+    if (!genAI) return 'AI composition system offline.';
 
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const modelName = configService.getSetting('gemini_model', 'gemini-1.5-flash');
+      const model = genAI.getGenerativeModel({ model: modelName });
+      
       const prompt = `
         You are the Institutional Communications Officer. Write a broadcast email to all students and staff based on this intent:
         "${intent}"
@@ -267,8 +327,8 @@ const geminiService = {
       const response = await result.response;
       return response.text().trim();
     } catch (err) {
-      console.error("Gemini Broadcast Composition Error:", err);
-      return "Failed to generate broadcast draft.";
+      console.error('Gemini Broadcast Composition Error:', err);
+      return 'Failed to generate broadcast draft.';
     }
   }
 };

@@ -39,7 +39,14 @@ app.use(
 // 3. Rate Limiter (Brute-force / DoS Protection)
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: (req, res) => {
+    try {
+      const configService = require('./services/configService');
+      return parseInt(configService.getSetting('rate_limit_max', 100));
+    } catch (err) {
+      return 100;
+    }
+  },
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   message: { error: 'Too many requests from this IP. Please try again after 15 minutes.' }
@@ -159,9 +166,18 @@ if (supabaseClient) {
     });
 }
 
-app.listen(PORT, '0.0.0.0', () => {
+const configService = require('./services/configService');
+
+configService.init().then(() => {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n========================================`);
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📡 Digital Grievance API v1 is online`);
     console.log(`========================================\n`);
+  });
+}).catch(err => {
+  console.error('❌ Server failed to start due to config errors:', err);
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server running on port ${PORT} (fallback mode)`);
+  });
 });

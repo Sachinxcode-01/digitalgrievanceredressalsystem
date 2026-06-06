@@ -6,37 +6,143 @@ const {
   listUsers,
   updateUserRole,
   updateUserStatus,
-  listSystemAuditLogs
+  listSystemAuditLogs,
+  createUser,
+  updateUser,
+  deleteUser,
+  getUserActivity,
+  getComplianceStats,
+  getComplianceReports,
+  getRoles,
+  createRole,
+  updateRole,
+  deleteRole,
+  getPermissions
 } = require('../controllers/adminController');
-const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
+const { authenticateToken, authorizeRoles, authorizePermissions } = require('../middleware/authMiddleware');
 const { validateBroadcast } = require('../middleware/validationMiddleware');
+const {
+  getSettings,
+  updateSettings,
+  testEmail,
+  testSms,
+  getDepartments,
+  createDepartment,
+  updateDepartment,
+  deleteDepartment,
+  getSlaRules,
+  createSlaRule,
+  updateSlaRule,
+  deleteSlaRule,
+  getEscalationRules,
+  createEscalationRule,
+  updateEscalationRule,
+  deleteEscalationRule,
+  getEmailTemplates,
+  updateEmailTemplate,
+  getSmsTemplates,
+  updateSmsTemplate,
+  clearCache,
+  runBackup
+} = require('../controllers/settingsController');
 
 // Ensure all routes are protected
 router.use(authenticateToken);
-router.use(authorizeRoles('admin', 'super admin'));
 
-// @route   POST /api/v1/admin/broadcast
-// @desc    Send bulk email to all users (restricted to admin clearance)
-router.post('/broadcast', validateBroadcast, broadcastToAll);
+// --- 1. Broadcast & Health Telemetry ---
+// Broadcast email (restricted to admin clearance)
+router.post('/broadcast', authorizePermissions('manage_settings'), validateBroadcast, broadcastToAll);
 
-// @route   GET /api/v1/admin/health-metrics
-// @desc    Retrieve detailed server and database telemetry
-router.get('/health-metrics', getHealthMetrics);
+// Retrieve detailed server and database telemetry
+router.get('/health-metrics', authorizePermissions('view_analytics'), getHealthMetrics);
 
-// @route   GET /api/v1/admin/users
-// @desc    Retrieve all registered system users
-router.get('/users', listUsers);
+// --- 2. Users Management Routes ---
+// Retrieve all registered system users
+router.get('/users', authorizePermissions('manage_users'), listUsers);
 
-// @route   PUT /api/v1/admin/users/:id/role
-// @desc    Update clearance role for specific user
-router.put('/users/:id/role', updateUserRole);
+// Create user
+router.post('/users', authorizePermissions('manage_users'), createUser);
 
-// @route   PUT /api/v1/admin/users/:id/status
-// @desc    Update lockout status for specific user
-router.put('/users/:id/status', updateUserStatus);
+// Update user details
+router.put('/users/:id', authorizePermissions('manage_users'), updateUser);
 
-// @route   GET /api/v1/admin/audit
-// @desc    Retrieve system security logs
-router.get('/audit', listSystemAuditLogs);
+// Delete user
+router.delete('/users/:id', authorizePermissions('manage_users'), deleteUser);
+
+// Update clearance role for specific user (legacy fallback support)
+router.put('/users/:id/role', authorizePermissions('manage_users'), updateUserRole);
+
+// Update lockout status for specific user
+router.put('/users/:id/status', authorizePermissions('manage_users'), updateUserStatus);
+
+// Fetch logs for a specific user
+router.get('/users/:id/activity', authorizePermissions('view_audit_logs'), getUserActivity);
+
+// --- 3. Audit & Compliance Routes ---
+// Retrieve system security logs
+router.get('/audit', authorizePermissions('view_audit_logs'), listSystemAuditLogs);
+
+// Retrieve Compliance Metrics
+router.get('/compliance/stats', authorizePermissions('view_analytics'), getComplianceStats);
+
+// Generate Compliance reports (CSV/JSON)
+router.get('/compliance/reports', authorizePermissions('view_analytics'), getComplianceReports);
+
+// --- 4. Roles & Permissions Management ---
+// Fetch all roles with their assigned permissions
+router.get('/roles', authorizePermissions('manage_roles'), getRoles);
+
+// Create a new role
+router.post('/roles', authorizePermissions('manage_roles'), createRole);
+
+// Update role permissions
+router.put('/roles/:id', authorizePermissions('manage_roles'), updateRole);
+
+// Delete custom role
+router.delete('/roles/:id', authorizePermissions('manage_roles'), deleteRole);
+
+// Get all available permissions
+router.get('/permissions', authorizePermissions('manage_roles'), getPermissions);
+
+// --- 5. System Settings & Configuration Center ---
+// Get all system settings grouped by category
+router.get('/settings', authorizePermissions('manage_settings'), getSettings);
+
+// Bulk update settings
+router.put('/settings', authorizePermissions('manage_settings'), updateSettings);
+
+// SMTP email check dispatch
+router.post('/settings/test-email', authorizePermissions('manage_settings'), testEmail);
+
+// SMS Gateway check dispatch
+router.post('/settings/test-sms', authorizePermissions('manage_settings'), testSms);
+
+// CRUD Departments
+router.get('/departments', authorizePermissions('manage_settings'), getDepartments);
+router.post('/departments', authorizePermissions('manage_settings'), createDepartment);
+router.put('/departments/:id', authorizePermissions('manage_settings'), updateDepartment);
+router.delete('/departments/:id', authorizePermissions('manage_settings'), deleteDepartment);
+
+// CRUD SLA Rules
+router.get('/settings/sla-rules', authorizePermissions('manage_settings'), getSlaRules);
+router.post('/settings/sla-rules', authorizePermissions('manage_settings'), createSlaRule);
+router.put('/settings/sla-rules/:id', authorizePermissions('manage_settings'), updateSlaRule);
+router.delete('/settings/sla-rules/:id', authorizePermissions('manage_settings'), deleteSlaRule);
+
+// CRUD Escalation Rules
+router.get('/settings/escalation-rules', authorizePermissions('manage_settings'), getEscalationRules);
+router.post('/settings/escalation-rules', authorizePermissions('manage_settings'), createEscalationRule);
+router.put('/settings/escalation-rules/:id', authorizePermissions('manage_settings'), updateEscalationRule);
+router.delete('/settings/escalation-rules/:id', authorizePermissions('manage_settings'), deleteEscalationRule);
+
+// Templates Management
+router.get('/settings/templates/email', authorizePermissions('manage_settings'), getEmailTemplates);
+router.put('/settings/templates/email/:id', authorizePermissions('manage_settings'), updateEmailTemplate);
+router.get('/settings/templates/sms', authorizePermissions('manage_settings'), getSmsTemplates);
+router.put('/settings/templates/sms/:id', authorizePermissions('manage_settings'), updateSmsTemplate);
+
+// Maintenance Mode Operations
+router.post('/settings/maintenance/cache', authorizePermissions('manage_settings'), clearCache);
+router.post('/settings/maintenance/backup', authorizePermissions('manage_settings'), runBackup);
 
 module.exports = router;

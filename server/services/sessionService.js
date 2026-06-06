@@ -43,17 +43,81 @@ const parseUserAgent = (userAgentString) => {
 const logAudit = async (userId, action, ip, userAgent, details = {}) => {
   if (!supabase) return;
   try {
+    const { os, browser, device } = parseUserAgent(userAgent);
+    let userRole = 'student';
+    if (userId) {
+      const { data: user } = await supabase.from('users').select('role').eq('id', userId).maybeSingle();
+      if (user) userRole = user.role;
+    }
+    
     await supabase.from('audit_logs').insert([
       {
         user_id: userId,
         action,
         ip_address: ip || '127.0.0.1',
         user_agent: userAgent || 'Unknown',
-        details
+        details: {
+          role: userRole,
+          device: `${device} (${os})`,
+          browser,
+          ...details
+        }
       }
     ]);
   } catch (err) {
     console.error('[Audit Log Failure]:', err.message);
+  }
+};
+
+/**
+ * Log Security Event (e.g. failed login, locks, suspicious activity)
+ */
+const logSecurityEvent = async (userId, eventType, severity, ip, userAgent, details = {}) => {
+  if (!supabase) return;
+  try {
+    const { os, browser, device } = parseUserAgent(userAgent);
+    await supabase.from('security_events').insert([
+      {
+        user_id: userId,
+        event_type: eventType,
+        severity,
+        ip_address: ip || '127.0.0.1',
+        user_agent: userAgent || 'Unknown',
+        details: {
+          device: `${device} (${os})`,
+          browser,
+          ...details
+        }
+      }
+    ]);
+  } catch (err) {
+    console.error('[Security Event Failure]:', err.message);
+  }
+};
+
+/**
+ * Log Admin Action
+ */
+const logAdminActivity = async (adminId, action, targetUserId, ip, userAgent, details = {}) => {
+  if (!supabase) return;
+  try {
+    const { os, browser, device } = parseUserAgent(userAgent);
+    await supabase.from('admin_activity_logs').insert([
+      {
+        admin_id: adminId,
+        action,
+        target_user_id: targetUserId,
+        ip_address: ip || '127.0.0.1',
+        user_agent: userAgent || 'Unknown',
+        details: {
+          device: `${device} (${os})`,
+          browser,
+          ...details
+        }
+      }
+    ]);
+  } catch (err) {
+    console.error('[Admin Activity Log Failure]:', err.message);
   }
 };
 
@@ -261,5 +325,7 @@ module.exports = {
   revokeSession,
   revokeAllSessionsExcept,
   logAudit,
+  logSecurityEvent,
+  logAdminActivity,
   parseUserAgent
 };
