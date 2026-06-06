@@ -2,9 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, ShieldCheck, Database, Cpu, Mail, HardDrive, RefreshCw, ChevronLeft, Sun, Moon } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { BackgroundGradientAnimation } from '../../components/ui/background-gradient-animation';
-import { NeuralOverlay } from '../../components/ui/NeuralOverlay';
-import { PulseTicker } from '../../components/ui/PulseTicker';
+// Removed BackgroundGradientAnimation, NeuralOverlay, PulseTicker
 
 export const StatusPage = () => {
   const [metrics, setMetrics] = useState(null);
@@ -47,19 +45,10 @@ export const StatusPage = () => {
   };
 
   return (
-    <BackgroundGradientAnimation 
-      interactive={true}
-      gradientBackgroundStart={theme === 'midnight' ? "#020617" : "#f8fafc"}
-      gradientBackgroundEnd={theme === 'midnight' ? "#0a0f1d" : "#f1f5f9"}
-      firstColor={theme === 'midnight' ? "99, 102, 241" : "186, 230, 253"} 
-      secondColor={theme === 'midnight' ? "79, 70, 229" : "199, 210, 254"}
-      thirdColor={theme === 'midnight' ? "15, 23, 42" : "224, 242, 254"}
-    >
-      <NeuralOverlay theme={theme} />
-      
-      <div className="fixed top-0 left-0 right-0 z-[60]">
-        <PulseTicker />
-      </div>
+    <div className={`min-h-screen w-full relative overflow-x-hidden ${theme === 'midnight' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
+      <div className="absolute inset-0 bg-grid-pattern opacity-[0.02] pointer-events-none" />
+      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-indigo-500/5 rounded-full blur-[140px] pointer-events-none" />
 
       <div className="min-h-screen w-full overflow-y-auto overflow-x-hidden p-4 sm:p-6 flex flex-col items-center justify-center relative z-50 pt-16">
         
@@ -197,7 +186,7 @@ export const StatusPage = () => {
           </footer>
         </div>
       </div>
-    </BackgroundGradientAnimation>
+    </div>
   );
 };
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { ShieldAlert, RefreshCw, Home, LogOut } from 'lucide-react';
-import { RainbowButton } from './RainbowButton';
+// RainbowButton removed
 import { supabase } from '../../lib/supabase';
 
 export class ErrorBoundary extends React.Component {
@@ -43,10 +43,13 @@ export class ErrorBoundary extends React.Component {
             </p>
             
             <div className="w-full flex flex-col sm:flex-row justify-center gap-4 mb-8">
-               <RainbowButton onClick={this.handleReload} className="w-full sm:w-auto px-12 py-4">
-                 <RefreshCw size={18} />
+               <button 
+                 onClick={this.handleReload} 
+                 className="w-full sm:w-auto px-12 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm uppercase tracking-widest shadow-md flex items-center justify-center gap-2 cursor-pointer"
+               >
+                 <RefreshCw size={16} />
                  Reboot Interface
-               </RainbowButton>
+               </button>
                <button 
                  onClick={() => window.location.href = '/'}
                  className="w-full sm:w-auto px-12 py-4 rounded-xl border border-white/10 hover:bg-white/5 transition-all text-sm font-black uppercase tracking-widest text-slate-400 hover:text-white"

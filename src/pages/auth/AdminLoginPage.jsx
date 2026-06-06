@@ -3,8 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, ArrowRight, ShieldCheck, Home, Lock, ShieldAlert, ChevronLeft, Landmark, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../../app/providers/AuthProvider';
-import { BackgroundGradientAnimation } from '../../components/ui/background-gradient-animation';
-import { NeuralOverlay } from '../../components/ui/NeuralOverlay';
 import toast from 'react-hot-toast';
 
 // ─── Visual OTP Input Component ───────────────────────────────────────────
@@ -105,17 +103,11 @@ export const AdminLoginPage = () => {
   };
 
   return (
-    <BackgroundGradientAnimation
-      interactive={true}
-      gradientBackgroundStart={theme === 'midnight' ? "#020617" : "#f8fafc"}
-      gradientBackgroundEnd={theme === 'midnight' ? "#000000" : "#f1f5f9"}
-      firstColor={theme === 'midnight' ? "79, 70, 229" : "186, 230, 253"}
-      secondColor={theme === 'midnight' ? "99, 102, 241" : "199, 210, 254"}
-      thirdColor={theme === 'midnight' ? "0, 0, 0" : "224, 242, 254"}
-    >
-      <NeuralOverlay theme={theme} />
-      <div className="h-screen w-full overflow-y-auto relative z-50">
-        <div className="min-h-full w-full flex items-center justify-center p-4 sm:p-8">
+    <div className={`h-screen w-full overflow-y-auto relative ${theme === 'midnight' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
+      <div className="absolute inset-0 bg-grid-pattern opacity-[0.02] pointer-events-none" />
+      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-indigo-500/5 rounded-full blur-[140px] pointer-events-none" />
+      <div className="relative z-10 w-full min-h-full flex items-center justify-center p-4 sm:p-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -246,9 +238,8 @@ export const AdminLoginPage = () => {
               </Link>
             </div>
           </motion.div>
-        </div>
       </div>
-    </BackgroundGradientAnimation>
+    </div>
   );
 };
 

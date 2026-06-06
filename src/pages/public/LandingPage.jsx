@@ -3,8 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, ShieldCheck, Zap, Globe, Sparkles, Ticket, Landmark, Award, ShieldAlert, Sun, Moon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../app/providers/AuthProvider';
-import { BackgroundGradientAnimation } from '../../components/ui/background-gradient-animation';
-import { RainbowButton } from '../../components/ui/RainbowButton';
 import toast from 'react-hot-toast';
 
 export const LandingPage = () => {
@@ -28,14 +26,10 @@ export const LandingPage = () => {
   ];
 
   return (
-    <BackgroundGradientAnimation 
-      interactive={true}
-      gradientBackgroundStart={theme === 'midnight' ? "#020617" : "#f8fafc"} 
-      gradientBackgroundEnd={theme === 'midnight' ? "#0a0f1d" : "#f1f5f9"}
-      firstColor={theme === 'midnight' ? "99, 102, 241" : "186, 230, 253"} 
-      secondColor={theme === 'midnight' ? "79, 70, 229" : "199, 210, 254"}
-      thirdColor={theme === 'midnight' ? "15, 23, 42" : "224, 242, 254"}
-    >
+    <div className={`w-full min-h-screen relative overflow-hidden ${theme === 'midnight' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
+      <div className="absolute inset-0 bg-grid-pattern opacity-[0.02] pointer-events-none" />
+      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-indigo-500/5 rounded-full blur-[140px] pointer-events-none" />
       <div className="h-screen w-full overflow-y-auto overflow-x-hidden relative z-50 flex flex-col items-center">
         {/* Navigation */}
         <nav className="w-full max-w-7xl px-4 sm:px-8 py-4 sm:py-6 flex flex-row items-center justify-between gap-4 sm:gap-0 border-b border-border/10 backdrop-blur-md sticky top-0 bg-background/40 z-[100]">
@@ -64,16 +58,16 @@ export const LandingPage = () => {
 
             {!isAuthenticated ? (
               <Link to="/login">
-                <RainbowButton className="!py-2 !px-5 rounded-xl shadow-md">
+                <button className="btn-premium !py-2.5 !px-5 rounded-xl shadow-md">
                   <span className="text-[10px] font-black uppercase tracking-widest text-white">Access Portal</span>
-                </RainbowButton>
+                </button>
               </Link>
             ) : (
               <div className="flex items-center gap-3">
                 <Link to={dashboardLink}>
-                  <RainbowButton className="!py-2 !px-5 rounded-xl">
+                  <button className="btn-premium !py-2.5 !px-5 rounded-xl">
                     <span className="text-[10px] font-black uppercase tracking-widest text-white">Console</span>
-                  </RainbowButton>
+                  </button>
                 </Link>
                 <button 
                   onClick={logout}
@@ -504,6 +498,6 @@ export const LandingPage = () => {
           &copy; {new Date().getFullYear()} Government of Digital India &bull; Unified Grievance Infrastructure &bull; Secure Portal
         </footer>
       </div>
-    </BackgroundGradientAnimation>
+    </div>
   );
 };

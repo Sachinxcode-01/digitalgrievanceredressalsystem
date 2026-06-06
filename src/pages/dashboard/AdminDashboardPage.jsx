@@ -16,7 +16,6 @@ import { supabase } from '../../lib/supabase';
 import { grievanceService, getAuthHeaders } from '../../api/grievanceService';
 import { CommandChat } from '../../components/ai/CommandChat';
 import { useRealtimeConnection } from '../../hooks/useRealtimeConnection';
-import { NeuralHeatmap } from '../../components/charts/NeuralHeatmap';
 import StatusBadge from '../../components/ui/StatusBadge';
 import UrgencyBadge from '../../components/ui/UrgencyBadge';
 import { logSecurityEvent } from '../../lib/auditLogger';
@@ -743,13 +742,61 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
             exit={{ opacity: 0, y: -10 }}
             className="space-y-6"
           >
-            {/* Heatmap overview */}
-            <div className="bg-surface border border-border/80 rounded-xl p-5 shadow-xs">
-              <div className="mb-4">
-                <h3 className="font-heading font-extrabold text-xs uppercase tracking-wider text-muted-foreground">Neural Intensity Heatmap</h3>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Real-time load and critical friction hotspots within institutional sectors.</p>
+            {/* Analytics Preview & SLA Summary */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-surface border border-border/80 rounded-xl p-5 shadow-xs">
+              <div className="sm:col-span-2 lg:col-span-4 mb-2">
+                <h3 className="font-heading font-extrabold text-xs uppercase tracking-wider text-muted-foreground">Analytics Preview & SLA Status</h3>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Real-time performance metrics and priority load indicators across departments.</p>
               </div>
-              <NeuralHeatmap tickets={tickets} />
+              
+              {/* Metric Card 1: Urgent & High Priority */}
+              <div className="p-4 rounded-xl bg-background/30 border border-border/50 space-y-1">
+                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Urgent Cases</span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xl font-mono font-black text-error">
+                    {tickets.filter(t => t.urgency === 'Urgent' || t.urgency === 'High').length}
+                  </span>
+                  <span className="text-[9px] text-muted-foreground">active tickets</span>
+                </div>
+              </div>
+
+              {/* Metric Card 2: Average Sentiment */}
+              <div className="p-4 rounded-xl bg-background/30 border border-border/50 space-y-1">
+                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Friction Hotspots</span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xl font-mono font-black text-warning">
+                    {tickets.filter(t => t.frustration_index >= 7).length}
+                  </span>
+                  <span className="text-[9px] text-muted-foreground">high frustration</span>
+                </div>
+              </div>
+
+              {/* Metric Card 3: Resolution Rate */}
+              <div className="p-4 rounded-xl bg-background/30 border border-border/50 space-y-1">
+                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Resolution Rate</span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xl font-mono font-black text-success">
+                    {tickets.length > 0 
+                      ? `${Math.round((tickets.filter(t => t.status === 'Resolved' || t.status === 'Closed').length / tickets.length) * 100)}%` 
+                      : '100%'}
+                  </span>
+                  <span className="text-[9px] text-muted-foreground">total closed</span>
+                </div>
+              </div>
+
+              {/* Metric Card 4: SLA Adherence */}
+              <div className="p-4 rounded-xl bg-background/30 border border-border/50 space-y-1">
+                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">SLA Breaches</span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xl font-mono font-black text-primary-bright">
+                    {tickets.filter(t => {
+                      const daysOld = (new Date() - new Date(t.created_at)) / (1000 * 60 * 60 * 24);
+                      return daysOld > 3 && t.status !== 'Resolved' && t.status !== 'Closed';
+                    }).length}
+                  </span>
+                  <span className="text-[9px] text-muted-foreground">overdue (&gt;72h)</span>
+                </div>
+              </div>
             </div>
 
             {/* Charts Grid */}
