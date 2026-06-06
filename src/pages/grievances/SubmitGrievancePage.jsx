@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../../lib/supabase';
-import { grievanceService } from '../../api/grievanceService';
+import { grievanceService } from '../../services/grievanceService';
 import { logSecurityEvent } from '../../lib/auditLogger';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { PlacePicker } from '@googlemaps/extended-component-library/react';

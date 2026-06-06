@@ -1,4 +1,4 @@
-const supabase = require('../config/supabase');
+const notificationRepository = require('../repositories/notificationRepository');
 
 /**
  * Enterprise Notification Queue Service
@@ -61,26 +61,20 @@ class NotificationQueue {
       try {
         job.attempt++;
 
-        // 1. Log or update status in Supabase table (if Database is active)
-        if (supabase && job.type === 'EMAIL') {
+        // 1. Log or update status in Supabase table
+        if (job.type === 'EMAIL') {
           if (!job.dbLogId) {
             try {
-              const { data, error } = await supabase
-                .from('email_logs')
-                .insert([
-                  {
-                    recipient: job.payload.to || 'unknown',
-                    subject: job.payload.subject || 'No Subject',
-                    event_type: job.payload.type || 'UNKNOWN',
-                    status: 'pending',
-                    attempts: job.attempt,
-                    max_attempts: job.maxRetries
-                  }
-                ])
-                .select('id')
-                .single();
+              const data = await notificationRepository.insertEmailLog({
+                recipient: job.payload.to || 'unknown',
+                subject: job.payload.subject || 'No Subject',
+                event_type: job.payload.type || 'UNKNOWN',
+                status: 'pending',
+                attempts: job.attempt,
+                max_attempts: job.maxRetries
+              });
               
-              if (!error && data) {
+              if (data) {
                 job.dbLogId = data.id;
               }
             } catch (err) {
@@ -89,14 +83,11 @@ class NotificationQueue {
           } else {
             // Update attempt count in log
             try {
-              await supabase
-                .from('email_logs')
-                .update({ 
-                  attempts: job.attempt, 
-                  status: 'pending',
-                  updated_at: new Date().toISOString() 
-                })
-                .eq('id', job.dbLogId);
+              await notificationRepository.updateEmailLog(job.dbLogId, { 
+                attempts: job.attempt, 
+                status: 'pending',
+                updated_at: new Date().toISOString() 
+              });
             } catch (err) {
               console.error('[Notification Queue] Failed to update job attempt count:', err.message);
             }
@@ -109,15 +100,12 @@ class NotificationQueue {
         await job.taskFn();
         
         // 2. Mark enqueued log as sent
-        if (supabase && job.dbLogId) {
+        if (job.dbLogId) {
           try {
-            await supabase
-              .from('email_logs')
-              .update({ 
-                status: 'sent', 
-                updated_at: new Date().toISOString() 
-              })
-              .eq('id', job.dbLogId);
+            await notificationRepository.updateEmailLog(job.dbLogId, { 
+              status: 'sent', 
+              updated_at: new Date().toISOString() 
+            });
           } catch (err) {
             console.error('[Notification Queue] Failed to mark job as sent:', err.message);
           }
@@ -130,16 +118,13 @@ class NotificationQueue {
         const isPermanentFailure = job.attempt >= job.maxRetries;
 
         // 3. Mark enqueued log as failed or retrying
-        if (supabase && job.dbLogId) {
+        if (job.dbLogId) {
           try {
-            await supabase
-              .from('email_logs')
-              .update({ 
-                status: isPermanentFailure ? 'failed' : 'retrying', 
-                error_message: err.message,
-                updated_at: new Date().toISOString() 
-              })
-              .eq('id', job.dbLogId);
+            await notificationRepository.updateEmailLog(job.dbLogId, { 
+              status: isPermanentFailure ? 'failed' : 'retrying', 
+              error_message: err.message,
+              updated_at: new Date().toISOString() 
+            });
           } catch (dbErr) {
             console.error('[Notification Queue] Failed to log failure status:', dbErr.message);
           }

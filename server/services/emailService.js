@@ -3,8 +3,8 @@ const dotenv = require('dotenv');
 const path = require('path');
 const fs = require('fs');
 const notificationQueue = require('./notificationQueue');
-const supabase = require('../config/supabase');
 const configService = require('./configService');
+const notificationRepository = require('../repositories/notificationRepository');
 
 // Load notification templates
 const grievanceCreated = require('../templates/notifications/grievanceCreated');
@@ -321,11 +321,9 @@ const getBaseTemplateLegacy = (title, content, type = 'user') => {
  */
 const getEmailTemplate = async (name, fallbackSubject, fallbackBody) => {
   try {
-    if (supabase) {
-      const { data, error } = await supabase.from('email_templates').select('subject, body').eq('name', name).maybeSingle();
-      if (data && !error) {
-        return { subject: data.subject, body: data.body };
-      }
+    const data = await notificationRepository.findEmailTemplate(name);
+    if (data) {
+      return { subject: data.subject, body: data.body };
     }
   } catch (err) {
     console.error(`[Email Service] Template fetch failed for ${name}:`, err.message);
@@ -362,377 +360,139 @@ const queueEmail = (email, subject, htmlContent, label) => {
   notificationQueue.enqueue('EMAIL', { to: email, subject, type: label }, taskFn);
 };
 
-/**
- * Preferences guard helper.
- */
-const checkPreferenceAndQueue = async (userId, preferenceKey, subject, htmlContent, label, fallbackEmail = null) => {
-  let recipientEmail = fallbackEmail;
-  let preferences = null;
-
-  if (userId && supabase) {
-    try {
-      const { data: user } = await supabase.from('users').select('email').eq('id', userId).single();
-      if (user) recipientEmail = user.email;
-
-      const { data: profile } = await supabase.from('user_profiles').select('notification_preferences').eq('user_id', userId).single();
-      if (profile) preferences = profile.notification_preferences;
-    } catch (err) {
-      console.error('[Notification Preferences] Query failure:', err.message);
-    }
-  }
-
-  // Critical events bypass preference configurations
-  const isCritical = ['otp_verification', 'password_changed', 'account_deleted'].includes(preferenceKey);
-  
-  if (!isCritical && preferences) {
-    const isEnabled = preferences[preferenceKey] !== false; // Default to true if undefined
-    if (!isEnabled) {
-      console.log(`[Email Service] Skipping dispatch of ${label} to ${recipientEmail} due to preference filter.`);
-      return;
-    }
-  }
-
-  if (!recipientEmail) {
-    console.error(`[Email Service] Aborting dispatch: no recipient email found for user ${userId || 'unknown'}`);
-    return;
-  }
-
-  return queueEmail(recipientEmail, subject, htmlContent, label);
-};
-
 // ==========================================
-// AUTHENTICATION EMAILS
+// AUTHENTICATION EMAILS (Backward Compatible Wrappers calling notificationService)
 // ==========================================
-
 const sendWelcomeEmail = async (email, fullName, userId = null) => {
-  const htmlContent = compileEmail('welcomeEmail.html', { fullName, email }, 'Identity Verified', 'user');
-  const subject = 'Welcome to ResolveNow: Identity Verified';
-  return checkPreferenceAndQueue(userId, 'status_updates', subject, htmlContent, 'Welcome Dossier', email);
+  const notificationService = require('./notificationService');
+  return notificationService.sendWelcomeEmail(email, fullName, userId);
 };
 
 const sendOTPEmail = async (email, otp, purpose = 'registration') => {
-  const purposeText = 
-    purpose === 'login' ? 'login authentication' :
-    purpose === 'forgot_password' ? 'password recovery' : 'account registration';
-
-  const htmlContent = compileEmail('otpEmail.html', { otp, purpose: purposeText }, 'Authentication Dispatch', 'user');
-  const subject = `Secure OTP Code: ${otp}`;
-  return queueEmail(email, subject, htmlContent, 'OTP Verification');
+  const notificationService = require('./notificationService');
+  return notificationService.sendOTPEmail(email, otp, purpose);
 };
 
 const sendPasswordChangedEmail = async (userId) => {
-  const htmlContent = compileEmail('passwordResetEmail.html', {}, 'Security Event: Password Updated', 'user');
-  const subject = 'ResolveNow: Password Changed Successfully';
-  return checkPreferenceAndQueue(userId, 'password_changed', subject, htmlContent, 'Password Changed Alert');
+  const notificationService = require('./notificationService');
+  return notificationService.sendPasswordChangedEmail(userId);
 };
 
 const sendNewDeviceLoginEmail = async (userId, device, browser, time, location = 'Unknown') => {
-  const data = securityAlert.email.newDevice({ device, browser, time, location });
-  const htmlContent = compileEmail(data.template, data.variables, 'Security Alert: Unknown Sign-in', 'user');
-  return checkPreferenceAndQueue(userId, 'security_alerts', data.subject, htmlContent, 'New Device Sign-in');
+  const notificationService = require('./notificationService');
+  return notificationService.sendNewDeviceLoginEmail(userId, device, browser, time, location);
 };
 
 // ==========================================
 // GRIEVANCE EMAILS
 // ==========================================
-
 const sendGrievanceEmail = async (email, ticketId, title, userId = null) => {
-  const data = grievanceCreated.email.user({
-    ticketId,
-    title,
-    frontendUrl: process.env.VITE_FRONTEND_URL || 'http://localhost:5173'
-  });
-  const htmlContent = compileEmail(data.template, data.variables, 'Filing Confirmation', 'user');
-  return checkPreferenceAndQueue(userId, 'status_updates', data.subject, htmlContent, 'Ticket Confirmation', email);
+  const notificationService = require('./notificationService');
+  return notificationService.sendGrievanceEmail(email, ticketId, title, userId);
 };
 
 const sendGrievanceAssignedEmail = async (officerEmail, ticketId, title, priority, category) => {
-  const data = grievanceAssigned.email.officer({
-    ticketId,
-    title,
-    category,
-    priority,
-    frontendUrl: process.env.VITE_FRONTEND_URL || 'http://localhost:5173'
-  });
-  const htmlContent = compileEmail(data.template, data.variables, 'Officer Task Assigned', 'admin');
-  return queueEmail(officerEmail, data.subject, htmlContent, 'Assignment Alert');
+  const notificationService = require('./notificationService');
+  return notificationService.sendGrievanceAssignedEmail(officerEmail, ticketId, title, priority, category);
 };
 
 const sendGrievanceStatusUpdatedEmail = async (userId, ticketId, title, oldStatus, newStatus) => {
-  const htmlContent = compileEmail('grievanceUpdatedEmail.html', {
-    ticketId,
-    title,
-    oldStatus,
-    newStatus
-  }, 'Timeline Milestone Updated', 'user');
-  const subject = `ResolveNow Status Update: #${ticketId}`;
-  return checkPreferenceAndQueue(userId, 'status_updates', subject, htmlContent, 'Status Milestone Update');
+  const notificationService = require('./notificationService');
+  return notificationService.sendGrievanceStatusUpdatedEmail(userId, ticketId, title, oldStatus, newStatus);
 };
 
 const sendResolutionCompletedEmail = async (userId, ticketId, title, notes, time) => {
-  const data = grievanceResolved.email.user({
-    ticketId,
-    title,
-    notes,
-    time: new Date(time).toLocaleString(),
-    frontendUrl: process.env.VITE_FRONTEND_URL || 'http://localhost:5173'
-  });
-  const htmlContent = compileEmail(data.template, data.variables, 'Redressal Verification Complete', 'user');
-  return checkPreferenceAndQueue(userId, 'status_updates', data.subject, htmlContent, 'Resolution Complete');
+  const notificationService = require('./notificationService');
+  return notificationService.sendResolutionCompletedEmail(userId, ticketId, title, notes, time);
 };
 
 const sendCommentAddedEmail = async (targetUserId, commentText, ticketId, authorName) => {
-  let isTargetAdmin = false;
-  if (targetUserId && supabase) {
-    try {
-      const { data: user } = await supabase.from('users').select('role').eq('id', targetUserId).single();
-      if (user && (user.role === 'admin' || user.role === 'super admin')) {
-        isTargetAdmin = true;
-      }
-    } catch (err) {
-      console.warn('[Email Service] Failed to resolve target user role status:', err.message);
-    }
-  }
-
-  const formatter = isTargetAdmin ? commentAdded.email.admin : commentAdded.email.user;
-  const data = formatter({
-    ticketId,
-    title: 'Grievance Comment',
-    commentText,
-    authorName,
-    frontendUrl: process.env.VITE_FRONTEND_URL || 'http://localhost:5173'
-  });
-
-  const htmlContent = compileEmail(data.template, data.variables, isTargetAdmin ? 'Response Received' : 'Grievance Comment Posted', isTargetAdmin ? 'admin' : 'user');
-  return checkPreferenceAndQueue(targetUserId, 'comment_notifications', data.subject, htmlContent, 'Comment Notification');
+  const notificationService = require('./notificationService');
+  return notificationService.sendCommentAddedEmail(targetUserId, commentText, ticketId, authorName);
 };
 
 // ==========================================
 // ADMINISTRATIVE ALERTS
 // ==========================================
-
 const sendNewGrievanceAlertEmail = async (ticketId, title, category, urgency) => {
-  const adminEmail = process.env.ADMIN_EMAIL;
-  if (!adminEmail) return;
-
-  const data = grievanceCreated.email.admin({
-    ticketId,
-    title,
-    category,
-    urgency,
-    frontendUrl: process.env.VITE_FRONTEND_URL || 'http://localhost:5173'
-  });
-  const htmlContent = compileEmail(data.template, data.variables, 'Administrative Triage Alert', 'admin');
-  return queueEmail(adminEmail, data.subject, htmlContent, 'New Grievance Notification');
+  const notificationService = require('./notificationService');
+  return notificationService.sendNewGrievanceAlertEmail(ticketId, title, category, urgency);
 };
 
 const sendEscalatedGrievanceAlertEmail = async (ticketId, title, category, frustrationIndex) => {
-  const seniorAdminEmail = process.env.ADMIN_EMAIL;
-  if (!seniorAdminEmail) return;
-
-  const htmlContent = compileEmail('grievanceSubmittedEmail.html', {
-    message: `Ticket <strong>#${ticketId}</strong> has been escalated due to priority SLAs or neural frustration index alerts.`,
-    cardTitle: 'Escalation Parameters',
-    ticketId,
-    title,
-    extraDetails: `<p style="margin: 5px 0;"><strong>Sector:</strong> ${category}</p><p style="margin: 5px 0;"><strong>Frustration Level:</strong> <span style="color: #f87171; font-weight: bold;">${frustrationIndex}/10</span></p>`,
-    actionText: 'Access the escalations queue immediately.',
-    actionUrl: `${process.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/admin/dashboard?tab=grievances`,
-    btnClass: 'btn-escalated',
-    btnText: 'Access Escalations Queue'
-  }, 'Emergency Escalation Briefing', 'admin');
-
-  const subject = `CRITICAL ESCALATION: Ticket #${ticketId}`;
-  return queueEmail(seniorAdminEmail, subject, htmlContent, 'Escalated Grievance Alert');
+  const notificationService = require('./notificationService');
+  return notificationService.sendEscalatedGrievanceAlertEmail(ticketId, title, category, frustrationIndex);
 };
 
 const sendHighPriorityTicketAlertEmail = async (officerEmail, ticketId, title, category) => {
-  const data = grievanceAssigned.email.highPriority({
-    ticketId,
-    title,
-    category,
-    frontendUrl: process.env.VITE_FRONTEND_URL || 'http://localhost:5173'
-  });
-  const htmlContent = compileEmail(data.template, data.variables, 'High-Priority Action Required', 'admin');
-  return queueEmail(officerEmail, data.subject, htmlContent, 'High Priority Notification');
+  const notificationService = require('./notificationService');
+  return notificationService.sendHighPriorityTicketAlertEmail(officerEmail, ticketId, title, category);
 };
 
 const sendSLABreachWarningEmail = async (ticketId, title, hoursRemaining) => {
-  const adminEmail = process.env.ADMIN_EMAIL;
-  if (!adminEmail) return;
-
-  const htmlContent = compileEmail('grievanceSubmittedEmail.html', {
-    message: `SLA threshold warnings have triggered for ticket <strong>#${ticketId}</strong>.`,
-    cardTitle: 'Breach Parameters',
-    ticketId,
-    title,
-    extraDetails: `<p style="margin: 5px 0;"><strong>Time to Breach:</strong> <span style="color: #f87171; font-weight: 900;">&lt; ${hoursRemaining} Hours</span></p>`,
-    actionText: 'Deploy remediation immediately to comply with SLAs.',
-    actionUrl: `${process.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/admin/dashboard?tab=grievances`,
-    btnClass: 'btn-admin',
-    btnText: 'Deploy Remediation'
-  }, 'SLA Compliance Warning', 'admin');
-
-  const subject = `SLA BREACH WARNING: #${ticketId}`;
-  return queueEmail(adminEmail, subject, htmlContent, 'SLA Warning Alert');
+  const notificationService = require('./notificationService');
+  return notificationService.sendSLABreachWarningEmail(ticketId, title, hoursRemaining);
 };
 
 const sendDailySummaryReportEmail = async (adminEmail, stats) => {
-  const htmlContent = compileEmail('grievanceSubmittedEmail.html', {
-    message: 'Here is your daily operational summary of the grievance registry system.',
-    cardTitle: 'Active Statistics Summary',
-    ticketId: 'N/A',
-    title: 'Daily System Diagnostics',
-    extraDetails: `
-      <table style="width: 100%; border-collapse: collapse;">
-        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-          <td style="padding: 10px 0;">Total Tickets in Registry:</td>
-          <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #ffffff;">${stats.total}</td>
-        </tr>
-        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-          <td style="padding: 10px 0;">Awaiting Triage (Pending):</td>
-          <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #f59e0b;">${stats.pending}</td>
-        </tr>
-        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-          <td style="padding: 10px 0;">Escalated Incidents:</td>
-          <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #ef4444;">${stats.escalated}</td>
-        </tr>
-        <tr>
-          <td style="padding: 10px 0;">Resolved (Last 24 Hours):</td>
-          <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #10b981;">${stats.resolved}</td>
-        </tr>
-      </table>
-    `,
-    actionText: 'Open the admin console to view detailed performance metrics.',
-    actionUrl: `${process.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/admin/dashboard`,
-    btnClass: 'btn-admin',
-    btnText: 'View Analytics Dashboard'
-  }, 'Daily Summary Report', 'admin');
-
-  const subject = 'ResolveNow: Daily Operational Summary';
-  return queueEmail(adminEmail, subject, htmlContent, 'Daily Summary Report');
+  const notificationService = require('./notificationService');
+  return notificationService.sendDailySummaryReportEmail(adminEmail, stats);
 };
 
 // ==========================================
 // SYSTEM DISPATCHES
 // ==========================================
-
 const sendMaintenanceNotificationEmail = async (emails, maintenanceTime, duration) => {
-  const data = systemAnnouncement.email.maintenance({ maintenanceTime, duration });
-  const htmlContent = compileEmail(data.template, data.variables, 'System Maintenance Broadcast', 'user');
-  return queueEmail(emails, data.subject, htmlContent, 'Maintenance Notice');
+  const notificationService = require('./notificationService');
+  return notificationService.sendMaintenanceNotificationEmail(emails, maintenanceTime, duration);
 };
 
 const sendSecurityAlertEmail = async (userId, alertMessage, fallbackEmail = null) => {
-  const data = securityAlert.email.alert({ alertMessage });
-  const htmlContent = compileEmail(data.template, data.variables, 'Account Security Warning', 'user');
-  return checkPreferenceAndQueue(userId, 'security_alerts', data.subject, htmlContent, 'Security Alert Email', fallbackEmail);
+  const notificationService = require('./notificationService');
+  return notificationService.sendSecurityAlertEmail(userId, alertMessage, fallbackEmail);
 };
 
 const sendAccountDeletionEmail = async (email, fullName) => {
-  const htmlContent = compileEmail('accountDeletedEmail.html', { fullName }, 'Account Deactivated', 'user');
-  const subject = 'Account Terminated Confirmation: ResolveNow';
-  return queueEmail(email, subject, htmlContent, 'Account Deletion Notice');
+  const notificationService = require('./notificationService');
+  return notificationService.sendAccountDeletionEmail(email, fullName);
 };
 
 const sendBroadcastEmail = async (emailList, subject, body) => {
-  const data = systemAnnouncement.email.announcement({ subject, body });
-  const htmlContent = compileEmail(data.template, data.variables, subject, 'user');
-  for (const email of emailList) {
-    queueEmail(email, subject, htmlContent, 'Broadcast Email');
-  }
+  const notificationService = require('./notificationService');
+  return notificationService.sendBroadcastEmail(emailList, subject, body);
 };
 
 const sendSpecialistBriefing = async (officerEmail, department, ticketId, briefing) => {
-  const htmlContent = compileEmail('grievanceSubmittedEmail.html', {
-    message: `A ticket briefing has been generated for your review in the <strong>${department}</strong> department.`,
-    cardTitle: `Briefing Details (Ticket #${ticketId})`,
-    ticketId,
-    title: 'Specialist Review Request',
-    extraDetails: `<p style="white-space: pre-line; margin: 5px 0;">${briefing}</p>`,
-    actionText: 'Open the admin dashboard to review compliance metrics.',
-    actionUrl: `${process.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/admin/dashboard?tab=grievances`,
-    btnClass: 'btn-admin',
-    btnText: 'Open Command Panel'
-  }, 'Departmental Specialist Briefing', 'admin');
-
-  const subject = `Specialist Briefing: Ticket #${ticketId}`;
-  return queueEmail(officerEmail, subject, htmlContent, 'Specialist Briefing');
+  const notificationService = require('./notificationService');
+  return notificationService.sendSpecialistBriefing(officerEmail, department, ticketId, briefing);
 };
 
-// ==========================================
-// REAL-TIME SYSTEM DATABASE HOOKS
-// ==========================================
+const sendTestEmail = async (testEmail) => {
+  const transporter = await getTransporter();
+  const senderName = configService.getSetting('sender_name', 'ResolveNow Core Dispatch');
+  const senderEmail = configService.getSetting('sender_email', 'no-reply@resolvenow.system');
 
-const handleCommentAddedEvent = async (commentRow) => {
-  try {
-    const { data: grievance } = await supabase
-      .from('grievances')
-      .select('user_id, ticket_id, title')
-      .eq('id', commentRow.grievance_id)
-      .single();
+  const mailOptions = {
+    from: `"${senderName}" <${senderEmail}>`,
+    to: testEmail,
+    subject: 'ResolveNow System Configuration Test Handshake',
+    text: 'SMTP Link Operational. Your system settings handshake succeeded.',
+    html: `
+      <div style="font-family: sans-serif; background-color: #020617; color: #cbd5e1; padding: 40px; border-radius: 16px; max-width: 600px; margin: 0 auto; border: 1px solid rgba(255,255,255,0.05);">
+        <h2 style="color: #38bdf8; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px;">SMTP Test Success</h2>
+        <p>SMTP Link Operational. Your system settings handshake succeeded.</p>
+        <p style="color: #64748b; font-size: 11px;">Dispatched from host: ${configService.getSetting('smtp_host', '')}</p>
+      </div>
+    `
+  };
 
-    if (!grievance) return;
-
-    const { data: authorProfile } = await supabase
-      .from('user_profiles')
-      .select('full_name')
-      .eq('user_id', commentRow.user_id)
-      .single();
-
-    const authorName = authorProfile ? authorProfile.full_name : 'System Officer';
-
-    const { data: authorUser } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', commentRow.user_id)
-      .single();
-
-    const isAdminComment = authorUser?.role === 'admin' || authorUser?.role === 'super admin';
-    
-    if (isAdminComment) {
-      await sendCommentAddedEmail(grievance.user_id, commentRow.message, grievance.ticket_id, authorName);
-    } else {
-      const adminEmail = process.env.ADMIN_EMAIL;
-      if (adminEmail) {
-        const data = commentAdded.email.admin({
-          ticketId: grievance.ticket_id,
-          title: grievance.title,
-          commentText: commentRow.message,
-          authorName,
-          frontendUrl: process.env.VITE_FRONTEND_URL || 'http://localhost:5173'
-        });
-        const htmlContent = compileEmail(data.template, data.variables, `Response Received: #${grievance.ticket_id}`, 'admin');
-        await queueEmail(adminEmail, data.subject, htmlContent, 'Admin Notification');
-      }
-    }
-  } catch (err) {
-    console.error('[Real-time Comment Hook Failure]:', err.message);
-  }
-};
-
-const handleGrievanceUpdatedEvent = async (newRow, oldRow) => {
-  try {
-    const isStatusChanged = oldRow && oldRow.status !== newRow.status;
-    
-    if (isStatusChanged) {
-      await sendGrievanceStatusUpdatedEmail(newRow.user_id, newRow.ticket_id, newRow.title, oldRow.status, newRow.status);
-
-      if (newRow.status === 'Escalated') {
-        await sendEscalatedGrievanceAlertEmail(newRow.ticket_id, newRow.title, newRow.category, newRow.frustration_index);
-      }
-      
-      if (newRow.status === 'Resolved') {
-        await sendResolutionCompletedEmail(newRow.user_id, newRow.ticket_id, newRow.title, newRow.resolution_notes, newRow.updated_at);
-      }
-    }
-  } catch (err) {
-    console.error('[Real-time Grievance Update Hook Failure]:', err.message);
-  }
+  return transporter.sendMail(mailOptions);
 };
 
 module.exports = {
   getTransporter,
+  compileEmail,
+  queueEmail,
   sendWelcomeEmail,
   sendOTPEmail,
   sendPasswordChangedEmail,
@@ -752,6 +512,5 @@ module.exports = {
   sendAccountDeletionEmail,
   sendBroadcastEmail,
   sendSpecialistBriefing,
-  handleCommentAddedEvent,
-  handleGrievanceUpdatedEvent
+  sendTestEmail
 };

@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '../../lib/supabase';
-import { grievanceService } from '../../api/grievanceService';
+import { grievanceService } from '../../services/grievanceService';
 import { CommandChat } from '../../components/ai/CommandChat';
 import StatusBadge from '../../components/ui/StatusBadge';
 import UrgencyBadge from '../../components/ui/UrgencyBadge';

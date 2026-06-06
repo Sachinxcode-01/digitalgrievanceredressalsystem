@@ -2,6 +2,7 @@ const Client = require('android-sms-gateway').default;
 const axios = require('axios');
 const notificationQueue = require('./notificationQueue');
 const configService = require('./configService');
+const notificationRepository = require('../repositories/notificationRepository');
 
 /**
  * Returns dynamic SMS gateway client based on active settings.
@@ -40,16 +41,12 @@ const sendOTPSMS = async (phoneNumber, otp) => {
       return { success: false, skipped: true };
     }
 
-    // Attempt to load SMS template from database
-    const supabase = require('../config/supabase');
     let messageBody = `[ResolveNow] Your secure identity key is: ${otp}. It expires in 5 minutes.`;
 
     try {
-      if (supabase) {
-        const { data, error } = await supabase.from('sms_templates').select('body').eq('name', 'otp_sms').maybeSingle();
-        if (data && !error) {
-          messageBody = data.body.replace(/{{\s*otp\s*}}/g, otp);
-        }
+      const data = await notificationRepository.findSmsTemplate('otp_sms');
+      if (data && data.body) {
+        messageBody = data.body.replace(/{{\s*otp\s*}}/g, otp);
       }
     } catch (err) {
       console.error('Failed to load SMS template from database:', err.message);
@@ -70,6 +67,16 @@ const sendOTPSMS = async (phoneNumber, otp) => {
   };
 };
 
+const sendTestSms = async (testPhone) => {
+  const client = getSmsClient();
+  if (!client) throw new Error('SMS Gateway URL is not configured.');
+  return client.send({
+    phoneNumbers: [testPhone],
+    message: '[ResolveNow] SMS Gateway handshake success. Settings verified.'
+  });
+};
+
 module.exports = {
-  sendOTPSMS
+  sendOTPSMS,
+  sendTestSms
 };

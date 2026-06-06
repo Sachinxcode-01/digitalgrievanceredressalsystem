@@ -1,4 +1,5 @@
-const supabase = require('../config/supabase');
+const settingsRepository = require('../repositories/settingsRepository');
+const auditService = require('./auditService');
 
 const settingsCache = new Map();
 let isInitialized = false;
@@ -9,18 +10,7 @@ const configService = {
    */
   async init() {
     try {
-      if (!supabase) {
-        console.warn('⚠️ [Config Service] Database client unavailable. Falling back to default settings.');
-        return false;
-      }
-
-      const { data, error } = await supabase.from('system_settings').select('key, value');
-      if (error) {
-        // Table might not exist yet if schema_v3.sql has not been run
-        console.warn('⚠️ [Config Service] system_settings table not accessible or missing. Using environment fallbacks.');
-        return false;
-      }
-
+      const data = await settingsRepository.getAllSettings();
       settingsCache.clear();
       if (data) {
         data.forEach(item => {
@@ -32,7 +22,7 @@ const configService = {
       console.log(`🚀 [Config Service] Caching complete. Loaded ${settingsCache.size} settings from database.`);
       return true;
     } catch (err) {
-      console.error('❌ [Config Service] Error loading system settings:', err.message);
+      console.warn('⚠️ [Config Service] system_settings table not accessible or missing. Using environment fallbacks.', err.message);
       return false;
     }
   },
@@ -125,10 +115,6 @@ const configService = {
    * Bulk updates settings in the database and refreshes local memory cache.
    */
   async updateSettings(settingsMap, adminId = null) {
-    if (!supabase) {
-      throw new Error('Database service unavailable');
-    }
-
     try {
       const inserts = Object.entries(settingsMap).map(([key, value]) => {
         // Infer category based on key prefix/pattern
@@ -155,20 +141,14 @@ const configService = {
         };
       });
 
-      // Upsert into PostgreSQL system_settings
-      const { error } = await supabase
-        .from('system_settings')
-        .upsert(inserts, { onConflict: 'key' });
-
-      if (error) throw error;
+      await settingsRepository.upsertSettings(inserts);
 
       // Reload into memory
       await this.reload();
 
       // Log admin activity if adminId is provided
       if (adminId) {
-        const { logAdminActivity } = require('./sessionService');
-        await logAdminActivity(
+        await auditService.logAdminActivity(
           adminId,
           'UPDATE_SYSTEM_SETTINGS',
           null,

@@ -148,18 +148,18 @@ app.use((err, req, res, next) => {
 
 // --- Supabase Realtime Server-Side Event Bus ---
 const supabaseClient = require('./config/supabase');
-const emailService = require('./services/emailService');
+const notificationService = require('./services/notificationService');
 
 if (supabaseClient) {
   supabaseClient
     .channel('server-db-events')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ticket_comments' }, (payload) => {
       console.log('📡 Realtime: Comment added on ticket', payload.new.grievance_id);
-      emailService.handleCommentAddedEvent(payload.new).catch(console.error);
+      notificationService.handleCommentAddedEvent(payload.new).catch(console.error);
     })
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'grievances' }, (payload) => {
       console.log('📡 Realtime: Grievance updated', payload.new.ticket_id);
-      emailService.handleGrievanceUpdatedEvent(payload.new, payload.old).catch(console.error);
+      notificationService.handleGrievanceUpdatedEvent(payload.new, payload.old).catch(console.error);
     })
     .subscribe((status) => {
       console.log(`📡 Supabase Database Realtime Channel Status: ${status}`);

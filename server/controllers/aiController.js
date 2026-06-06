@@ -1,6 +1,13 @@
-const { analyzeGrievance } = require('../services/aiService');
-const geminiService = require('../services/geminiService');
-const axios = require('axios');
+const aiService = require('../services/aiService');
+const { sendSpecialistBriefing } = require('../services/notificationService');
+
+const DEPARTMENT_HEADS = {
+  'IT': 'it-head@grievance.system',
+  'Finance': 'finance-head@grievance.system',
+  'Legal': 'legal-head@grievance.system',
+  'Academia': 'dean@grievance.system',
+  'Medical': 'medical-director@grievance.system'
+};
 
 /**
  * Handle AI triage request.
@@ -8,7 +15,7 @@ const axios = require('axios');
 const triageGrievance = async (req, res) => {
   const { description } = req.body;
   try {
-    const analysis = await analyzeGrievance(description);
+    const analysis = await aiService.analyzeGrievance(description);
     res.json(analysis);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -21,21 +28,11 @@ const triageGrievance = async (req, res) => {
 const suggestResolution = async (req, res) => {
   const { ticket } = req.body;
   try {
-    const suggestion = await geminiService.generateResolutionSuggestion(ticket);
+    const suggestion = await aiService.generateResolutionSuggestion(ticket);
     res.json({ suggestion });
   } catch (err) {
     res.status(500).json({ error: 'Failed' });
   }
-};
-
-const { sendSpecialistBriefing } = require('../services/emailService');
-
-const DEPARTMENT_HEADS = {
-  'IT': 'it-head@grievance.system',
-  'Finance': 'finance-head@grievance.system',
-  'Legal': 'legal-head@grievance.system',
-  'Academia': 'dean@grievance.system',
-  'Medical': 'medical-director@grievance.system'
 };
 
 /**
@@ -44,7 +41,7 @@ const DEPARTMENT_HEADS = {
 const elevateBriefing = async (req, res) => {
   const { ticket, department } = req.body;
   try {
-    const briefing = await geminiService.generateDepartmentBriefing(ticket, department);
+    const briefing = await aiService.generateDepartmentBriefing(ticket, department);
     
     // Auto-dispatch briefing to relevant department head
     const deptEmail = DEPARTMENT_HEADS[department];
@@ -65,7 +62,7 @@ const elevateBriefing = async (req, res) => {
 const summarizePerformance = async (req, res) => {
   const { tickets } = req.body;
   try {
-    const summary = await geminiService.generatePerformanceSummary(tickets);
+    const summary = await aiService.generatePerformanceSummary(tickets);
     res.json({ summary });
   } catch (err) {
     res.status(500).json({ error: 'Failed' });
@@ -79,13 +76,8 @@ const analyzeVision = async (req, res) => {
   const { imageUrl } = req.body;
   try {
     if (!imageUrl) return res.status(400).json({ error: 'No image URL provided' });
-
-    // Fetch image from URL using axios
-    const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-    const base64 = Buffer.from(response.data, 'binary').toString('base64');
-    const mimeType = response.headers['content-type'];
     
-    const analysis = await geminiService.analyzeImage(base64, mimeType);
+    const analysis = await aiService.analyzeVisionFromUrl(imageUrl);
     res.json({ analysis });
   } catch (err) {
     console.error('Vision Error:', err);
@@ -102,7 +94,7 @@ const analyzeVision = async (req, res) => {
 const composeBroadcast = async (req, res) => {
   const { intent, tone } = req.body;
   try {
-    const draft = await geminiService.composeBroadcastEmail(intent, tone);
+    const draft = await aiService.composeBroadcastEmail(intent, tone);
     res.json({ draft });
   } catch (err) {
     res.status(500).json({ error: 'Composition engine failed.' });
@@ -117,4 +109,3 @@ module.exports = {
   analyzeVision,
   composeBroadcast
 };
-

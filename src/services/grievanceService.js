@@ -1,4 +1,4 @@
-import { apiClient, getAccessToken } from './apiClient';
+import { apiClient, getAccessToken } from '../api/apiClient';
 
 /**
  * Helper to dynamically resolve headers with the Authorization token.

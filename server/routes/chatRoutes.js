@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const geminiService = require('../services/geminiService');
+const aiService = require('../services/aiService');
 const { authenticateToken } = require('../middleware/authMiddleware');
 const { chatLimiter } = require('../middleware/securityMiddleware');
 
@@ -16,7 +16,7 @@ router.post('/', authenticateToken, async (req, res, next) => {
     }
     
     // --- Neural AI Intercept (Gemini Pro) ---
-    const neuralReply = await geminiService.getChatResponse(message);
+    const neuralReply = await aiService.getChatResponse(message);
     if (neuralReply) {
       return res.json({ reply: neuralReply });
     }
@@ -58,7 +58,7 @@ router.post('/stream', authenticateToken, async (req, res, next) => {
 
     const hasApiKey = !!process.env.GEMINI_API_KEY;
     if (hasApiKey) {
-      const stream = geminiService.getChatResponseStream(message);
+      const stream = aiService.getChatResponseStream(message);
       for await (const chunk of stream) {
         res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
       }

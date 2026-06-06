@@ -13,7 +13,7 @@ import toast from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { SecurityAudit } from '../../components/dashboard/SecurityAudit';
 import { supabase } from '../../lib/supabase';
-import { grievanceService, getAuthHeaders } from '../../api/grievanceService';
+import { grievanceService, getAuthHeaders } from '../../services/grievanceService';
 import { CommandChat } from '../../components/ai/CommandChat';
 import { useRealtimeConnection } from '../../hooks/useRealtimeConnection';
 import StatusBadge from '../../components/ui/StatusBadge';

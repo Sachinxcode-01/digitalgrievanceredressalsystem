@@ -5,7 +5,7 @@ import {
   ChevronLeft, ChevronRight, Loader2, Download, ShieldCheck, Landmark
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { grievanceService } from '../../api/grievanceService';
+import { grievanceService } from '../../services/grievanceService';
 import StatusBadge from '../../components/ui/StatusBadge';
 import UrgencyBadge from '../../components/ui/UrgencyBadge';
 import toast from 'react-hot-toast';
