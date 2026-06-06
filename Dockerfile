@@ -1,5 +1,5 @@
 # Stage 1: Build Frontend React Bundle
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
@@ -20,7 +20,7 @@ ENV VITE_SUPABASE_ANON_KEY=placeholder-key
 RUN npm run build
 
 # Stage 2: Serve Bundle via Backend Express Service
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
