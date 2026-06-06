@@ -56,7 +56,12 @@ A high-performance, enterprise-grade full-stack platform for institutional griev
     - Create a new public bucket in Supabase named `attachments`.
     - Set the upload policy to public for all users (or authenticated only).
 
-5.  **Run Development:**
+5.  **Audit Logs Database Config:**
+    To enable real-time terminal auditing for administrators:
+    - Create a new table in Supabase called `audit_logs` (`id`, `event`, `user_email`, `ip_address`, `location`, `level`, `created_at`).
+    - Navigate to **Database -> Replication -> Source** and enable `Insert` events for the `audit_logs` table.
+
+6.  **Run Development:**
     ```bash
     npm run dev
     ```

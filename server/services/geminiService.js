@@ -80,6 +80,37 @@ const geminiService = {
   },
 
   /**
+   * Neural Chat Intercept Stream
+   * Yields responses chunk-by-chunk from Gemini Pro.
+   */
+  async *getChatResponseStream(userMessage) {
+    if (!genAI) return;
+
+    try {
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const prompt = `
+        You are the "ResolveBot", an AI helpful assistant for institutional grievances.
+        User says: "${userMessage}"
+
+        Goal: 
+        1. If the user is asking for help with university/office issues (WiFi, fees, broken stuff, logins), provide immediate, helpful instructions.
+        2. Keep it professional, empathetic, and concise (max 3 sentences).
+        3. If it's too complex, tell them to "File a manual ticket for administrator review".
+        4. Do NOT mention you are an AI.
+      `;
+
+      const result = await model.generateContentStream(prompt);
+      for await (const chunk of result.stream) {
+        yield chunk.text();
+      }
+    } catch (err) {
+      console.error("Gemini Chat Neural Stream Error:", err);
+      throw err;
+    }
+  },
+
+
+  /**
    * Neural Admin Suggestion Prototype
    * Helps admins draft professional and effective resolutions.
    */
@@ -173,6 +204,71 @@ const geminiService = {
     } catch (err) {
       console.error("Gemini Performance Summary Error:", err);
       return "Performance analysis engine unreachable.";
+    }
+  },
+
+  /**
+   * Neural Vision Evidence Analysis
+   * Validates photographic evidence using Gemini 1.5 Flash.
+   */
+  async analyzeImage(base64Image, mimeType) {
+    if (!genAI) return null;
+
+    try {
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const prompt = `
+        Analyze this image evidence for a grievance report. 
+        Identify what is in the image, the severity of any visible issues (e.g. broken equipment, mess, leak, etc.), 
+        and provide a concise, technical 2-sentence summary for an administrator.
+      `;
+      
+      const imageParts = [
+        {
+          inlineData: {
+            data: base64Image,
+            mimeType: mimeType || "image/jpeg"
+          }
+        }
+      ];
+
+      const result = await model.generateContent([prompt, ...imageParts]);
+      const response = await result.response;
+      return response.text().trim();
+    } catch (err) {
+      console.error("Gemini Vision Analysis Error:", err);
+      return "Vision analysis failed. Manual verification required.";
+    }
+  },
+
+  /**
+   * Neural Broadcast Composition
+   * Drafts a professional institutional announcement based on admin intent.
+   */
+  async composeBroadcastEmail(intent, tone = 'professional') {
+    if (!genAI) return "AI composition system offline.";
+
+    try {
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const prompt = `
+        You are the Institutional Communications Officer. Write a broadcast email to all students and staff based on this intent:
+        "${intent}"
+
+        Tone Requirement: ${tone}
+        
+        Rules:
+        1. Professional subject line.
+        2. Clear, structured body.
+        3. Use placeholders like [Recipient Name] where appropriate.
+        4. End with "Sincerely, The Administration".
+        5. Respond ONLY with the email content (Subject: ... followed by Body: ...).
+      `;
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      return response.text().trim();
+    } catch (err) {
+      console.error("Gemini Broadcast Composition Error:", err);
+      return "Failed to generate broadcast draft.";
     }
   }
 };

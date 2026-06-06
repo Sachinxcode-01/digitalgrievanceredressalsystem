@@ -1,0 +1,170 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  /* Premium Slate & Sapphire Theme (Light) */
+  --color-background: #f8fafc;
+  --color-surface: #ffffff;
+  
+  --color-primary: #1e3a8a;
+  --color-primary-bright: #3b82f6;
+  --color-secondary: #4f46e5;
+  --color-accent: #0891b2;
+  
+  --color-border: #e2e8f0;
+  --color-foreground: #0f172a;
+  --color-muted-fg: #64748b;
+  --color-ring: #3b82f6;
+  
+  --color-glass: rgba(255, 255, 255, 0.75);
+  --color-glass-border: rgba(0, 0, 0, 0.06);
+  --color-glass-glow: rgba(59, 130, 246, 0.03);
+
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+
+  --font-sans: 'Plus Jakarta Sans', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+.theme-midnight {
+  /* Cinematic Indigo Void Theme (Dark) */
+  --color-background: #020617;
+  --color-surface: #0b1329;
+  
+  --color-primary: #3b82f6;
+  --color-primary-bright: #60a5fa;
+  --color-secondary: #6366f1;
+  --color-accent: #22d3ee;
+  
+  --color-border: #1e293b;
+  --color-foreground: #f1f5f9;
+  --color-muted-fg: #94A3B8;
+  --color-ring: #6366f1;
+  
+  --color-glass: rgba(11, 19, 41, 0.65);
+  --color-glass-border: rgba(255, 255, 255, 0.08);
+  --color-glass-glow: rgba(99, 102, 241, 0.08);
+  
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-error: #f43f5e;
+}
+
+@theme {
+  --color-background: var(--color-background);
+  --color-foreground: var(--color-foreground);
+  --color-primary: var(--color-primary);
+  --color-primary-bright: var(--color-primary-bright);
+  --color-secondary: var(--color-secondary);
+  --color-accent: var(--color-accent);
+  --color-muted: var(--color-surface);
+  --color-muted-foreground: var(--color-muted-fg);
+  --color-border: var(--color-border);
+  --color-ring: var(--color-ring);
+  
+  --color-glass: var(--color-glass);
+  --color-glass-border: var(--color-glass-border);
+  --color-glass-glow: var(--color-glass-glow);
+  
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-error: var(--color-error);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-heading: var(--font-sans);
+
+  /* Micro-animations */
+  --animate-first: moveVertical 25s ease infinite;
+  --animate-second: moveInCircle 18s reverse infinite;
+  --animate-third: moveInCircle 35s linear infinite;
+  --animate-fourth: moveHorizontal 35s ease infinite;
+  --animate-fifth: moveInCircle 18s ease infinite;
+}
+
+@layer base {
+  body {
+    @apply text-foreground font-sans antialiased overflow-x-hidden;
+    background-color: var(--color-background);
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-sans font-bold tracking-tight text-foreground;
+  }
+}
+
+@layer components {
+  /* Clean Minimalist Panels for Sidebar/Header */
+  .glass-premium {
+    background: var(--color-glass);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--color-border);
+    box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.02);
+    transition: all 0.2s ease-in-out;
+  }
+
+  /* Clean Minimalist Cards */
+  .glass-card {
+    background: var(--color-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--color-border);
+    border-radius: 0.75rem;
+    box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.02);
+    transition: all 0.2s ease-in-out;
+  }
+
+  .glass-card:hover {
+    box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.04);
+    border-color: var(--color-ring);
+  }
+
+  /* Sleek Minimal Inputs */
+  .glass-input {
+    @apply bg-background/50 border border-border rounded-lg px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all duration-150 placeholder:text-muted-foreground/40;
+  }
+
+  /* Premium Flat Button Style */
+  .btn-premium {
+    @apply relative px-5 py-2.5 rounded-lg font-bold text-xs uppercase tracking-wider transition-all duration-150 flex items-center justify-center gap-2 select-none cursor-pointer;
+    background-color: var(--color-primary-bright);
+    color: white;
+  }
+
+  .btn-premium:hover {
+    @apply scale-[1.01] brightness-105;
+  }
+
+  .btn-premium:active {
+    @apply scale-[0.99];
+  }
+
+  .btn-ghost {
+    @apply bg-transparent border border-border text-foreground hover:bg-muted/50 transition-all duration-150 px-5 py-2.5 rounded-lg font-bold text-xs uppercase tracking-wider cursor-pointer;
+  }
+
+  .status-badge {
+    @apply px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider border font-mono;
+  }
+}
+
+.glass-glow {
+  position: relative;
+}
+
+.glass-glow::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-primary-bright), transparent);
+  opacity: 0.15;
+  pointer-events: none;
+  z-index: 10;
+}

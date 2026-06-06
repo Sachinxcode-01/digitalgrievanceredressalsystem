@@ -1,18 +1,59 @@
 const express = require('express');
 const router = express.Router();
-const { sendOtp, verifyOtp, sendWelcome } = require('../controllers/authController');
+const { 
+  register, 
+  login, 
+  verifyOtp, 
+  resendOtp, 
+  forgotPassword, 
+  resetPassword, 
+  refresh, 
+  logout,
+  googleLogin
+} = require('../controllers/authController');
 
-// @route   POST /api/auth/send-otp
-// @desc    Send OTP to email
-router.post('/send-otp', sendOtp);
+const { loginLimiter, registrationLimiter, otpLimiter } = require('../middleware/securityMiddleware');
+const { 
+  validateRegistration, 
+  validateLogin, 
+  validateOtpRequest, 
+  validateOtpVerification 
+} = require('../middleware/validationMiddleware');
 
-// @route   POST /api/auth/verify-otp
-// @desc    Verify OTP from email
-router.post('/verify-otp', verifyOtp);
+// @route   POST /api/v1/auth/register
+// @desc    Register a new user account (inactive)
+router.post('/register', registrationLimiter, validateRegistration, register);
 
-// @route   POST /api/auth/send-welcome
-// @desc    Send welcome email
-router.post('/send-welcome', sendWelcome);
+// @route   POST /api/v1/auth/login
+// @desc    Login and retrieve access token / secure cookie
+router.post('/login', loginLimiter, validateLogin, login);
+
+// @route   POST /api/v1/auth/google
+// @desc    Authenticate via Google Identity
+router.post('/google', loginLimiter, googleLogin);
+
+// @route   POST /api/v1/auth/verify-otp
+// @desc    Verify OTP code for activation / authentication
+router.post('/verify-otp', validateOtpVerification, verifyOtp);
+
+// @route   POST /api/v1/auth/resend-otp
+// @desc    Resend OTP to email/phone
+router.post('/resend-otp', otpLimiter, validateOtpRequest, resendOtp);
+
+// @route   POST /api/v1/auth/forgot-password
+// @desc    Initiate forgot-password workflow
+router.post('/forgot-password', otpLimiter, validateOtpRequest, forgotPassword);
+
+// @route   POST /api/v1/auth/reset-password
+// @desc    Save new password
+router.post('/reset-password', resetPassword);
+
+// @route   POST /api/v1/auth/refresh-token
+// @desc    Rotate access/refresh token pair
+router.post('/refresh-token', refresh);
+
+// @route   POST /api/v1/auth/logout
+// @desc    Revoke session
+router.post('/logout', logout);
 
 module.exports = router;
-

@@ -12,10 +12,10 @@ const TimelineStep = ({ done, active, label, date, desc }) => (
     </div>
     <div className="pt-0.5">
       <div className="flex items-center gap-2">
-        <p className={`text-sm font-bold ${done || active ? 'text-white' : 'text-slate-500'}`}>{label}</p>
-        {date && <span className="text-[10px] text-slate-600 font-mono">{date}</span>}
+        <p className={`text-sm font-bold ${done || active ? 'text-foreground' : 'text-muted-foreground'}`}>{label}</p>
+        {date && <span className="text-[10px] text-muted-foreground font-mono">{date}</span>}
       </div>
-      <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">{desc}</p>
+      <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">{desc}</p>
     </div>
   </div>
 );
