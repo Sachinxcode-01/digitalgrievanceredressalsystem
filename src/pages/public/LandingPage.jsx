@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../app/providers/AuthProvider';
 import { BackgroundGradientAnimation } from '../../components/ui/background-gradient-animation';
 import { RainbowButton } from '../../components/ui/RainbowButton';
+import toast from 'react-hot-toast';
 
 export const LandingPage = () => {
   const { user, isAuthenticated, logout } = useAuth();
