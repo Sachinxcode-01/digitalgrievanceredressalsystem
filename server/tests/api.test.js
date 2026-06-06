@@ -19,14 +19,14 @@ app.use(express.json());
 process.env.JWT_SECRET = 'test-secret-key-4567';
 
 const authMiddleware = require('../middleware/authMiddleware');
-const validationMiddleware = require('../middleware/validationMiddleware');
+const { validateOtpRequest } = require('../validators/authValidator');
 
 // Define routes mirroring production
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'Digital Grievance API' });
 });
 
-app.post('/api/v1/auth/send-otp', validationMiddleware.validateOtpRequest, (req, res) => {
+app.post('/api/v1/auth/send-otp', validateOtpRequest, (req, res) => {
   res.json({ message: 'Secure key transmitted via Email.', channel: 'EMAIL' });
 });
 

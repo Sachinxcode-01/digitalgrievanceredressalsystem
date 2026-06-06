@@ -185,10 +185,6 @@ const updateUserRole = async (req, res, next) => {
   const { id } = req.params;
   const { role } = req.body;
 
-  if (!['student', 'faculty', 'staff', 'admin', 'super admin'].includes(role)) {
-    return res.status(400).json({ error: 'Invalid role specified.' });
-  }
-
   try {
     const { data, error } = await supabase
       .from('users')
@@ -215,10 +211,6 @@ const updateUserRole = async (req, res, next) => {
 const updateUserStatus = async (req, res, next) => {
   const { id } = req.params;
   const { status } = req.body;
-
-  if (!['active', 'inactive', 'locked'].includes(status)) {
-    return res.status(400).json({ error: 'Invalid status specified.' });
-  }
 
   try {
     const updates = { status };
@@ -287,10 +279,6 @@ const listSystemAuditLogs = async (req, res, next) => {
  */
 const createUser = async (req, res, next) => {
   const { fullName, email, mobileNumber, password, role, status } = req.body;
-
-  if (!email || !password || !fullName || !role) {
-    return res.status(400).json({ error: 'Full name, email, password, and role are required.' });
-  }
 
   try {
     if (!supabase) {
@@ -679,10 +667,6 @@ const getRoles = async (req, res, next) => {
  */
 const createRole = async (req, res, next) => {
   const { name, description, permissions } = req.body;
-
-  if (!name) {
-    return res.status(400).json({ error: 'Role name is required.' });
-  }
 
   try {
     if (!supabase) {

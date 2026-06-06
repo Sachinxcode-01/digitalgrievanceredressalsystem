@@ -489,7 +489,9 @@ const sendCommentAddedEmail = async (targetUserId, commentText, ticketId, author
       if (user && (user.role === 'admin' || user.role === 'super admin')) {
         isTargetAdmin = true;
       }
-    } catch (err) {}
+    } catch (err) {
+      console.warn('[Email Service] Failed to resolve target user role status:', err.message);
+    }
   }
 
   const formatter = isTargetAdmin ? commentAdded.email.admin : commentAdded.email.user;

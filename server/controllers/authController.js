@@ -290,10 +290,8 @@ const login = async (req, res, next) => {
     let query = supabase.from('users').select('*');
     if (email) {
       query = query.eq('email', email);
-    } else if (phone) {
-      query = query.eq('mobile_number', phone);
     } else {
-      return res.status(400).json({ error: 'Identifier (email or mobile) is required.' });
+      query = query.eq('mobile_number', phone);
     }
 
     const { data: user, error: userError } = await query.maybeSingle();

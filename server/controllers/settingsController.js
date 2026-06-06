@@ -61,7 +61,6 @@ const updateSettings = async (req, res, next) => {
  */
 const testEmail = async (req, res, next) => {
   const { testEmail } = req.body;
-  if (!testEmail) return res.status(400).json({ error: 'Recipient test email address is required' });
 
   try {
     const { getTransporter } = require('../services/emailService');
@@ -108,7 +107,6 @@ const testEmail = async (req, res, next) => {
  */
 const testSms = async (req, res, next) => {
   const { testPhone } = req.body;
-  if (!testPhone) return res.status(400).json({ error: 'Recipient phone number is required' });
 
   try {
     const Client = require('android-sms-gateway').default;
@@ -174,8 +172,6 @@ const getDepartments = async (req, res, next) => {
 
 const createDepartment = async (req, res, next) => {
   const { name, description, headUserId, assignmentRules } = req.body;
-
-  if (!name) return res.status(400).json({ error: 'Department name is required' });
 
   try {
     if (!supabase) return res.status(500).json({ error: 'Database service unavailable' });
@@ -265,10 +261,6 @@ const getSlaRules = async (req, res, next) => {
 
 const createSlaRule = async (req, res, next) => {
   const { name, category, priority, resolutionTimeHours, warningTimeHours } = req.body;
-
-  if (!name || !category || !priority || !resolutionTimeHours) {
-    return res.status(400).json({ error: 'Required fields missing: name, category, priority, resolutionTimeHours' });
-  }
 
   try {
     if (!supabase) return res.status(500).json({ error: 'Database service unavailable' });
@@ -364,10 +356,6 @@ const getEscalationRules = async (req, res, next) => {
 
 const createEscalationRule = async (req, res, next) => {
   const { name, slaRuleId, triggerDelayHours, escalateToUserId } = req.body;
-
-  if (!name || !slaRuleId || !triggerDelayHours) {
-    return res.status(400).json({ error: 'Required fields missing: name, slaRuleId, triggerDelayHours' });
-  }
 
   try {
     if (!supabase) return res.status(500).json({ error: 'Database service unavailable' });

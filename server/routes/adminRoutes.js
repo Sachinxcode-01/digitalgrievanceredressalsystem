@@ -20,7 +20,28 @@ const {
   getPermissions
 } = require('../controllers/adminController');
 const { authenticateToken, authorizeRoles, authorizePermissions } = require('../middleware/authMiddleware');
-const { validateBroadcast } = require('../middleware/validationMiddleware');
+const { 
+  validateBroadcast, 
+  validateCreateRole, 
+  validateUpdateRole 
+} = require('../validators/adminValidator');
+const {
+  validateCreateUser,
+  validateUpdateUser,
+  validateRoleAssignment,
+  validateUserStatusUpdate
+} = require('../validators/userValidator');
+const {
+  validateUpdateSettings,
+  validateTestEmail,
+  validateTestSms,
+  validateCreateDepartment,
+  validateUpdateDepartment,
+  validateCreateSlaRule,
+  validateUpdateSlaRule,
+  validateCreateEscalationRule,
+  validateUpdateEscalationRule
+} = require('../validators/settingsValidator');
 const {
   getSettings,
   updateSettings,
@@ -61,19 +82,19 @@ router.get('/health-metrics', authorizePermissions('view_analytics'), getHealthM
 router.get('/users', authorizePermissions('manage_users'), listUsers);
 
 // Create user
-router.post('/users', authorizePermissions('manage_users'), createUser);
+router.post('/users', authorizePermissions('manage_users'), validateCreateUser, createUser);
 
 // Update user details
-router.put('/users/:id', authorizePermissions('manage_users'), updateUser);
+router.put('/users/:id', authorizePermissions('manage_users'), validateUpdateUser, updateUser);
 
 // Delete user
 router.delete('/users/:id', authorizePermissions('manage_users'), deleteUser);
 
 // Update clearance role for specific user (legacy fallback support)
-router.put('/users/:id/role', authorizePermissions('manage_users'), updateUserRole);
+router.put('/users/:id/role', authorizePermissions('manage_users'), validateRoleAssignment, updateUserRole);
 
 // Update lockout status for specific user
-router.put('/users/:id/status', authorizePermissions('manage_users'), updateUserStatus);
+router.put('/users/:id/status', authorizePermissions('manage_users'), validateUserStatusUpdate, updateUserStatus);
 
 // Fetch logs for a specific user
 router.get('/users/:id/activity', authorizePermissions('view_audit_logs'), getUserActivity);
@@ -93,10 +114,10 @@ router.get('/compliance/reports', authorizePermissions('view_analytics'), getCom
 router.get('/roles', authorizePermissions('manage_roles'), getRoles);
 
 // Create a new role
-router.post('/roles', authorizePermissions('manage_roles'), createRole);
+router.post('/roles', authorizePermissions('manage_roles'), validateCreateRole, createRole);
 
 // Update role permissions
-router.put('/roles/:id', authorizePermissions('manage_roles'), updateRole);
+router.put('/roles/:id', authorizePermissions('manage_roles'), validateUpdateRole, updateRole);
 
 // Delete custom role
 router.delete('/roles/:id', authorizePermissions('manage_roles'), deleteRole);
@@ -109,30 +130,30 @@ router.get('/permissions', authorizePermissions('manage_roles'), getPermissions)
 router.get('/settings', authorizePermissions('manage_settings'), getSettings);
 
 // Bulk update settings
-router.put('/settings', authorizePermissions('manage_settings'), updateSettings);
+router.put('/settings', authorizePermissions('manage_settings'), validateUpdateSettings, updateSettings);
 
 // SMTP email check dispatch
-router.post('/settings/test-email', authorizePermissions('manage_settings'), testEmail);
+router.post('/settings/test-email', authorizePermissions('manage_settings'), validateTestEmail, testEmail);
 
 // SMS Gateway check dispatch
-router.post('/settings/test-sms', authorizePermissions('manage_settings'), testSms);
+router.post('/settings/test-sms', authorizePermissions('manage_settings'), validateTestSms, testSms);
 
 // CRUD Departments
 router.get('/departments', authorizePermissions('manage_settings'), getDepartments);
-router.post('/departments', authorizePermissions('manage_settings'), createDepartment);
-router.put('/departments/:id', authorizePermissions('manage_settings'), updateDepartment);
+router.post('/departments', authorizePermissions('manage_settings'), validateCreateDepartment, createDepartment);
+router.put('/departments/:id', authorizePermissions('manage_settings'), validateUpdateDepartment, updateDepartment);
 router.delete('/departments/:id', authorizePermissions('manage_settings'), deleteDepartment);
 
 // CRUD SLA Rules
 router.get('/settings/sla-rules', authorizePermissions('manage_settings'), getSlaRules);
-router.post('/settings/sla-rules', authorizePermissions('manage_settings'), createSlaRule);
-router.put('/settings/sla-rules/:id', authorizePermissions('manage_settings'), updateSlaRule);
+router.post('/settings/sla-rules', authorizePermissions('manage_settings'), validateCreateSlaRule, createSlaRule);
+router.put('/settings/sla-rules/:id', authorizePermissions('manage_settings'), validateUpdateSlaRule, updateSlaRule);
 router.delete('/settings/sla-rules/:id', authorizePermissions('manage_settings'), deleteSlaRule);
 
 // CRUD Escalation Rules
 router.get('/settings/escalation-rules', authorizePermissions('manage_settings'), getEscalationRules);
-router.post('/settings/escalation-rules', authorizePermissions('manage_settings'), createEscalationRule);
-router.put('/settings/escalation-rules/:id', authorizePermissions('manage_settings'), updateEscalationRule);
+router.post('/settings/escalation-rules', authorizePermissions('manage_settings'), validateCreateEscalationRule, createEscalationRule);
+router.put('/settings/escalation-rules/:id', authorizePermissions('manage_settings'), validateUpdateEscalationRule, updateEscalationRule);
 router.delete('/settings/escalation-rules/:id', authorizePermissions('manage_settings'), deleteEscalationRule);
 
 // Templates Management

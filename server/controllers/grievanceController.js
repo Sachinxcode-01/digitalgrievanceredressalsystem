@@ -163,11 +163,7 @@ const getGrievanceById = async (req, res, next) => {
 const updateGrievanceStatus = async (req, res, next) => {
   const { id } = req.params;
   const { status, resolution_notes } = req.body;
-  const validStatuses = ['New', 'Pending', 'Assigned', 'In Progress', 'Resolved', 'Closed'];
-  
-  if (!validStatuses.includes(status)) {
-    return res.status(400).json({ error: `Invalid status transition target: ${status}` });
-  }
+
 
   try {
     // 1. Get current ticket to know previous status
