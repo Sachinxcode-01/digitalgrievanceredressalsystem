@@ -21,7 +21,9 @@ export const NotificationCenter = ({ user }) => {
   useEffect(() => {
     try {
       localStorage.setItem('nexus_alerts', JSON.stringify(notifications));
-    } catch (e) {}
+    } catch (e) {
+      console.error('Failed to persist alerts:', e);
+    }
   }, [notifications]);
 
   useEffect(() => {

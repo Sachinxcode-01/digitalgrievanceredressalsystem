@@ -14,9 +14,27 @@ export const CommandChat = ({ grievanceId, currentUser, role = 'user' }) => {
   const scrollRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const channelRef = useRef(null);
+  const scrollToBottom = () => {
+    scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const fetchMessages = async () => {
+    const { data } = await supabase
+      .from('ticket_comments')
+      .select('*, profiles(full_name, role)')
+      .eq('grievance_id', grievanceId)
+      .order('created_at', { ascending: true });
+    
+    if (data) {
+      setMessages(data);
+      setTimeout(scrollToBottom, 100);
+    }
+  };
 
   useEffect(() => {
-    fetchMessages();
+    setTimeout(() => {
+      fetchMessages();
+    }, 0);
     
     // Subscribe to new messages
     const channel = supabase
@@ -83,22 +101,7 @@ export const CommandChat = ({ grievanceId, currentUser, role = 'user' }) => {
     return () => window.removeEventListener('inject-comment', handleInjectComment);
   }, [grievanceId]);
 
-  const fetchMessages = async () => {
-    const { data } = await supabase
-      .from('ticket_comments')
-      .select('*, profiles(full_name, role)')
-      .eq('grievance_id', grievanceId)
-      .order('created_at', { ascending: true });
-    
-    if (data) {
-      setMessages(data);
-      setTimeout(scrollToBottom, 100);
-    }
-  };
 
-  const scrollToBottom = () => {
-    scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
 
   const handleSend = async (e) => {
     e.preventDefault();

@@ -69,7 +69,9 @@ export const AdminHealthPage = () => {
   };
 
   useEffect(() => {
-    syncData();
+    setTimeout(() => {
+      syncData();
+    }, 0);
     const interval = setInterval(() => {
       fetchHealthMetrics();
       fetchAuditLogs();

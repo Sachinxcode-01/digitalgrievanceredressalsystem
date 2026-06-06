@@ -54,7 +54,9 @@ export const LoginPage = () => {
     return () => {
       try {
         document.body.removeChild(script);
-      } catch (e) {}
+      } catch (e) {
+        console.warn('Google Identity script already removed:', e.message);
+      }
     };
   }, [theme]);
 

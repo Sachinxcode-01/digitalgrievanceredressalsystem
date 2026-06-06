@@ -18,13 +18,16 @@ const register = async (req, res, next) => {
       return res.status(500).json({ error: 'Database service unavailable' });
     }
 
+    // Convert empty/blank mobile numbers to null
+    const finalMobileNumber = (mobileNumber && mobileNumber.trim() !== '') ? mobileNumber.trim() : null;
+
     // 1. Check if user already exists
     let query = supabase
       .from('users')
       .select('id, email, mobile_number');
       
-    if (mobileNumber && mobileNumber.trim() !== '') {
-      query = query.or(`email.eq.${email},mobile_number.eq.${mobileNumber.trim()}`);
+    if (finalMobileNumber) {
+      query = query.or(`email.eq.${email},mobile_number.eq.${finalMobileNumber}`);
     } else {
       query = query.eq('email', email);
     }
@@ -54,7 +57,7 @@ const register = async (req, res, next) => {
       .insert([
         {
           email,
-          mobile_number: mobileNumber,
+          mobile_number: finalMobileNumber,
           password_hash: passwordHash,
           role: userRole,
           status: 'inactive',
@@ -89,7 +92,7 @@ const register = async (req, res, next) => {
       .insert([
         {
           email,
-          phone: mobileNumber,
+          phone: finalMobileNumber,
           code: otp,
           purpose: 'registration',
           expires_at: expiresAt,
@@ -101,8 +104,8 @@ const register = async (req, res, next) => {
 
     // Dispatches
     await sendOTPEmail(email, otp).catch(console.error);
-    if (mobileNumber) {
-      await sendOTPSMS(mobileNumber, otp).catch(console.error);
+    if (finalMobileNumber) {
+      await sendOTPSMS(finalMobileNumber, otp).catch(console.error);
     }
 
     await logAudit(newUser.id, 'REGISTRATION_INITIATED', req.ip, req.headers['user-agent']);
@@ -110,7 +113,7 @@ const register = async (req, res, next) => {
     res.status(201).json({
       message: 'Registration successful. Please enter the OTP sent to verify your identity.',
       email,
-      phone: mobileNumber
+      phone: finalMobileNumber
     });
   } catch (err) {
     next(err);

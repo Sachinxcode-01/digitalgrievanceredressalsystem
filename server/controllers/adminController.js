@@ -134,9 +134,9 @@ const getHealthMetrics = async (req, res, next) => {
         error: dbError
       },
       integrations: {
-        gemini: !!process.env.GEMINI_API_KEY ? 'online' : 'mock_fallback',
-        smsGateway: !!process.env.SMS_GATEWAY_URL ? 'online' : 'offline',
-        smtp: !!process.env.SMTP_EMAIL ? 'online' : 'offline'
+        gemini: process.env.GEMINI_API_KEY ? 'online' : 'mock_fallback',
+        smsGateway: process.env.SMS_GATEWAY_URL ? 'online' : 'offline',
+        smtp: process.env.SMTP_EMAIL ? 'online' : 'offline'
       }
     });
   } catch (err) {
@@ -297,6 +297,9 @@ const createUser = async (req, res, next) => {
       return res.status(500).json({ error: 'Database service unavailable' });
     }
 
+    // Convert empty/blank mobile numbers to null
+    const finalMobileNumber = (mobileNumber && mobileNumber.trim() !== '') ? mobileNumber.trim() : null;
+
     // Hash password
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
@@ -307,12 +310,12 @@ const createUser = async (req, res, next) => {
       .insert([
         {
           email,
-          mobile_number: mobileNumber,
+          mobile_number: finalMobileNumber,
           password_hash: passwordHash,
           role,
           status: status || 'active',
           email_verified: true,
-          phone_verified: !!mobileNumber
+          phone_verified: !!finalMobileNumber
         }
       ])
       .select()
@@ -388,7 +391,9 @@ const updateUser = async (req, res, next) => {
     // Update users table
     const userUpdates = {};
     if (email !== undefined) userUpdates.email = email;
-    if (mobileNumber !== undefined) userUpdates.mobile_number = mobileNumber;
+    if (mobileNumber !== undefined) {
+      userUpdates.mobile_number = (mobileNumber && mobileNumber.trim() !== '') ? mobileNumber.trim() : null;
+    }
     if (role !== undefined) userUpdates.role = role;
     if (status !== undefined) {
       userUpdates.status = status;

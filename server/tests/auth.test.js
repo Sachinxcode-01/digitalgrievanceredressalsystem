@@ -1,3 +1,4 @@
+/* global describe, it, expect, jest, beforeEach */
 const request = require('supertest');
 const express = require('express');
 const cookieParser = require('cookie-parser');
@@ -20,7 +21,8 @@ const mockOtpQuery = {
   select: jest.fn().mockReturnThis(),
   order: jest.fn().mockReturnThis(),
   limit: jest.fn().mockReturnThis(),
-  single: jest.fn()
+  single: jest.fn(),
+  maybeSingle: jest.fn()
 };
 
 const mockProfilesQuery = {
@@ -150,7 +152,7 @@ describe('Authentication API Endpoint Tests', () => {
   describe('POST /api/v1/auth/verify-otp', () => {
     it('should reject verification if OTP is expired', async () => {
       // Mock OTP verification record search (expired check)
-      mockOtpQuery.single.mockResolvedValue({
+      mockOtpQuery.maybeSingle.mockResolvedValue({
         data: {
           id: 'otp_record_id',
           code: '123456',

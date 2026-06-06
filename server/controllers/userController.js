@@ -121,11 +121,14 @@ const updateAccount = async (req, res, next) => {
       updates.email = email;
       updates.email_verified = false; // Need re-verification
     }
-    if (mobileNumber) {
-      // Check duplicate mobile
-      const { data: checkPhone } = await supabase.from('users').select('id').eq('mobile_number', mobileNumber).neq('id', userId).maybeSingle();
-      if (checkPhone) return res.status(400).json({ error: 'Mobile number is already in use.' });
-      updates.mobile_number = mobileNumber;
+    if (mobileNumber !== undefined) {
+      const finalMobile = (mobileNumber && mobileNumber.trim() !== '') ? mobileNumber.trim() : null;
+      if (finalMobile) {
+        // Check duplicate mobile
+        const { data: checkPhone } = await supabase.from('users').select('id').eq('mobile_number', finalMobile).neq('id', userId).maybeSingle();
+        if (checkPhone) return res.status(400).json({ error: 'Mobile number is already in use.' });
+      }
+      updates.mobile_number = finalMobile;
       updates.phone_verified = false; // Need re-verification
     }
 

@@ -97,7 +97,9 @@ class NotificationQueue {
                   updated_at: new Date().toISOString() 
                 })
                 .eq('id', job.dbLogId);
-            } catch (err) {}
+            } catch (err) {
+              console.error('[Notification Queue] Failed to update job attempt count:', err.message);
+            }
           }
         }
 
@@ -116,7 +118,9 @@ class NotificationQueue {
                 updated_at: new Date().toISOString() 
               })
               .eq('id', job.dbLogId);
-          } catch (err) {}
+          } catch (err) {
+            console.error('[Notification Queue] Failed to mark job as sent:', err.message);
+          }
         }
         
         console.log(`[Notification Queue] Job ${job.id} dispatched successfully.`);
@@ -136,7 +140,9 @@ class NotificationQueue {
                 updated_at: new Date().toISOString() 
               })
               .eq('id', job.dbLogId);
-          } catch (dbErr) {}
+          } catch (dbErr) {
+            console.error('[Notification Queue] Failed to log failure status:', dbErr.message);
+          }
         }
 
         if (!isPermanentFailure) {

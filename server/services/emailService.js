@@ -462,7 +462,7 @@ const sendGrievanceStatusUpdatedEmail = async (userId, ticketId, title, oldStatu
         <strong style="color: #38bdf8; text-transform: uppercase;">{{newStatus}}</strong>
       </p>
     </div>
-    <p>Subject: <em>\"{{title}}\"</em></p>
+    <p>Subject: <em>"{{title}}"</em></p>
     <a href="${process.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/dashboard" class="btn">View Timeline Log</a>
   `;
 
@@ -480,7 +480,7 @@ const sendResolutionCompletedEmail = async (userId, ticketId, title, notes, time
     <p>Your grievance filing <strong>#{{ticketId}}</strong> has been successfully resolved.</p>
     <div class="card">
       <h3>Resolution Statement</h3>
-      <p style="font-style: italic;">\"{{notes}}\"</p>
+      <p style="font-style: italic;">"{{notes}}"</p>
       <p style="margin: 15px 0 0 0; font-size: 12px; color: #64748b;"><strong>Resolved At:</strong> {{time}}</p>
     </div>
     <p>Your feedback is valuable to our quality metrics. Please take a brief moment to rate the redressal process.</p>

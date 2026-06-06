@@ -69,7 +69,9 @@ export const AuthProvider = ({ children }) => {
           const { user } = JSON.parse(cachedSession);
           setUser(user);
           setIsAuthenticated(true);
-        } catch (e) {}
+        } catch (e) {
+          console.error('Failed to parse cached session:', e);
+        }
       }
 
       if (hasActiveSession) {

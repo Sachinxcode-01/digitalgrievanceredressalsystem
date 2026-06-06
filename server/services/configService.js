@@ -55,7 +55,20 @@ const configService = {
     }
 
     const value = settingsCache.get(key);
-    return value !== undefined ? value : this.getEnvFallback(key, defaultValue);
+    
+    // If the database value is empty/default, use environment fallback
+    const isEmptyOrDefault = value === undefined || 
+                             value === null || 
+                             value === '' || 
+                             value === '""' || 
+                             (key === 'smtp_host' && value === 'smtp.ethereal.email') ||
+                             (key === 'sender_email' && value === 'no-reply@resolvenow.system');
+
+    if (isEmptyOrDefault) {
+      return this.getEnvFallback(key, defaultValue);
+    }
+
+    return value;
   },
 
   /**
@@ -71,10 +84,30 @@ const configService = {
       case 'session_expiry_minutes': return parseInt(process.env.SESSION_EXPIRY_MINUTES || defaultValue);
       
       // SMTP
-      case 'smtp_host': return process.env.SMTP_HOST || 'smtp.ethereal.email';
-      case 'smtp_port': return parseInt(process.env.SMTP_PORT || 587);
-      case 'smtp_username': return process.env.SMTP_EMAIL || '';
-      case 'smtp_password': return process.env.SMTP_PASSWORD || '';
+      case 'smtp_host': 
+        if (process.env.RESEND_API_KEY) return 'smtp.resend.com';
+        if (process.env.SMTP_HOST) return process.env.SMTP_HOST;
+        if (process.env.SMTP_EMAIL && process.env.SMTP_EMAIL.includes('@gmail.com')) {
+          return 'smtp.gmail.com';
+        }
+        return 'smtp.ethereal.email';
+      case 'smtp_port': 
+        if (process.env.RESEND_API_KEY) return 465;
+        return parseInt(process.env.SMTP_PORT || 587);
+      case 'smtp_username': 
+        if (process.env.RESEND_API_KEY) return 'resend';
+        return process.env.SMTP_EMAIL || '';
+      case 'smtp_password': 
+        if (process.env.RESEND_API_KEY) return process.env.RESEND_API_KEY;
+        return process.env.SMTP_PASSWORD || '';
+      case 'smtp_ssl':
+        if (process.env.RESEND_API_KEY) return true;
+        return false;
+      case 'sender_email':
+        if (process.env.RESEND_API_KEY) return 'onboarding@resend.dev';
+        return process.env.SMTP_EMAIL || defaultValue;
+      case 'sender_name':
+        return process.env.SENDER_NAME || defaultValue;
       
       // SMS
       case 'sms_api_url': return process.env.SMS_GATEWAY_URL || defaultValue;
