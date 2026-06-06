@@ -34,7 +34,7 @@ export const LoginPage = () => {
     script.onload = () => {
       if (window.google) {
         window.google.accounts.id.initialize({
-          client_id: '716035251648-sandbox.apps.googleusercontent.com',
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '275463446110-4i33qus8mov48q3qoarrek46stjdco97.apps.googleusercontent.com',
           callback: handleGoogleCallback,
           auto_select: false,
         });
