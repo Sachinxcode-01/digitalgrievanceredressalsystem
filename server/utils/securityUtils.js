@@ -1,7 +1,11 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'resolvenow-enterprise-secret-2026';
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  throw new Error('CRITICAL: JWT_SECRET environment variable missing');
+}
 
 const securityUtils = {
   async hashPassword(password) {

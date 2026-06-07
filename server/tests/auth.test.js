@@ -8,6 +8,7 @@ const mockUsersQuery = {
   select: jest.fn().mockReturnThis(),
   or: jest.fn().mockReturnThis(),
   eq: jest.fn().mockReturnThis(),
+  limit: jest.fn().mockReturnThis(),
   maybeSingle: jest.fn(),
   insert: jest.fn().mockReturnThis(),
   single: jest.fn(),
@@ -174,6 +175,109 @@ describe('Authentication API Endpoint Tests', () => {
 
       expect(res.statusCode).toEqual(400);
       expect(res.body.error).toContain('code has expired');
+    });
+  });
+
+  describe('POST /api/v1/auth/login', () => {
+    it('should return generic invalid credentials error for non-existing email', async () => {
+      // Mock findByEmail: no user found
+      mockUsersQuery.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
+
+      const res = await request(app)
+        .post('/api/v1/auth/login')
+        .send({
+          email: 'nonexistent@resolve.now',
+          password: 'Password@123',
+          loginType: 'password'
+        });
+
+      expect(res.statusCode).toEqual(401);
+      expect(res.body.error).toEqual('Invalid credentials.');
+    });
+
+    it('should return generic invalid credentials error for incorrect password', async () => {
+      // Mock findByEmail: user found
+      const bcrypt = require('bcryptjs');
+      const hash = await bcrypt.hash('CorrectPassword@123', 10);
+      mockUsersQuery.maybeSingle.mockResolvedValueOnce({
+        data: {
+          id: 'user_123',
+          email: 'user@resolve.now',
+          password_hash: hash,
+          failed_login_attempts: 0,
+          role: 'student',
+          status: 'active'
+        },
+        error: null
+      });
+
+      const res = await request(app)
+        .post('/api/v1/auth/login')
+        .send({
+          email: 'user@resolve.now',
+          password: 'WrongPassword@123',
+          loginType: 'password'
+        });
+
+      expect(res.statusCode).toEqual(401);
+      expect(res.body.error).toEqual('Invalid credentials.');
+    });
+
+    it('should require MFA OTP for administrative account login', async () => {
+      // Mock findByEmail: admin user found
+      const bcrypt = require('bcryptjs');
+      const hash = await bcrypt.hash('CorrectPassword@123', 10);
+      mockUsersQuery.maybeSingle.mockResolvedValueOnce({
+        data: {
+          id: 'admin_123',
+          email: 'admin@resolve.now',
+          password_hash: hash,
+          failed_login_attempts: 0,
+          role: 'admin',
+          status: 'active'
+        },
+        error: null
+      });
+
+      const res = await request(app)
+        .post('/api/v1/auth/login')
+        .send({
+          email: 'admin@resolve.now',
+          password: 'CorrectPassword@123',
+          loginType: 'password'
+        });
+
+      expect(res.statusCode).toEqual(200);
+      expect(res.body.requiresOtp).toEqual(true);
+      expect(res.body.message).toContain('second factor');
+    });
+  });
+
+  describe('Registration Role Restricting', () => {
+    it('should force role to student even if admin role is requested', async () => {
+      // Mock check: no user found
+      mockUsersQuery.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
+
+      // Mock user insert
+      mockUsersQuery.maybeSingle.mockResolvedValueOnce({
+        data: { id: 'new_user_uuid', email: 'admin-attacker@resolve.now', role: 'student', status: 'inactive' },
+        error: null
+      });
+
+      const res = await request(app)
+        .post('/api/v1/auth/register')
+        .send({
+          fullName: 'Attacker Admin',
+          email: 'admin-attacker@resolve.now',
+          password: 'ComplexPassword@2026',
+          role: 'admin'
+        });
+
+      expect(res.statusCode).toEqual(201);
+      // Verify that userRepository.create was called with role = 'student'
+      const insertCalls = mockUsersQuery.insert.mock.calls;
+      const createdUserData = insertCalls[insertCalls.length - 1][0][0];
+      expect(createdUserData.role).toEqual('student');
     });
   });
 });

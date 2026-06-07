@@ -13,6 +13,8 @@ export const VerifyOtpPage = () => {
   // Retrieve state passed from registration or login
   const identifier = location.state?.identifier || '';
   const purpose = location.state?.purpose || 'registration';
+  const rememberMe = location.state?.rememberMe || false;
+  const fromPath = location.state?.from || null;
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
@@ -103,15 +105,14 @@ export const VerifyOtpPage = () => {
 
     setLoading(true);
     try {
-      const data = await verifyOtp(identifier, otpCode, purpose);
+      const data = await verifyOtp(identifier, otpCode, purpose, rememberMe);
       toast.success(data.message || 'Identity confirmed.');
 
       if (purpose === 'forgot_password') {
         navigate('/reset-password', { state: { email: identifier, resetCode: data.resetCode } });
-      } else if (data.user?.role === 'admin' || data.user?.role === 'super admin') {
-        navigate('/admin/dashboard');
       } else {
-        navigate('/dashboard');
+        const targetPath = fromPath || (data.user?.role === 'admin' || data.user?.role === 'super admin' ? '/admin/dashboard' : '/dashboard');
+        navigate(targetPath);
       }
     } catch (err) {
       toast.error(err.response?.data?.error || 'Verification failed. Try again.');

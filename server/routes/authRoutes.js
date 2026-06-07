@@ -48,7 +48,7 @@ router.post('/forgot-password', otpLimiter, validateForgotPassword, forgotPasswo
 
 // @route   POST /api/v1/auth/reset-password
 // @desc    Save new password
-router.post('/reset-password', validateResetPassword, resetPassword);
+router.post('/reset-password', loginLimiter, validateResetPassword, resetPassword);
 
 // @route   POST /api/v1/auth/refresh-token
 // @desc    Rotate access/refresh token pair

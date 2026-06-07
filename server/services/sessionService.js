@@ -64,7 +64,8 @@ const createSession = async (user, ip, userAgent, rememberMe = false) => {
       phone: user.mobile_number || '',
       role: user.role,
       full_name: user.full_name,
-      session_id: sessionData.id
+      session_id: sessionData.id,
+      mfa_verified: (user.role === 'admin' || user.role === 'super admin') ? true : undefined
     },
     JWT_SECRET,
     { expiresIn: ACCESS_TOKEN_EXPIRY }
@@ -76,8 +77,29 @@ const createSession = async (user, ip, userAgent, rememberMe = false) => {
 };
 
 const rotateSession = async (oldRefreshToken, ip, userAgent) => {
-  const session = await sessionRepository.findByRefreshToken(oldRefreshToken);
+  let session = await sessionRepository.findByRefreshToken(oldRefreshToken);
   if (!session) {
+    // Check if the token was already rotated (RTR detection)
+    const reusedSession = await sessionRepository.findByPreviousRefreshToken(oldRefreshToken);
+    if (reusedSession) {
+      // Immediate revocation of the entire session family for this user
+      await sessionRepository.deleteByUserId(reusedSession.user_id);
+      
+      // Log critical security event
+      await auditService.logSecurityEvent(
+        reusedSession.user_id,
+        'REFRESH_TOKEN_REUSE',
+        'CRITICAL',
+        ip,
+        userAgent,
+        {
+          session_id: reusedSession.id,
+          reused_token: oldRefreshToken
+        }
+      ).catch(err => console.error('[RTR Audit Log Error]:', err.message));
+      
+      throw new Error('Session compromise detected. All sessions revoked.');
+    }
     throw new Error('Session invalid or expired');
   }
 
@@ -87,7 +109,7 @@ const rotateSession = async (oldRefreshToken, ip, userAgent) => {
   }
 
   const user = session.users;
-  if (!user || user.status === 'locked') {
+  if (!user || user.status !== 'active') {
     throw new Error('User account is locked or disabled');
   }
 
@@ -102,6 +124,7 @@ const rotateSession = async (oldRefreshToken, ip, userAgent) => {
 
   await sessionRepository.update(session.id, {
     refresh_token: newRefreshToken,
+    previous_refresh_token: oldRefreshToken,
     expires_at: newExpiresAt.toISOString(),
     ip_address: ip,
     user_agent: userAgent,
@@ -115,7 +138,8 @@ const rotateSession = async (oldRefreshToken, ip, userAgent) => {
       phone: user.mobile_number || '',
       role: user.role,
       full_name: user.full_name,
-      session_id: session.id
+      session_id: session.id,
+      mfa_verified: (user.role === 'admin' || user.role === 'super admin') ? true : undefined
     },
     JWT_SECRET,
     { expiresIn: ACCESS_TOKEN_EXPIRY }

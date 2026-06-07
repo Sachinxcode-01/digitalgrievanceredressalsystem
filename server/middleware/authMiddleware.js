@@ -1,7 +1,11 @@
 const jwt = require('jsonwebtoken');
 const supabase = require('../config/supabase');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'resolvenow-enterprise-secret-2026';
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  throw new Error('CRITICAL: JWT_SECRET environment variable missing');
+}
 
 /**
  * Enterprise Authentication Middleware
@@ -53,10 +57,16 @@ const authenticateToken = async (req, res, next) => {
         .catch(err => console.error('Failed to update session activity:', err.message));
     }
 
+    // Block admin/super admin dashboard and API access if MFA has not been completed
+    const userRole = decoded.role || 'student';
+    if ((userRole === 'admin' || userRole === 'super admin') && !decoded.mfa_verified) {
+      return res.status(403).json({ error: 'Multi-Factor Authentication (MFA) required. Access denied.' });
+    }
+
     req.user = {
       id: decoded.id,
       email: decoded.email,
-      role: decoded.role || 'student',
+      role: userRole,
       full_name: decoded.full_name,
       session_id: decoded.session_id
     };

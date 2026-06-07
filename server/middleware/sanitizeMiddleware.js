@@ -4,28 +4,30 @@
  * by stripping script tags and other dangerous HTML tags to protect against XSS.
  */
 
-const sanitizeString = (str) => {
+const sanitizeString = (str, keepHtmlTags = false) => {
   if (typeof str !== 'string') return str;
 
   // 1. Strip <script>...</script> tags entirely
   let cleaned = str.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
 
   // 2. Strip standard HTML/XML tags
-  cleaned = cleaned.replace(/<\/?[^>]+(>|$)/g, '');
+  if (!keepHtmlTags) {
+    cleaned = cleaned.replace(/<\/?[^>]+(>|$)/g, '');
+  }
 
   // 3. Trim extra whitespace
   return cleaned.trim();
 };
 
-const sanitizeObject = (obj) => {
+const sanitizeObject = (obj, keepHtmlTags = false) => {
   if (obj === null || obj === undefined) return obj;
 
   if (Array.isArray(obj)) {
     return obj.map(item => {
       if (typeof item === 'object' && item !== null) {
-        return sanitizeObject(item);
+        return sanitizeObject(item, keepHtmlTags);
       }
-      return sanitizeString(item);
+      return sanitizeString(item, keepHtmlTags);
     });
   }
 
@@ -35,22 +37,24 @@ const sanitizeObject = (obj) => {
       if (Object.prototype.hasOwnProperty.call(obj, key)) {
         const value = obj[key];
         if (typeof value === 'object' && value !== null) {
-          sanitized[key] = sanitizeObject(value);
+          sanitized[key] = sanitizeObject(value, keepHtmlTags);
         } else {
-          sanitized[key] = sanitizeString(value);
+          sanitized[key] = sanitizeString(value, keepHtmlTags);
         }
       }
     }
     return sanitized;
   }
 
-  return sanitizeString(obj);
+  return sanitizeString(obj, keepHtmlTags);
 };
 
 const sanitizeInput = (req, res, next) => {
-  if (req.body) req.body = sanitizeObject(req.body);
-  if (req.query) req.query = sanitizeObject(req.query);
-  if (req.params) req.params = sanitizeObject(req.params);
+  const isEmailTemplateRoute = req.originalUrl && req.originalUrl.includes('/settings/templates/email');
+
+  if (req.body) req.body = sanitizeObject(req.body, isEmailTemplateRoute);
+  if (req.query) req.query = sanitizeObject(req.query, isEmailTemplateRoute);
+  if (req.params) req.params = sanitizeObject(req.params, isEmailTemplateRoute);
   next();
 };
 

@@ -43,13 +43,8 @@ const authService = {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    // 3. Determine role
-    let userRole = role || 'student';
-    if (userRole === 'admin' || userRole === 'super admin') {
-      if (!email.endsWith('@resolve.now') && process.env.NODE_ENV === 'production') {
-        throw createError('Administrative roles require an institutional domain (@resolve.now).', 403);
-      }
-    }
+    // 3. Force role to strictly default to 'student' for public registration
+    const userRole = 'student';
 
     // 4. Create user
     const newUser = await userRepository.create({
@@ -158,13 +153,15 @@ const authService = {
       await emailService.sendWelcomeEmail(user.email, user.full_name, user.id).catch(console.error);
       await logAudit(user.id, 'ACCOUNT_ACTIVATED', ip, userAgent);
     } else if (targetPurpose === 'forgot_password') {
+      const crypto = require('crypto');
+      const resetToken = crypto.randomBytes(32).toString('hex');
       await notificationRepository.insertPasswordReset({
         user_id: user.id,
-        code: otp,
+        code: resetToken,
         expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
         verified: true
       });
-      return { requiresReset: true, resetCode: otp };
+      return { requiresReset: true, resetCode: resetToken };
     }
 
     // 3. Create active session
@@ -195,7 +192,7 @@ const authService = {
     }
 
     if (!user) {
-      throw createError('Invalid credentials. User not found.', 401);
+      throw createError('Invalid credentials.', 401);
     }
 
     // 2. Check Lockout Status
@@ -256,7 +253,7 @@ const authService = {
         if (attempts >= warnThreshold) {
           await emailService.sendSecurityAlertEmail(user.id, `Warning: Multiple consecutive failed login attempts detected. Current count: ${attempts}/${maxAttempts}.`, user.email).catch(console.error);
         }
-        throw createError(`Incorrect password. ${maxAttempts - attempts} attempts remaining.`, 401);
+        throw createError('Invalid credentials.', 401);
       }
     }
 
@@ -290,6 +287,35 @@ const authService = {
       return {
         requiresActivation: true,
         email: user.email
+      };
+    }
+
+    // Enforce MFA for Admin/Super Admin
+    if (user.role === 'admin' || user.role === 'super admin') {
+      const cooldownSec = await checkOtpCooldown(identifier, 'login');
+      if (cooldownSec > 0) {
+        throw createError(`Please wait ${cooldownSec} seconds before requesting a new login OTP.`, 429);
+      }
+
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otpExpirySec = parseInt(configService.getSetting('otp_expiry_seconds', 300));
+      const expiresAt = new Date(Date.now() + otpExpirySec * 1000).toISOString();
+
+      await notificationRepository.deleteOtpVerification(identifier, email ? 'email' : 'phone', 'login');
+      await notificationRepository.insertOtpVerification({
+        email: user.email,
+        phone: user.mobile_number,
+        code: otp,
+        purpose: 'login',
+        expires_at: expiresAt
+      });
+
+      if (user.email) await emailService.sendOTPEmail(user.email, otp).catch(console.error);
+      if (user.mobile_number) await smsService.sendOTPSMS(user.mobile_number, otp).catch(console.error);
+
+      return {
+        requiresOtp: true,
+        message: 'Administrative accounts require a second factor. An OTP has been sent to your registered email/phone.'
       };
     }
 
@@ -376,10 +402,12 @@ const authService = {
 
     const resetRecord = await notificationRepository.findPasswordReset(user.id, resetCode);
     if (!resetRecord) {
+      await logSecurityEvent(user.id, 'PASSWORD_RESET_FAILED', 'WARNING', ip, userAgent, { reason: 'Invalid reset code' }).catch(() => null);
       throw createError('Unauthorized reset request. Identity has not been verified.', 400);
     }
 
     if (new Date() > new Date(resetRecord.expires_at)) {
+      await logSecurityEvent(user.id, 'PASSWORD_RESET_FAILED', 'WARNING', ip, userAgent, { reason: 'Expired reset code' }).catch(() => null);
       throw createError('Password reset authorization has expired.', 400);
     }
 
@@ -411,22 +439,26 @@ const authService = {
       }
       payload = await response.json();
     } catch (err) {
-      if (credential.startsWith('sandbox-token-')) {
-        const parts = credential.split('-');
-        const mockEmail = parts[2] || 'google-user@resolve.now';
-        const mockName = parts[3]?.replace(/_/g, ' ') || 'Google User';
-        payload = {
-          email: mockEmail,
-          name: mockName,
-          picture: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150',
-          email_verified: 'true'
-        };
-      } else {
-        throw createError('Invalid Google Identity token verification.', 401);
-      }
+      throw createError('Invalid Google Identity token verification.', 401);
     }
 
-    const { email, name, picture, email_verified } = payload;
+    const { email, name, picture, email_verified, aud, iss, exp } = payload;
+
+    // Validate Google Client ID (Audience)
+    if (aud !== process.env.GOOGLE_CLIENT_ID) {
+      throw createError('Google token audience verification failed.', 401);
+    }
+
+    // Validate Issuer
+    if (iss !== 'accounts.google.com' && iss !== 'https://accounts.google.com') {
+      throw createError('Google token issuer verification failed.', 401);
+    }
+
+    // Validate Expiration
+    if (exp && parseInt(exp) * 1000 < Date.now()) {
+      throw createError('Google token has expired.', 401);
+    }
+
     if (email_verified !== 'true' && email_verified !== true) {
       throw createError('Google email address is not verified.', 401);
     }

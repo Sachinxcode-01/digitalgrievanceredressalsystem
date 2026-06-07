@@ -60,7 +60,7 @@ const login = async (req, res, next) => {
     const result = await authService.login(email, phone, password, loginType, rememberMe, req.ip, req.headers['user-agent']);
 
     if (result.requiresOtp) {
-      return res.json({ message: 'Security key sent.', requiresOtp: true });
+      return res.json({ message: result.message || 'Security key sent.', requiresOtp: true });
     }
 
     if (result.requiresActivation) {

@@ -9,7 +9,25 @@ const { sanitizeInput } = require('./middleware/sanitizeMiddleware');
 
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
+// Validate required environment variables on startup (except during tests)
+if (process.env.NODE_ENV !== 'test') {
+  const requiredEnvVars = [
+    'JWT_SECRET',
+    'SUPABASE_URL',
+    'SUPABASE_SERVICE_ROLE_KEY',
+    'GOOGLE_CLIENT_ID',
+    'GEMINI_API_KEY'
+  ];
+  const missingEnvVars = requiredEnvVars.filter((varName) => !process.env[varName]);
+  if (missingEnvVars.length > 0) {
+    console.error('❌ CRITICAL STARTUP ERROR: The following required environment variables are missing:');
+    missingEnvVars.forEach((varName) => console.error(`   - ${varName}`));
+    process.exit(1);
+  }
+}
+
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 5000;
 
 // 1. Security Headers (Helmet)
@@ -24,17 +42,18 @@ app.use(
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         imgSrc: ["'self'", "data:", "blob:", "https://*.supabase.co"]
       }
-    }
+    },
+    frameguard: { action: 'deny' },
+    hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+    referrerPolicy: { policy: 'no-referrer' },
+    xssFilter: true,
+    noSniff: true
   })
 );
 
-// 2. CORS setup (supporting credentials/cookies)
-app.use(
-  cors({
-    origin: true,
-    credentials: true
-  })
-);
+// 2. CORS setup (supporting credentials/cookies with whitelist validation)
+const corsOptions = require('./config/corsConfig');
+app.use(cors(corsOptions));
 
 // 3. Rate Limiter (Brute-force / DoS Protection)
 const apiLimiter = rateLimit({

@@ -25,6 +25,17 @@ const sessionRepository = {
     return data;
   },
 
+  async findByPreviousRefreshToken(previousRefreshToken) {
+    if (!supabase) return null;
+    const { data, error } = await supabase
+      .from('sessions')
+      .select('*, users(*)')
+      .eq('previous_refresh_token', previousRefreshToken)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+
   async update(id, updates) {
     if (!supabase) throw new Error('Database unavailable');
     const { data, error } = await supabase

@@ -9,7 +9,7 @@ const userRepository = {
     } else {
       query = query.eq('email', email);
     }
-    const { data, error } = await query.maybeSingle();
+    const { data, error } = await query.limit(1).maybeSingle();
     if (error) throw error;
     return data;
   },
