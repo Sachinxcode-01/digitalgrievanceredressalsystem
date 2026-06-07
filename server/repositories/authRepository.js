@@ -25,8 +25,9 @@ const authRepository = {
       .from('otp_verifications')
       .insert([otpData])
       .select()
-      .single();
-
+      .maybeSingle();
+    console.log("Supabase response (insertOtp):", data);
+    console.log("Supabase error (insertOtp):", error);
     if (error) throw error;
     return data;
   },
@@ -38,8 +39,9 @@ const authRepository = {
       .update({ is_verified: true, verified_at: new Date().toISOString() })
       .eq('id', otpId)
       .select()
-      .single();
-
+      .maybeSingle();
+    console.log("Supabase response (markOtpVerified):", data);
+    console.log("Supabase error (markOtpVerified):", error);
     if (error) throw error;
     return data;
   },
@@ -67,8 +69,9 @@ const authRepository = {
       .from('password_resets')
       .insert([resetData])
       .select()
-      .single();
-
+      .maybeSingle();
+    console.log("Supabase response (insertResetCode):", data);
+    console.log("Supabase error (insertResetCode):", error);
     if (error) throw error;
     return data;
   },
@@ -80,8 +83,9 @@ const authRepository = {
       .update({ is_used: true, used_at: new Date().toISOString() })
       .eq('id', resetId)
       .select()
-      .single();
-
+      .maybeSingle();
+    console.log("Supabase response (markResetCodeUsed):", data);
+    console.log("Supabase error (markResetCodeUsed):", error);
     if (error) throw error;
     return data;
   }

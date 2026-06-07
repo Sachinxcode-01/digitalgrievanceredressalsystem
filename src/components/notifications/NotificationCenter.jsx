@@ -152,7 +152,8 @@ export const NotificationCenter = ({ user }) => {
                 .from('grievances')
                 .select('ticket_id, user_id')
                 .eq('id', payload.new.grievance_id)
-                .single();
+                .limit(1)
+                .maybeSingle();
               
               if (ticket && ticket.user_id === user.id) {
                 const newNotif = {

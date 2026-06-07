@@ -31,7 +31,10 @@ const authenticateToken = async (req, res, next) => {
         .from('sessions')
         .select('id, expires_at')
         .eq('id', decoded.session_id)
-        .single();
+        .limit(1)
+        .maybeSingle();
+      console.log("Supabase response (sessionAuth):", session);
+      console.log("Supabase error (sessionAuth):", error);
 
       if (error || !session) {
         return res.status(401).json({ error: 'Your session has been revoked or signed out.' });

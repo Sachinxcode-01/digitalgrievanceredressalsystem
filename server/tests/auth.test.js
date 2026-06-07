@@ -29,7 +29,8 @@ const mockProfilesQuery = {
   insert: jest.fn().mockResolvedValue({ error: null }),
   select: jest.fn().mockReturnThis(),
   eq: jest.fn().mockReturnThis(),
-  single: jest.fn().mockResolvedValue({ data: { full_name: 'Test Profile' }, error: null })
+  single: jest.fn().mockResolvedValue({ data: { full_name: 'Test Profile' }, error: null }),
+  maybeSingle: jest.fn().mockResolvedValue({ data: { full_name: 'Test Profile' }, error: null })
 };
 
 const mockResetsQuery = {
@@ -40,7 +41,8 @@ const mockResetsQuery = {
 const mockSessionsQuery = {
   insert: jest.fn().mockReturnThis(),
   select: jest.fn().mockReturnThis(),
-  single: jest.fn().mockResolvedValue({ data: { id: 'session_123', expires_at: new Date(Date.now() + 60000).toISOString() }, error: null })
+  single: jest.fn().mockResolvedValue({ data: { id: 'session_123', expires_at: new Date(Date.now() + 60000).toISOString() }, error: null }),
+  maybeSingle: jest.fn().mockResolvedValue({ data: { id: 'session_123', expires_at: new Date(Date.now() + 60000).toISOString() }, error: null })
 };
 
 const mockDevicesQuery = {
@@ -122,10 +124,10 @@ describe('Authentication API Endpoint Tests', () => {
 
     it('should initiate registration successfully and return OTP dispatch info', async () => {
       // Mock check: no user found
-      mockUsersQuery.maybeSingle.mockResolvedValue({ data: null, error: null });
+      mockUsersQuery.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
 
       // Mock user insert
-      mockUsersQuery.single.mockResolvedValue({
+      mockUsersQuery.maybeSingle.mockResolvedValueOnce({
         data: { id: 'new_user_uuid', email: 'new@nic.in', role: 'student', status: 'inactive' },
         error: null
       });

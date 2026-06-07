@@ -71,7 +71,8 @@ export const LoginPage = () => {
         navigate('/dashboard');
       }
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Google Sign-in failed.');
+      console.error('Google Sign-in exception:', err);
+      toast.error('Google Sign-in failed. Please verify connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -89,7 +90,8 @@ export const LoginPage = () => {
         navigate('/dashboard');
       }
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Sandbox Google login failed.');
+      console.error('Sandbox Google login exception:', err);
+      toast.error('Sandbox Google login failed.');
     } finally {
       setLoading(false);
     }
@@ -123,7 +125,8 @@ export const LoginPage = () => {
         }
       }
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Authentication failed. Please verify credentials.');
+      console.error('Login process exception:', err);
+      toast.error('Login failed. Please verify your credentials and try again.');
     } finally {
       setLoading(false);
     }

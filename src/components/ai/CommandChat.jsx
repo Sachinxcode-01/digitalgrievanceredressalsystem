@@ -53,7 +53,8 @@ export const CommandChat = ({ grievanceId, currentUser, role = 'user' }) => {
             .from('ticket_comments')
             .select('*, profiles(full_name, role)')
             .eq('id', payload.new.id)
-            .single();
+            .limit(1)
+            .maybeSingle();
           
           if (fullMsg) {
             setMessages(prev => [...prev, fullMsg]);

@@ -44,7 +44,9 @@ const grievanceRepository = {
       .update(updates)
       .eq('id', id)
       .select()
-      .single();
+      .maybeSingle();
+    console.log("Supabase response (updateGrievance):", data);
+    console.log("Supabase error (updateGrievance):", error);
     if (error) throw error;
     return data;
   },
@@ -100,7 +102,10 @@ const grievanceRepository = {
       .from('departments')
       .select('*')
       .eq('id', id)
-      .single();
+      .limit(1)
+      .maybeSingle();
+    console.log("Supabase response (getDepartmentById):", data);
+    console.log("Supabase error (getDepartmentById):", error);
     if (error) throw error;
     return data;
   },
@@ -111,7 +116,9 @@ const grievanceRepository = {
       .from('departments')
       .insert([deptData])
       .select()
-      .single();
+      .maybeSingle();
+    console.log("Supabase response (createDepartment):", data);
+    console.log("Supabase error (createDepartment):", error);
     if (error) throw error;
     return data;
   },
@@ -123,7 +130,9 @@ const grievanceRepository = {
       .update(updates)
       .eq('id', id)
       .select()
-      .single();
+      .maybeSingle();
+    console.log("Supabase response (updateDepartment):", data);
+    console.log("Supabase error (updateDepartment):", error);
     if (error) throw error;
     return data;
   },
@@ -155,7 +164,10 @@ const grievanceRepository = {
       .from('sla_rules')
       .select('*')
       .eq('id', id)
-      .single();
+      .limit(1)
+      .maybeSingle();
+    console.log("Supabase response (getSlaRuleById):", data);
+    console.log("Supabase error (getSlaRuleById):", error);
     if (error) throw error;
     return data;
   },
@@ -166,7 +178,9 @@ const grievanceRepository = {
       .from('sla_rules')
       .insert([ruleData])
       .select()
-      .single();
+      .maybeSingle();
+    console.log("Supabase response (createSlaRule):", data);
+    console.log("Supabase error (createSlaRule):", error);
     if (error) throw error;
     return data;
   },
@@ -178,7 +192,9 @@ const grievanceRepository = {
       .update(updates)
       .eq('id', id)
       .select()
-      .single();
+      .maybeSingle();
+    console.log("Supabase response (updateSlaRule):", data);
+    console.log("Supabase error (updateSlaRule):", error);
     if (error) throw error;
     return data;
   },
@@ -210,7 +226,10 @@ const grievanceRepository = {
       .from('escalation_rules')
       .select('*')
       .eq('id', id)
-      .single();
+      .limit(1)
+      .maybeSingle();
+    console.log("Supabase response (getEscalationRuleById):", data);
+    console.log("Supabase error (getEscalationRuleById):", error);
     if (error) throw error;
     return data;
   },
@@ -221,7 +240,9 @@ const grievanceRepository = {
       .from('escalation_rules')
       .insert([ruleData])
       .select()
-      .single();
+      .maybeSingle();
+    console.log("Supabase response (createEscalationRule):", data);
+    console.log("Supabase error (createEscalationRule):", error);
     if (error) throw error;
     return data;
   },
@@ -233,7 +254,9 @@ const grievanceRepository = {
       .update(updates)
       .eq('id', id)
       .select()
-      .single();
+      .maybeSingle();
+    console.log("Supabase response (updateEscalationRule):", data);
+    console.log("Supabase error (updateEscalationRule):", error);
     if (error) throw error;
     return data;
   },

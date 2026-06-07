@@ -7,7 +7,9 @@ const sessionRepository = {
       .from('sessions')
       .insert([sessionData])
       .select()
-      .single();
+      .maybeSingle();
+    console.log("Supabase response (createSession):", data);
+    console.log("Supabase error (createSession):", error);
     if (error) throw error;
     return data;
   },
@@ -30,7 +32,9 @@ const sessionRepository = {
       .update(updates)
       .eq('id', id)
       .select()
-      .single();
+      .maybeSingle();
+    console.log("Supabase response (updateSession):", data);
+    console.log("Supabase error (updateSession):", error);
     if (error) throw error;
     return data;
   },

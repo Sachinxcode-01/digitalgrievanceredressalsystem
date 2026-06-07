@@ -31,7 +31,8 @@ export const PublicStatusPage = () => {
         .from('grievances')
         .select('*')
         .eq('ticket_id', ticketId.trim())
-        .single();
+        .limit(1)
+        .maybeSingle();
 
       if (error) {
         setError('Reference ID not found in system records.');

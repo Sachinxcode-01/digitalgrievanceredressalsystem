@@ -42,7 +42,10 @@ const userRepository = {
       .from('users')
       .select('*')
       .eq('id', id)
-      .single();
+      .limit(1)
+      .maybeSingle();
+    console.log("Supabase response (findById):", data);
+    console.log("Supabase error (findById):", error);
     if (error) throw error;
     return data;
   },
@@ -53,7 +56,9 @@ const userRepository = {
       .from('users')
       .insert([userData])
       .select()
-      .single();
+      .maybeSingle();
+    console.log("Supabase response (createUser):", data);
+    console.log("Supabase error (createUser):", error);
     if (error) throw error;
     return data;
   },
@@ -65,7 +70,9 @@ const userRepository = {
       .update(updates)
       .eq('id', id)
       .select()
-      .single();
+      .maybeSingle();
+    console.log("Supabase response (updateUser):", data);
+    console.log("Supabase error (updateUser):", error);
     if (error) throw error;
     return data;
   },
@@ -97,7 +104,9 @@ const userRepository = {
       .update(updates)
       .eq('user_id', userId)
       .select()
-      .single();
+      .maybeSingle();
+    console.log("Supabase response (updateProfile):", data);
+    console.log("Supabase error (updateProfile):", error);
     if (error) throw error;
     return data;
   },

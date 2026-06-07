@@ -309,7 +309,7 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
         
         const adminId = payload.new.admin_id;
         if (adminId && !profileMap[adminId]) {
-          supabase.from('user_profiles').select('user_id, full_name').eq('user_id', adminId).single().then(({ data }) => {
+          supabase.from('user_profiles').select('user_id, full_name').eq('user_id', adminId).limit(1).maybeSingle().then(({ data }) => {
             if (data) {
               setProfileMap(prev => ({ ...prev, [data.user_id]: data.full_name }));
             }

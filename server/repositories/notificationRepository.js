@@ -8,7 +8,9 @@ const notificationRepository = {
       .from('email_logs')
       .insert([logData])
       .select('id')
-      .single();
+      .maybeSingle();
+    console.log("Supabase response (insertEmailLog):", data);
+    console.log("Supabase error (insertEmailLog):", error);
     if (error) throw error;
     return data;
   },
@@ -107,7 +109,9 @@ const notificationRepository = {
       .update(updates)
       .eq('id', id)
       .select()
-      .single();
+      .maybeSingle();
+    console.log("Supabase response (updateEmailTemplate):", data);
+    console.log("Supabase error (updateEmailTemplate):", error);
     if (error) throw error;
     return data;
   },
@@ -140,7 +144,9 @@ const notificationRepository = {
       .update(updates)
       .eq('id', id)
       .select()
-      .single();
+      .maybeSingle();
+    console.log("Supabase response (updateSmsTemplate):", data);
+    console.log("Supabase error (updateSmsTemplate):", error);
     if (error) throw error;
     return data;
   },
@@ -165,7 +171,9 @@ const notificationRepository = {
       .eq('verified', true)
       .order('created_at', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
+    console.log("Supabase response (findPasswordReset):", data);
+    console.log("Supabase error (findPasswordReset):", error);
     if (error) throw error;
     return data;
   },
