@@ -4,6 +4,7 @@ import { useAuth } from '../../app/providers/AuthProvider';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Sparkles, Sun, Moon, Home } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../utils/errors';
 
 export const LoginPage = () => {
   const { login, loginWithGoogle } = useAuth();
@@ -35,53 +36,13 @@ export const LoginPage = () => {
     localStorage.setItem('app-theme', theme);
   }, [theme]);
 
-  // Load Google Identity Script
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.defer = true;
-    document.body.appendChild(script);
-
-    script.onload = () => {
-      if (window.google) {
-        window.google.accounts.id.initialize({
-          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '275463446110-4i33qus8mov48q3qoarrek46stjdco97.apps.googleusercontent.com',
-          callback: handleGoogleCallback,
-          auto_select: false,
-        });
-        window.google.accounts.id.renderButton(
-          document.getElementById('google-btn-iframe'),
-          { 
-            theme: theme === 'midnight' ? 'dark' : 'light', 
-            size: 'large', 
-            width: '380',
-            text: 'continue_with',
-            shape: 'rectangular'
-          }
-        );
-      }
-    };
-
-    return () => {
-      try {
-        document.body.removeChild(script);
-      } catch (e) {
-        console.warn('Google Identity script already removed:', e.message);
-      }
-    };
-  }, [theme]);
-
-  const handleGoogleCallback = async (response) => {
+  const handleGoogleLogin = async () => {
     setLoading(true);
     try {
-      const result = await loginWithGoogle(response.credential, rememberMe);
-      toast.success('Google Login successful!');
-      navigate(getRedirectPath(result.user));
+      await loginWithGoogle();
     } catch (err) {
       console.error('Google Sign-in exception:', err);
-      toast.error('Google Sign-in failed. Please verify connection and try again.');
-    } finally {
+      toast.error(getErrorMessage(err, 'Google Sign-in failed. Please try again.'));
       setLoading(false);
     }
   };
@@ -112,8 +73,7 @@ export const LoginPage = () => {
       }
     } catch (err) {
       console.error('Login process exception:', err);
-      const serverError = err.response?.data?.error || 'Login failed. Please verify your credentials and try again.';
-      toast.error(serverError);
+      toast.error(getErrorMessage(err, 'Login failed. Please verify credentials and try again.'));
     } finally {
       setLoading(false);
     }
@@ -170,7 +130,20 @@ export const LoginPage = () => {
           <div className="glass-card p-8 border-border/50 text-left space-y-6">
             
             <div className="space-y-3">
-              <div id="google-btn-iframe" className="flex justify-center w-full min-h-[40px]" />
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-3 py-3 rounded-xl border border-white/10 bg-slate-900/50 hover:bg-slate-900 text-sm font-bold text-slate-300 hover:text-white transition-all cursor-pointer disabled:opacity-50"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                  <path fill="#EA4335" d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.68 1.54 14.98 1 12 1 7.35 1 3.37 3.67 1.39 7.56l3.85 2.99c.9-2.7 3.42-4.51 6.76-4.51z"/>
+                  <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.34H12v4.44h6.46c-.28 1.48-1.12 2.74-2.38 3.58l3.69 2.87c2.16-1.99 3.72-4.92 3.72-8.55z"/>
+                  <path fill="#FBBC05" d="M5.24 10.55c-.23-.69-.36-1.43-.36-2.2 0-.77.13-1.51.36-2.2L1.39 3.16C.5 4.93 0 6.91 0 9c0 2.09.5 4.07 1.39 5.84l3.85-2.99c-.23-.69-.36-1.43-.36-2.2z"/>
+                  <path fill="#34A853" d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.69-2.87c-1.03.69-2.34 1.1-4.27 1.1-3.34 0-5.86-1.81-6.76-4.51L1.39 16.7C3.37 20.33 7.35 23 12 23z"/>
+                </svg>
+                {loading ? 'Redirecting to Google...' : 'Continue with Google'}
+              </button>
             </div>
 
             <div className="flex items-center gap-4">

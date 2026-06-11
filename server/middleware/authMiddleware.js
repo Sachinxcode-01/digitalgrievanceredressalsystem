@@ -1,22 +1,110 @@
 const jwt = require('jsonwebtoken');
+const { getAuth, clerkClient } = require('@clerk/express');
+const userRepository = require('../repositories/userRepository');
 const supabase = require('../config/supabase');
 
 const JWT_SECRET = process.env.JWT_SECRET;
-
-if (!JWT_SECRET) {
-  throw new Error('CRITICAL: JWT_SECRET environment variable missing');
-}
+const userCache = new Map();
 
 /**
  * Enterprise Authentication Middleware
- * Decodes and verifies incoming requests containing JWT authorization.
- * Supports header tokens and cookie fallbacks, checking active session revocation.
+ * Decodes and verifies incoming requests containing Clerk session tokens.
+ * Automatically falls back to standard JWT validation for backward compatibility and test environments.
  */
 const authenticateToken = async (req, res, next) => {
+  // 1. Attempt Clerk Authentication
+  try {
+    const authState = getAuth(req);
+    const userId = authState?.userId;
+
+    if (userId) {
+      let email = null;
+      let fullName = 'Clerk User';
+
+      const cached = userCache.get(userId);
+      if (cached && cached.expiresAt > Date.now()) {
+        email = cached.email;
+        fullName = cached.fullName;
+      } else {
+        const clerkUser = await clerkClient.users.getUser(userId);
+        email = clerkUser.emailAddresses[0]?.emailAddress;
+        fullName = clerkUser.firstName ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim() : 'Clerk User';
+        
+        userCache.set(userId, {
+          email,
+          fullName,
+          expiresAt: Date.now() + 5 * 60 * 1000
+        });
+      }
+
+      if (!email) {
+        return res.status(400).json({ error: 'Authenticated Clerk user has no primary email address.' });
+      }
+
+      // Lookup local user
+      let dbUser = await userRepository.findByEmail(email).catch(() => null);
+      if (!dbUser) {
+        // Sync on demand (auto-register)
+        const clerkUser = await clerkClient.users.getUser(userId);
+        const role = clerkUser.unsafeMetadata?.role || 'student';
+        const name = clerkUser.unsafeMetadata?.fullName || fullName;
+        const mobile = clerkUser.unsafeMetadata?.mobileNumber || clerkUser.phoneNumbers[0]?.phoneNumber || null;
+
+        dbUser = await userRepository.create({
+          email,
+          mobile_number: mobile,
+          password_hash: 'clerk-managed',
+          role: role,
+          status: 'active',
+          email_verified: true,
+          phone_verified: !!clerkUser.phoneNumbers[0] || !!clerkUser.unsafeMetadata?.mobileNumber
+        });
+
+        await userRepository.createProfile({
+          user_id: dbUser.id,
+          full_name: name,
+          notification_preferences: { email: true, sms: true }
+        });
+
+        // Refetch
+        dbUser = await userRepository.findByEmail(email).catch(() => null);
+      }
+
+      if (!dbUser) {
+        return res.status(500).json({ error: 'Failed to synchronize authenticated session with database.' });
+      }
+
+      if (dbUser.status === 'locked') {
+        return res.status(403).json({ error: 'This account has been locked. Please contact support.' });
+      }
+
+      req.user = {
+        id: dbUser.id,
+        email: dbUser.email,
+        role: dbUser.role,
+        full_name: dbUser.full_name || fullName,
+        clerk_id: userId
+      };
+
+      return next();
+    }
+  } catch (clerkErr) {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const logPath = path.join(__dirname, '../../server_errors.log');
+      const timestamp = new Date().toISOString();
+      const logMessage = `[${timestamp}] Clerk Auth Middleware Error\nError: ${clerkErr.message}\nStack: ${clerkErr.stack}\n\n`;
+      fs.appendFileSync(logPath, logMessage);
+    } catch (fsErr) {
+      console.error('Failed to write to server_errors.log:', fsErr.message);
+    }
+  }
+
+  // 2. Legacy JWT Fallback (critical for testing, backward compatibility, and transition support)
   const authHeader = req.headers['authorization'];
   let token = authHeader && authHeader.split(' ')[1];
 
-  // Fallback to cookie
   if (!token && req.cookies) {
     token = req.cookies.access_token;
   }
@@ -25,40 +113,15 @@ const authenticateToken = async (req, res, next) => {
     return res.status(401).json({ error: 'Access token required. Authorization denied.' });
   }
 
-  // Verify JWT
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    
-    // Check database session active status (revocation capability)
-    if (supabase && decoded.session_id) {
-      const { data: session, error } = await supabase
-        .from('sessions')
-        .select('id, expires_at')
-        .eq('id', decoded.session_id)
-        .limit(1)
-        .maybeSingle();
-      console.log("Supabase response (sessionAuth):", session);
-      console.log("Supabase error (sessionAuth):", error);
-
-      if (error || !session) {
-        return res.status(401).json({ error: 'Your session has been revoked or signed out.' });
-      }
-
-      if (new Date() > new Date(session.expires_at)) {
-        return res.status(401).json({ error: 'Session has expired.' });
-      }
-
-      // Async update last active time to avoid blocking
-      supabase
-        .from('sessions')
-        .update({ last_active_at: new Date().toISOString() })
-        .eq('id', decoded.session_id)
-        .then(() => {})
-        .catch(err => console.error('Failed to update session activity:', err.message));
+    if (!JWT_SECRET) {
+      return res.status(500).json({ error: 'System secret missing. Authentication failed.' });
     }
 
-    // Block admin/super admin dashboard and API access if MFA has not been completed
+    const decoded = jwt.verify(token, JWT_SECRET);
     const userRole = decoded.role || 'student';
+
+    // Verify MFA requirement for legacy admin sessions
     if ((userRole === 'admin' || userRole === 'super admin') && !decoded.mfa_verified) {
       return res.status(403).json({ error: 'Multi-Factor Authentication (MFA) required. Access denied.' });
     }
@@ -72,7 +135,7 @@ const authenticateToken = async (req, res, next) => {
     };
 
     return next();
-  } catch (err) {
+  } catch (jwtErr) {
     return res.status(403).json({ error: 'Access denied: session invalid or expired.' });
   }
 };

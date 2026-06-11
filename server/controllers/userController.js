@@ -172,12 +172,20 @@ const changePassword = async (req, res, next) => {
  */
 const deleteAccount = async (req, res, next) => {
   const userId = req.user.id;
+  const clerkId = req.user.clerk_id;
 
   try {
     const user = await userRepository.findById(userId).catch(() => null);
     const profile = await userRepository.findProfileByUserId(userId).catch(() => null);
 
     await userRepository.deleteUser(userId);
+
+    if (clerkId) {
+      const { clerkClient } = require('@clerk/express');
+      await clerkClient.users.deleteUser(clerkId).catch(err => {
+        console.error('Failed to delete user from Clerk:', err.message);
+      });
+    }
 
     if (user) {
       const fullName = profile ? profile.full_name : 'Valued User';

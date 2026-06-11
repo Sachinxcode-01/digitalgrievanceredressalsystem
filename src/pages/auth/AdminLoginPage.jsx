@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Mail, ArrowRight, ShieldCheck, Home, Lock, ShieldAlert, ChevronLeft, Landmark, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../../app/providers/AuthProvider';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../utils/errors';
 
 // ─── Visual OTP Input Component ───────────────────────────────────────────
 const VisualOTPInput = ({ value, onChange, disabled, isError }) => {
@@ -77,7 +78,7 @@ export const AdminLoginPage = () => {
       setSuccessMsg('Administrative access key dispatched.');
       setIsVerifying(true);
     } catch (err) {
-      setError(err.response?.data?.error || 'Authentication routing error.');
+      setError(getErrorMessage(err, 'Authentication routing error.'));
     } finally {
       setLoading(false);
     }
@@ -96,7 +97,7 @@ export const AdminLoginPage = () => {
       
       setTimeout(() => navigate('/admin/dashboard'), 1000);
     } catch (err) {
-      setError(err.response?.data?.error || 'Access verification failed.');
+      setError(getErrorMessage(err, 'Access verification failed.'));
     } finally {
       setLoading(false);
     }

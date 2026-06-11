@@ -79,6 +79,17 @@ const mockSecurityEventsQuery = {
   insert: jest.fn().mockResolvedValue({ error: null })
 };
 
+// Default RPC mock functions
+const mockRpcRegisterUser = jest.fn().mockResolvedValue({
+  data: { id: 'new_user', email: 'register@resolve.now', role: 'student', status: 'inactive', mobile_number: null },
+  error: null
+});
+
+const mockRpcSyncClerkUser = jest.fn().mockResolvedValue({
+  data: { id: 'clerk_uuid', email: 'clerk@resolve.now', role: 'student', status: 'active', mobile_number: null },
+  error: null
+});
+
 jest.mock('../config/supabase', () => {
   return {
     from: jest.fn((table) => {
@@ -91,6 +102,11 @@ jest.mock('../config/supabase', () => {
       if (table === 'audit_logs') return mockAuditLogsQuery;
       if (table === 'security_events') return mockSecurityEventsQuery;
       return mockUsersQuery;
+    }),
+    rpc: jest.fn((fnName, params) => {
+      if (fnName === 'register_user') return mockRpcRegisterUser(params);
+      if (fnName === 'sync_clerk_user') return mockRpcSyncClerkUser(params);
+      return Promise.resolve({ data: null, error: null });
     }),
     auth: {
       signOut: jest.fn().mockResolvedValue({ error: null })
@@ -390,8 +406,8 @@ describe('ResolveNow Security Hardening Verification Tests', () => {
 
   describe('Role Escalation Controls', () => {
     it('should strictly default registration role to student regardless of input', async () => {
-      mockUsersQuery.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
-      mockUsersQuery.maybeSingle.mockResolvedValueOnce({
+      // Mock rpc register_user: success (service hardcodes p_role='student')
+      mockRpcRegisterUser.mockResolvedValueOnce({
         data: { id: 'new_user', email: 'register@resolve.now', role: 'student' },
         error: null
       });
@@ -406,9 +422,13 @@ describe('ResolveNow Security Hardening Verification Tests', () => {
         });
 
       expect(res.statusCode).toEqual(201);
-      const insertCalls = mockUsersQuery.insert.mock.calls;
-      const payload = insertCalls[insertCalls.length - 1][0][0];
-      expect(payload.role).toEqual('student');
+
+      // Verify rpc was called with p_role='student', never 'admin'
+      const supabase = require('../config/supabase');
+      const rpcCalls = supabase.rpc.mock.calls;
+      const registerCall = rpcCalls.find(c => c[0] === 'register_user');
+      expect(registerCall).toBeTruthy();
+      expect(registerCall[1].p_role).toEqual('student');
     });
   });
 });

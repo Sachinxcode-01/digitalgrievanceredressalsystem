@@ -1,13 +1,15 @@
+const path = require('path');
+const dotenv = require('dotenv');
+dotenv.config({ path: path.join(__dirname, '../.env') });
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
-const dotenv = require('dotenv');
-const path = require('path');
+const { clerkMiddleware } = require('@clerk/express');
 const { sanitizeInput } = require('./middleware/sanitizeMiddleware');
 
-dotenv.config({ path: path.join(__dirname, '../.env') });
 
 // Validate required environment variables on startup (except during tests)
 if (process.env.NODE_ENV !== 'test') {
@@ -75,6 +77,7 @@ app.use('/api/', apiLimiter);
 app.use(express.json());
 app.use(cookieParser());
 app.use(sanitizeInput);
+app.use(clerkMiddleware());
 
 // 4. Main Health Check
 app.get('/api/health', async (req, res) => {
@@ -120,13 +123,14 @@ app.get('/api/diag-sms', (req, res) => {
 });
 
 // Import Routes
-const grievanceRoutes = require('./routes/grievanceRoutes');
-const aiRoutes = require('./routes/aiRoutes');
-const authRoutes = require('./routes/authRoutes');
-const chatRoutes = require('./routes/chatRoutes');
-const adminRoutes = require('./routes/adminRoutes');
-const userRoutes = require('./routes/userRoutes');
-const sessionRoutes = require('./routes/sessionRoutes');
+const grievanceRoutes   = require('./routes/grievanceRoutes');
+const aiRoutes          = require('./routes/aiRoutes');
+const authRoutes        = require('./routes/authRoutes');
+const chatRoutes        = require('./routes/chatRoutes');
+const adminRoutes       = require('./routes/adminRoutes');
+const userRoutes        = require('./routes/userRoutes');
+const sessionRoutes     = require('./routes/sessionRoutes');
+const emailTestRoutes   = require('./routes/emailTestRoutes');
 
 // 5. Versioned API Routing
 app.use('/api/v1/grievances', grievanceRoutes);
@@ -136,6 +140,8 @@ app.use('/api/v1/chat', chatRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/user', userRoutes);
 app.use('/api/v1/sessions', sessionRoutes);
+app.use('/api/v1/test-email', emailTestRoutes);
+
 
 // --- Production/Deployment: Serve frontend ---
 const distPath = path.join(__dirname, '../dist');
@@ -157,6 +163,18 @@ app.get('*', (req, res) => {
 // 6. Centralized Error Handling Middleware
 app.use((err, req, res, next) => {
   console.error('[Central System Error]:', err.stack);
+  
+  // Write to a diagnostic log file for debugging redirect loops
+  try {
+    const fs = require('fs');
+    const logPath = path.join(__dirname, '../server_errors.log');
+    const timestamp = new Date().toISOString();
+    const logMessage = `[${timestamp}] ${req.method} ${req.originalUrl}\nError: ${err.message}\nStack: ${err.stack}\n\n`;
+    fs.appendFileSync(logPath, logMessage);
+  } catch (fsErr) {
+    console.error('Failed to write to server_errors.log:', fsErr.message);
+  }
+
   const status = err.status || 500;
   const message = err.message || 'Something went wrong on the server!';
   res.status(status).json({ 

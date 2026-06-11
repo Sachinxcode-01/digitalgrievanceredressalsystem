@@ -9,7 +9,8 @@ const {
   resetPassword, 
   refresh, 
   logout,
-  googleLogin
+  googleLogin,
+  syncUser
 } = require('../controllers/authController');
 
 const { loginLimiter, registrationLimiter, otpLimiter } = require('../middleware/securityMiddleware');
@@ -57,5 +58,9 @@ router.post('/refresh-token', refresh);
 // @route   POST /api/v1/auth/logout
 // @desc    Revoke session
 router.post('/logout', logout);
+
+// @route   POST /api/v1/auth/sync
+// @desc    Sync Clerk user with local DB
+router.post('/sync', syncUser);
 
 module.exports = router;

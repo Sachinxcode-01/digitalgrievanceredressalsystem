@@ -4,6 +4,7 @@ import { useAuth } from '../../app/providers/AuthProvider';
 import { motion } from 'framer-motion';
 import { Lock, ArrowRight, Check, ShieldAlert, CheckCircle, Sun, Moon, Home } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../utils/errors';
 
 export const ResetPasswordPage = () => {
   const { resetPassword } = useAuth();
@@ -72,7 +73,7 @@ export const ResetPasswordPage = () => {
       toast.success(data.message || 'Password updated successfully!');
       navigate('/login');
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to update password.');
+      toast.error(getErrorMessage(err, 'Failed to update password.'));
     } finally {
       setLoading(false);
     }

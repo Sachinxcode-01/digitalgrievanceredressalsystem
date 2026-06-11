@@ -13,6 +13,11 @@ export const apiClient = axios.create({
 
 // Access token holder (stored in memory for security)
 let memoryAccessToken = null;
+let clerkGetTokenFn = null;
+
+export const setClerkGetToken = (fn) => {
+  clerkGetTokenFn = fn;
+};
 
 export const setAccessToken = (token) => {
   memoryAccessToken = token;
@@ -29,10 +34,21 @@ export const getAccessToken = () => {
 
 // Request Interceptor: Attach bearer token if present
 apiClient.interceptors.request.use(
-  (config) => {
-    const token = getAccessToken();
-    if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
+  async (config) => {
+    if (clerkGetTokenFn) {
+      try {
+        const token = await clerkGetTokenFn();
+        if (token) {
+          config.headers['Authorization'] = `Bearer ${token}`;
+        }
+      } catch (err) {
+        console.error('Failed to retrieve Clerk token:', err);
+      }
+    } else {
+      const token = getAccessToken();
+      if (token) {
+        config.headers['Authorization'] = `Bearer ${token}`;
+      }
     }
     return config;
   },

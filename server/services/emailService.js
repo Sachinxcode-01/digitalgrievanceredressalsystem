@@ -32,23 +32,31 @@ const getTransporter = async () => {
   const port = parseInt(configService.getSetting('smtp_port', process.env.SMTP_PORT || 587));
   const user = configService.getSetting('smtp_username', process.env.SMTP_EMAIL || '');
   const pass = configService.getSetting('smtp_password', process.env.SMTP_PASSWORD || '');
-  const ssl = configService.getSetting('smtp_ssl', false);
+  const ssl  = configService.getSetting('smtp_ssl', false);
 
   const configHash = `${host}:${port}:${user}:${pass}:${ssl}`;
   if (currentTransporter && activeSmtpConfigHash === configHash) {
     return currentTransporter;
   }
 
+  // Invalidate old transporter when config changes
+  currentTransporter = null;
+  activeSmtpConfigHash = null;
+
   // Initialize SMTP transport
   if (user && pass && host !== 'smtp.ethereal.email') {
     currentTransporter = nodemailer.createTransport({
       host,
       port,
-      secure: ssl,
-      auth: { user, pass }
+      secure: ssl,           // true for port 465 (SSL), false for 587 (STARTTLS)
+      requireTLS: !ssl,      // Force STARTTLS on port 587
+      auth: { user, pass },
+      tls: {
+        rejectUnauthorized: false  // Allow self-signed for dev; use true in prod
+      }
     });
     activeSmtpConfigHash = configHash;
-    console.log('📧 Dynamic Real SMTP Transporter initialized.');
+    console.log(`📧 SMTP Transporter initialized: ${host}:${port} (SSL: ${ssl}) user: ${user}`);
   } else {
     // Fallback Ethereal test mail
     const account = await nodemailer.createTestAccount();
@@ -62,11 +70,20 @@ const getTransporter = async () => {
       }
     });
     activeSmtpConfigHash = configHash;
-    console.log('📧 Dynamic Ethereal Test Email Transporter initialized.');
+    console.log(`📧 Ethereal Test Email Transporter initialized (user: ${account.user})`);
   }
 
   return currentTransporter;
 };
+
+/**
+ * Verifies SMTP connectivity. Useful for the /test-email endpoint.
+ */
+const verifyTransporter = async () => {
+  const transporter = await getTransporter();
+  return transporter.verify();
+};
+
 
 /**
  * Strips HTML tags for plain-text fallback.
@@ -332,45 +349,115 @@ const getEmailTemplate = async (name, fallbackSubject, fallbackBody) => {
 };
 
 /**
- * Core enqueuing function
+ * Core enqueuing function — returns a Promise that resolves when enqueued.
+ * The actual send happens asynchronously via the queue.
  */
 const queueEmail = (email, subject, htmlContent, label) => {
-  const taskFn = async () => {
-    const transporter = await getTransporter();
-    
-    const senderName = configService.getSetting('sender_name', 'ResolveNow Core Dispatch');
-    const senderEmail = configService.getSetting('sender_email', 'no-reply@resolvenow.system');
+  return new Promise((resolve) => {
+    const taskFn = async () => {
+      const transporter = await getTransporter();
+      
+      const senderName  = configService.getSetting('sender_name', process.env.SENDER_NAME || 'ResolveNow System');
+      const senderEmail = configService.getSetting('sender_email', process.env.SMTP_EMAIL || 'no-reply@resolvenow.system');
 
-    const mailOptions = {
-      from: `"${senderName}" <${senderEmail}>`,
-      to: email,
-      subject,
-      html: htmlContent,
-      text: stripHtml(htmlContent)
+      const mailOptions = {
+        from: `"${senderName}" <${senderEmail}>`,
+        to: email,
+        subject,
+        html: htmlContent,
+        text: stripHtml(htmlContent)
+      };
+
+      const info = await transporter.sendMail(mailOptions);
+      console.log(`[Email Service] ✅ ${label} dispatched to ${email} (msgId: ${info.messageId})`);
+      // Always print Ethereal preview URL when using test account
+      const previewUrl = nodemailer.getTestMessageUrl(info);
+      if (previewUrl) {
+        console.log(`   🔗 Preview URL: ${previewUrl}`);
+      }
+      return info;
     };
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`[Email Service] ${label} dispatched to ${email}`);
-    if (info.messageId && !process.env.SMTP_EMAIL) {
-       console.log(`➡️ Preview Email (Test URL): ${nodemailer.getTestMessageUrl(info)}`);
-    }
-    return info;
-  };
-
-  notificationQueue.enqueue('EMAIL', { to: email, subject, type: label }, taskFn);
+    notificationQueue.enqueue('EMAIL', { to: email, subject, type: label }, taskFn);
+    resolve({ queued: true, to: email, subject, label });
+  });
 };
 
+/**
+ * Direct (non-queued) email send — for critical auth flows (OTP, password reset).
+ * Returns the sendMail info object. Throws on failure.
+ */
+const sendDirectEmail = async (email, subject, htmlContent, label) => {
+  const transporter = await getTransporter();
+  const senderName  = configService.getSetting('sender_name', process.env.SENDER_NAME || 'ResolveNow System');
+  const senderEmail = configService.getSetting('sender_email', process.env.SMTP_EMAIL || 'no-reply@resolvenow.system');
+
+  const mailOptions = {
+    from: `"${senderName}" <${senderEmail}>`,
+    to: email,
+    subject,
+    html: htmlContent,
+    text: stripHtml(htmlContent)
+  };
+
+  const info = await transporter.sendMail(mailOptions);
+  console.log(`[Email Service] ✅ ${label} sent directly to ${email} (msgId: ${info.messageId})`);
+  const previewUrl = nodemailer.getTestMessageUrl(info);
+  if (previewUrl) {
+    console.log(`   🔗 Preview URL: ${previewUrl}`);
+  }
+  return info;
+};
+
+
 // ==========================================
-// AUTHENTICATION EMAILS (Backward Compatible Wrappers calling notificationService)
+// AUTHENTICATION EMAILS
 // ==========================================
 const sendWelcomeEmail = async (email, fullName, userId = null) => {
   const notificationService = require('./notificationService');
   return notificationService.sendWelcomeEmail(email, fullName, userId);
 };
 
+/**
+ * sendOTPEmail — critical, sends directly (not queued) so caller knows if it failed.
+ */
 const sendOTPEmail = async (email, otp, purpose = 'registration') => {
-  const notificationService = require('./notificationService');
-  return notificationService.sendOTPEmail(email, otp, purpose);
+  const purposeText =
+    purpose === 'login'            ? 'login authentication' :
+    purpose === 'forgot_password'  ? 'password recovery'   :
+    purpose === 'mfa'              ? 'MFA verification'     : 'account registration';
+
+  const htmlContent = compileEmail('otpEmail.html', { otp, purpose: purposeText }, 'Authentication Dispatch', 'user');
+  const subject = `Your ResolveNow OTP: ${otp}`;
+  return sendDirectEmail(email, subject, htmlContent, 'OTP Verification');
+};
+
+/**
+ * Alias for forgot-password OTP — sends directly with a clear subject line.
+ */
+const sendForgotPasswordOTPEmail = async (email, otp) => {
+  const htmlContent = compileEmail(
+    'otpEmail.html',
+    { otp, purpose: 'password recovery' },
+    'Password Recovery OTP',
+    'user'
+  );
+  const subject = `ResolveNow Password Reset: ${otp}`;
+  return sendDirectEmail(email, subject, htmlContent, 'Forgot Password OTP');
+};
+
+/**
+ * Alias for MFA OTP — sends directly.
+ */
+const sendMFAOTPEmail = async (email, otp) => {
+  const htmlContent = compileEmail(
+    'otpEmail.html',
+    { otp, purpose: 'MFA verification' },
+    'Multi-Factor Authentication',
+    'user'
+  );
+  const subject = `ResolveNow MFA Code: ${otp}`;
+  return sendDirectEmail(email, subject, htmlContent, 'MFA OTP');
 };
 
 const sendPasswordChangedEmail = async (userId) => {
@@ -382,6 +469,7 @@ const sendNewDeviceLoginEmail = async (userId, device, browser, time, location =
   const notificationService = require('./notificationService');
   return notificationService.sendNewDeviceLoginEmail(userId, device, browser, time, location);
 };
+
 
 // ==========================================
 // GRIEVANCE EMAILS
@@ -491,10 +579,14 @@ const sendTestEmail = async (testEmail) => {
 
 module.exports = {
   getTransporter,
+  verifyTransporter,
   compileEmail,
   queueEmail,
+  sendDirectEmail,
   sendWelcomeEmail,
   sendOTPEmail,
+  sendForgotPasswordOTPEmail,
+  sendMFAOTPEmail,
   sendPasswordChangedEmail,
   sendNewDeviceLoginEmail,
   sendGrievanceEmail,
@@ -514,3 +606,4 @@ module.exports = {
   sendSpecialistBriefing,
   sendTestEmail
 };
+

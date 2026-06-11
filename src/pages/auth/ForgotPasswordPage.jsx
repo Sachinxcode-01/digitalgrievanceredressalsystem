@@ -4,6 +4,7 @@ import { useAuth } from '../../app/providers/AuthProvider';
 import { motion } from 'framer-motion';
 import { Mail, ArrowRight, ArrowLeft, KeyRound, Sun, Moon, Home } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../utils/errors';
 
 export const ForgotPasswordPage = () => {
   const { forgotPassword } = useAuth();
@@ -29,7 +30,7 @@ export const ForgotPasswordPage = () => {
       toast.success(data.message || 'OTP reset key has been sent.');
       navigate('/verify-otp', { state: { identifier: email, purpose: 'forgot_password' } });
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to dispatch reset key.');
+      toast.error(getErrorMessage(err, 'Failed to dispatch reset key.'));
     } finally {
       setLoading(false);
     }

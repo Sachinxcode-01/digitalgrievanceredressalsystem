@@ -4,6 +4,7 @@ import { useAuth } from '../../app/providers/AuthProvider';
 import { motion } from 'framer-motion';
 import { ShieldCheck, ArrowRight, RefreshCw, ArrowLeft, Sun, Moon, Home } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../utils/errors';
 
 export const VerifyOtpPage = () => {
   const { verifyOtp, resendOtp } = useAuth();
@@ -38,10 +39,14 @@ export const VerifyOtpPage = () => {
   useEffect(() => {
     // If we accessed page directly without identifier, redirect
     if (!identifier) {
-      toast.error('Session expired. Please sign in again.');
-      navigate('/login');
+      toast.error('Session expired. Please restart your flow.');
+      if (purpose === 'forgot_password') {
+        navigate('/forgot-password');
+      } else {
+        navigate('/login');
+      }
     }
-  }, [identifier, navigate]);
+  }, [identifier, purpose, navigate]);
 
   useEffect(() => {
     let timer;
@@ -91,7 +96,7 @@ export const VerifyOtpPage = () => {
       toast.success('A fresh OTP has been sent.');
       setCooldown(30); // reset timer
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to dispatch code.');
+      toast.error(getErrorMessage(err, 'Failed to dispatch code.'));
     }
   };
 
@@ -105,20 +110,24 @@ export const VerifyOtpPage = () => {
 
     setLoading(true);
     try {
+      if (purpose === 'forgot_password') {
+        toast.success('Identity code confirmed.');
+        navigate('/reset-password', { state: { email: identifier, resetCode: otpCode } });
+        return;
+      }
+
       const data = await verifyOtp(identifier, otpCode, purpose, rememberMe);
       toast.success(data.message || 'Identity confirmed.');
 
-      if (purpose === 'forgot_password') {
-        navigate('/reset-password', { state: { email: identifier, resetCode: data.resetCode } });
-      } else {
-        const targetPath = fromPath || (data.user?.role === 'admin' || data.user?.role === 'super admin' ? '/admin/dashboard' : '/dashboard');
-        navigate(targetPath);
-      }
+      const targetPath = fromPath || (data.user?.role === 'admin' || data.user?.role === 'super admin' ? '/admin/dashboard' : '/dashboard');
+      navigate(targetPath);
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Verification failed. Try again.');
+      toast.error(getErrorMessage(err, 'Verification failed. Try again.'));
       // Clear inputs on error
       setOtp(['', '', '', '', '', '']);
-      inputRefs[0].current.focus();
+      if (inputRefs[0] && inputRefs[0].current) {
+        inputRefs[0].current.focus();
+      }
     } finally {
       setLoading(false);
     }

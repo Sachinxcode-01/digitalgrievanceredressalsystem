@@ -31,55 +31,49 @@ const checkOtpCooldown = async (identifier, purpose) => {
 const authService = {
   async register(fullName, email, mobileNumber, password, role, ip, userAgent) {
     const finalMobileNumber = (mobileNumber && mobileNumber.trim() !== '') ? mobileNumber.trim() : null;
+    const normalizedEmail   = email.toLowerCase().trim();
 
-    // 1. Check if user already exists
-    const existingUser = await userRepository.findByEmailOrPhone(email, finalMobileNumber);
-    if (existingUser) {
-      const field = existingUser.email === email ? 'Email address' : 'Mobile number';
-      throw createError(`${field} is already registered.`, 400);
-    }
-
-    // 2. Hash password
-    const salt = await bcrypt.genSalt(10);
+    // 1. Hash password
+    const salt         = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    // 3. Force role to strictly default to 'student' for public registration
-    const userRole = 'student';
+    // 2. Atomic check-and-insert via PostgreSQL function (eliminates race condition)
+    //    Throws 'Email address is already registered.' or 'Phone number is already registered.'
+    //    with status 400 if duplicates exist.
+    const newUser = await userRepository.registerAtomic(
+      normalizedEmail,
+      finalMobileNumber,
+      passwordHash,
+      'student',   // always force student for public registration
+      'inactive'
+    );
 
-    // 4. Create user
-    const newUser = await userRepository.create({
-      email,
-      mobile_number: finalMobileNumber,
-      password_hash: passwordHash,
-      role: userRole,
-      status: 'inactive',
-      email_verified: false,
-      phone_verified: false
-    });
-
-    // Create profile
+    // 3. Create profile (non-critical – do not let a profile failure roll back the user)
     await userRepository.createProfile({
       user_id: newUser.id,
       full_name: fullName,
       notification_preferences: { email: true, sms: true }
-    });
+    }).catch(console.error);
 
-    // 5. Generate and dispatch OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // 4. Generate and dispatch OTP
+    const otp          = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpirySec = parseInt(configService.getSetting('otp_expiry_seconds', 300));
-    const expiresAt = new Date(Date.now() + otpExpirySec * 1000).toISOString();
+    const expiresAt    = new Date(Date.now() + otpExpirySec * 1000).toISOString();
+
+    // Clear any previous OTPs for this email before inserting fresh one
+    await notificationRepository.deleteOtpVerification(normalizedEmail, 'email', 'registration').catch(() => null);
 
     await notificationRepository.insertOtpVerification({
-      email,
-      phone: finalMobileNumber,
-      code: otp,
-      purpose: 'registration',
+      email:      normalizedEmail,
+      phone:      finalMobileNumber,
+      code:       otp,
+      purpose:    'registration',
       expires_at: expiresAt,
-      attempts: 0
+      attempts:   0
     });
 
-    // Dispatches
-    await emailService.sendOTPEmail(email, otp).catch(console.error);
+    // Dispatch notifications
+    await emailService.sendOTPEmail(normalizedEmail, otp).catch(console.error);
     if (finalMobileNumber) {
       await smsService.sendOTPSMS(finalMobileNumber, otp).catch(console.error);
     }
@@ -88,8 +82,8 @@ const authService = {
 
     return {
       message: 'Registration successful. Please enter the OTP sent to verify your identity.',
-      email,
-      phone: finalMobileNumber
+      email:   normalizedEmail,
+      phone:   finalMobileNumber
     };
   },
 

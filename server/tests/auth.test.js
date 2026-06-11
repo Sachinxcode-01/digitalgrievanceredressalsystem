@@ -6,14 +6,19 @@ const cookieParser = require('cookie-parser');
 // Clean, table-specific mocks to prevent mock pollution
 const mockUsersQuery = {
   select: jest.fn().mockReturnThis(),
-  or: jest.fn().mockReturnThis(),
-  eq: jest.fn().mockReturnThis(),
-  limit: jest.fn().mockReturnThis(),
+  or:     jest.fn().mockReturnThis(),
+  eq:     jest.fn().mockReturnThis(),
+  neq:    jest.fn().mockReturnThis(),
+  gt:     jest.fn().mockReturnThis(),
+  limit:  jest.fn().mockReturnThis(),
+  order:  jest.fn().mockReturnThis(),
   maybeSingle: jest.fn(),
   insert: jest.fn().mockReturnThis(),
-  single: jest.fn(),
-  update: jest.fn().mockReturnThis()
+  single: jest.fn().mockResolvedValue({ data: { id: 'user_id', failed_login_attempts: 0 }, error: null }),
+  update: jest.fn().mockReturnThis(),
+  delete: jest.fn().mockReturnThis()
 };
+
 
 const mockOtpQuery = {
   delete: jest.fn().mockReturnThis(),
@@ -29,10 +34,13 @@ const mockOtpQuery = {
 const mockProfilesQuery = {
   insert: jest.fn().mockResolvedValue({ error: null }),
   select: jest.fn().mockReturnThis(),
-  eq: jest.fn().mockReturnThis(),
+  eq:     jest.fn().mockReturnThis(),
+  limit:  jest.fn().mockReturnThis(),
+  update: jest.fn().mockReturnThis(),
   single: jest.fn().mockResolvedValue({ data: { full_name: 'Test Profile' }, error: null }),
   maybeSingle: jest.fn().mockResolvedValue({ data: { full_name: 'Test Profile' }, error: null })
 };
+
 
 const mockResetsQuery = {
   insert: jest.fn().mockResolvedValue({ error: null }),
@@ -54,7 +62,19 @@ const mockAuditLogsQuery = {
   insert: jest.fn().mockResolvedValue({ error: null })
 };
 
+// Default RPC mock functions — individual tests can override with .mockResolvedValueOnce()
+const mockRpcRegisterUser = jest.fn().mockResolvedValue({
+  data: { id: 'new_user_uuid', email: 'new@nic.in', role: 'student', status: 'inactive', mobile_number: null },
+  error: null
+});
+
+const mockRpcSyncClerkUser = jest.fn().mockResolvedValue({
+  data: { id: 'clerk_uuid', email: 'clerk@nic.in', role: 'student', status: 'active', mobile_number: null },
+  error: null
+});
+
 jest.mock('../config/supabase', () => {
+
   return {
     from: jest.fn((table) => {
       if (table === 'users') return mockUsersQuery;
@@ -66,11 +86,17 @@ jest.mock('../config/supabase', () => {
       if (table === 'audit_logs') return mockAuditLogsQuery;
       return mockUsersQuery;
     }),
+    rpc: jest.fn((fnName, params) => {
+      if (fnName === 'register_user') return mockRpcRegisterUser(params);
+      if (fnName === 'sync_clerk_user') return mockRpcSyncClerkUser(params);
+      return Promise.resolve({ data: null, error: null });
+    }),
     auth: {
       signOut: jest.fn().mockResolvedValue({ error: null })
     }
   };
 });
+
 
 // Mock Email and SMS Services
 jest.mock('../services/emailService', () => ({
@@ -99,15 +125,59 @@ app.use((err, req, res, next) => {
 
 describe('Authentication API Endpoint Tests', () => {
   beforeEach(() => {
+    // Clear call history without wiping implementations
     jest.clearAllMocks();
+
+    // Restore chain defaults for mockUsersQuery after clearAllMocks wipes them
+    mockUsersQuery.select.mockReturnThis();
+    mockUsersQuery.or.mockReturnThis();
+    mockUsersQuery.eq.mockReturnThis();
+    mockUsersQuery.neq.mockReturnThis();
+    mockUsersQuery.gt.mockReturnThis();
+    mockUsersQuery.limit.mockReturnThis();
+    mockUsersQuery.order.mockReturnThis();
+    mockUsersQuery.insert.mockReturnThis();
+    mockUsersQuery.update.mockReturnThis();
+    mockUsersQuery.delete.mockReturnThis();
+    mockUsersQuery.single.mockResolvedValue({ data: { id: 'user_id', failed_login_attempts: 0 }, error: null });
+
+    // Restore chain defaults for mockOtpQuery
+    mockOtpQuery.delete.mockReturnThis();
+    mockOtpQuery.eq.mockReturnThis();
+    mockOtpQuery.insert.mockResolvedValue({ error: null });
+    mockOtpQuery.select.mockReturnThis();
+    mockOtpQuery.order.mockReturnThis();
+    mockOtpQuery.limit.mockReturnThis();
+
+    // Restore chain defaults for mockProfilesQuery
+    mockProfilesQuery.insert.mockResolvedValue({ error: null });
+    mockProfilesQuery.select.mockReturnThis();
+    mockProfilesQuery.eq.mockReturnThis();
+    mockProfilesQuery.limit.mockReturnThis();
+    mockProfilesQuery.update.mockReturnThis();
+    mockProfilesQuery.single.mockResolvedValue({ data: { full_name: 'Test Profile' }, error: null });
+    mockProfilesQuery.maybeSingle.mockResolvedValue({ data: { full_name: 'Test Profile' }, error: null });
+
+
+    // Restore chain defaults for mockSessionsQuery
+    mockSessionsQuery.insert.mockReturnThis();
+    mockSessionsQuery.select.mockReturnThis();
+    mockSessionsQuery.single.mockResolvedValue({ data: { id: 'session_123', expires_at: new Date(Date.now() + 60000).toISOString() }, error: null });
+    mockSessionsQuery.maybeSingle.mockResolvedValue({ data: { id: 'session_123', expires_at: new Date(Date.now() + 60000).toISOString() }, error: null });
+
+    // Restore RPC defaults
+    mockRpcRegisterUser.mockResolvedValue({
+      data: { id: 'new_user_uuid', email: 'new@nic.in', role: 'student', status: 'inactive', mobile_number: null },
+      error: null
+    });
   });
 
   describe('POST /api/v1/auth/register', () => {
     it('should fail registration if email already exists', async () => {
-      // Mock existing user found
-      mockUsersQuery.maybeSingle.mockResolvedValue({
-        data: { id: 'user_1', email: 'test@nic.in' },
-        error: null
+      // Mock rpc register_user to return EMAIL_ALREADY_EXISTS error
+      mockRpcRegisterUser.mockResolvedValueOnce({
+        data: null,
+        error: { message: 'EMAIL_ALREADY_EXISTS', code: 'P0001' }
       });
 
       const res = await request(app)
@@ -124,12 +194,9 @@ describe('Authentication API Endpoint Tests', () => {
     });
 
     it('should initiate registration successfully and return OTP dispatch info', async () => {
-      // Mock check: no user found
-      mockUsersQuery.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
-
-      // Mock user insert
-      mockUsersQuery.maybeSingle.mockResolvedValueOnce({
-        data: { id: 'new_user_uuid', email: 'new@nic.in', role: 'student', status: 'inactive' },
+      // Mock rpc register_user: success
+      mockRpcRegisterUser.mockResolvedValueOnce({
+        data: { id: 'new_user_uuid', email: 'new@nic.in', role: 'student', status: 'inactive', mobile_number: '+919999999999' },
         error: null
       });
 
@@ -199,6 +266,7 @@ describe('Authentication API Endpoint Tests', () => {
       // Mock findByEmail: user found
       const bcrypt = require('bcryptjs');
       const hash = await bcrypt.hash('CorrectPassword@123', 10);
+      // findByEmail -> returns the user
       mockUsersQuery.maybeSingle.mockResolvedValueOnce({
         data: {
           id: 'user_123',
@@ -210,6 +278,16 @@ describe('Authentication API Endpoint Tests', () => {
         },
         error: null
       });
+      // findProfileByUserId -> returns profile
+      mockProfilesQuery.maybeSingle.mockResolvedValueOnce({
+        data: { full_name: 'Test User' },
+        error: null
+      });
+      // update (increment failed_login_attempts) -> single resolves OK
+      mockUsersQuery.single.mockResolvedValueOnce({
+        data: { id: 'user_123', failed_login_attempts: 1 },
+        error: null
+      });
 
       const res = await request(app)
         .post('/api/v1/auth/login')
@@ -219,9 +297,13 @@ describe('Authentication API Endpoint Tests', () => {
           loginType: 'password'
         });
 
+      if (res.statusCode !== 401) {
+        console.error('LOGIN WRONG PASSWORD ERROR:', JSON.stringify(res.body));
+      }
       expect(res.statusCode).toEqual(401);
       expect(res.body.error).toEqual('Invalid credentials.');
     });
+
 
     it('should require MFA OTP for administrative account login', async () => {
       // Mock findByEmail: admin user found
@@ -236,6 +318,16 @@ describe('Authentication API Endpoint Tests', () => {
           role: 'admin',
           status: 'active'
         },
+        error: null
+      });
+      // findProfileByUserId -> profile found
+      mockProfilesQuery.maybeSingle.mockResolvedValueOnce({
+        data: { full_name: 'Admin User' },
+        error: null
+      });
+      // reset failed_login_attempts -> single resolves OK
+      mockUsersQuery.single.mockResolvedValueOnce({
+        data: { id: 'admin_123', failed_login_attempts: 0 },
         error: null
       });
 
@@ -255,11 +347,8 @@ describe('Authentication API Endpoint Tests', () => {
 
   describe('Registration Role Restricting', () => {
     it('should force role to student even if admin role is requested', async () => {
-      // Mock check: no user found
-      mockUsersQuery.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
-
-      // Mock user insert
-      mockUsersQuery.maybeSingle.mockResolvedValueOnce({
+      // Mock rpc register_user success — always returns student role (enforced in service)
+      mockRpcRegisterUser.mockResolvedValueOnce({
         data: { id: 'new_user_uuid', email: 'admin-attacker@resolve.now', role: 'student', status: 'inactive' },
         error: null
       });
@@ -274,10 +363,13 @@ describe('Authentication API Endpoint Tests', () => {
         });
 
       expect(res.statusCode).toEqual(201);
-      // Verify that userRepository.create was called with role = 'student'
-      const insertCalls = mockUsersQuery.insert.mock.calls;
-      const createdUserData = insertCalls[insertCalls.length - 1][0][0];
-      expect(createdUserData.role).toEqual('student');
+
+      // Verify rpc was called with p_role='student', never with 'admin'
+      const supabase = require('../config/supabase');
+      const rpcCalls = supabase.rpc.mock.calls;
+      const registerCall = rpcCalls.find(c => c[0] === 'register_user');
+      expect(registerCall).toBeTruthy();
+      expect(registerCall[1].p_role).toEqual('student');
     });
   });
 });

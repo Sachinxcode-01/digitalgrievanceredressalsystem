@@ -227,6 +227,75 @@ const googleLogin = async (req, res, next) => {
   }
 };
 
+const syncUser = async (req, res, next) => {
+  const { getAuth, clerkClient } = require('@clerk/express');
+  const userRepository = require('../repositories/userRepository');
+
+  try {
+    const authState = getAuth(req);
+    const clerkId   = authState.userId;
+
+    // Log diagnostic data
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const logPath = path.join(__dirname, '../../sync_diagnostic.log');
+      const timestamp = new Date().toISOString();
+      const logMessage = `[${timestamp}] Sync Request\nHeaders: ${JSON.stringify(req.headers)}\nCookies: ${JSON.stringify(req.cookies)}\nClerk ID: ${clerkId}\nAuth State: ${JSON.stringify(authState)}\n\n`;
+      fs.appendFileSync(logPath, logMessage);
+    } catch (fsErr) {
+      console.error('Failed to write to sync_diagnostic.log:', fsErr.message);
+    }
+
+    if (!clerkId) {
+      return res.status(401).json({ error: 'Access token required. Authorization denied.' });
+    }
+
+    const clerkUser = await clerkClient.users.getUser(clerkId);
+    const email     = clerkUser.emailAddresses[0]?.emailAddress;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Authenticated Clerk user has no primary email address.' });
+    }
+
+    const role     = clerkUser.unsafeMetadata?.role || 'student';
+    const fullName = clerkUser.unsafeMetadata?.fullName
+      || (clerkUser.firstName ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim() : 'Clerk User');
+    const mobile   = clerkUser.unsafeMetadata?.mobileNumber
+      || clerkUser.phoneNumbers[0]?.phoneNumber
+      || null;
+
+    // Atomic upsert: creates or updates the user row without a race condition.
+    // Calls the PostgreSQL sync_clerk_user() function which uses ON CONFLICT (email).
+    let user = await userRepository.syncClerkUserAtomic(email, clerkId, mobile, role, fullName);
+
+    // Ensure the user profile exists (created outside the upsert for flexibility)
+    const profile = await userRepository.findProfileByUserId(user.id).catch(() => null);
+    if (!profile) {
+      await userRepository.createProfile({
+        user_id: user.id,
+        full_name: fullName,
+        notification_preferences: { email: true, sms: true }
+      }).catch(console.error);
+    } else if (profile.full_name !== fullName) {
+      await userRepository.updateProfile(user.id, { full_name: fullName }).catch(console.error);
+    }
+
+    res.json({
+      message: 'User synchronized successfully.',
+      user: {
+        id:           user.id,
+        email:        user.email,
+        mobileNumber: user.mobile_number,
+        role:         user.role,
+        fullName
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   register,
   verifyOtp,
@@ -236,5 +305,6 @@ module.exports = {
   resetPassword,
   refresh,
   logout,
-  googleLogin
+  googleLogin,
+  syncUser
 };

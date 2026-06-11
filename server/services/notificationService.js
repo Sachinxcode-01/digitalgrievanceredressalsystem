@@ -47,14 +47,10 @@ const notificationService = {
   },
 
   async sendOTPEmail(email, otp, purpose = 'registration') {
-    const purposeText = 
-      purpose === 'login' ? 'login authentication' :
-      purpose === 'forgot_password' ? 'password recovery' : 'account registration';
-
-    const htmlContent = emailService.compileEmail('otpEmail.html', { otp, purpose: purposeText }, 'Authentication Dispatch', 'user');
-    const subject = `Secure OTP Code: ${otp}`;
-    return emailService.queueEmail(email, subject, htmlContent, 'OTP Verification');
+    // Use emailService.sendOTPEmail which sends directly (not queued) for critical auth
+    return emailService.sendOTPEmail(email, otp, purpose);
   },
+
 
   async sendPasswordChangedEmail(userId) {
     const htmlContent = emailService.compileEmail('passwordResetEmail.html', {}, 'Security Event: Password Updated', 'user');

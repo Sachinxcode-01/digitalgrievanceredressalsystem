@@ -4,6 +4,7 @@ import { useAuth } from '../../app/providers/AuthProvider';
 import { motion } from 'framer-motion';
 import { User, Mail, Phone, Lock, Check, ShieldAlert, ArrowRight, Sparkles, Sun, Moon, Home } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../utils/errors';
 
 export const RegisterPage = () => {
   const { register } = useAuth();
@@ -80,7 +81,7 @@ export const RegisterPage = () => {
       toast.success(data.message || 'OTP dispatched for verification.');
       navigate('/verify-otp', { state: { identifier: formData.email, purpose: 'registration' } });
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Registration failed. Please check inputs.');
+      toast.error(getErrorMessage(err, 'Registration failed. Please check inputs.'));
     } finally {
       setLoading(false);
     }

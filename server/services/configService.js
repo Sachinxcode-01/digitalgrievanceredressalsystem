@@ -74,28 +74,51 @@ const configService = {
       case 'session_expiry_minutes': return parseInt(process.env.SESSION_EXPIRY_MINUTES || defaultValue);
       
       // SMTP
-      case 'smtp_host': 
-        if (process.env.RESEND_API_KEY) return 'smtp.resend.com';
+      case 'smtp_host': {
+        // Priority: explicit SMTP_HOST > Gmail detection > Resend > Ethereal
         if (process.env.SMTP_HOST) return process.env.SMTP_HOST;
         if (process.env.SMTP_EMAIL && process.env.SMTP_EMAIL.includes('@gmail.com')) {
           return 'smtp.gmail.com';
         }
+        if (process.env.RESEND_API_KEY) return 'smtp.resend.com';
         return 'smtp.ethereal.email';
-      case 'smtp_port': 
+      }
+      case 'smtp_port': {
+        if (process.env.SMTP_PORT) return parseInt(process.env.SMTP_PORT);
+        if (process.env.SMTP_HOST === 'smtp.resend.com') return 465;
+        if (process.env.SMTP_EMAIL && process.env.SMTP_EMAIL.includes('@gmail.com')) return 587;
         if (process.env.RESEND_API_KEY) return 465;
-        return parseInt(process.env.SMTP_PORT || 587);
-      case 'smtp_username': 
-        if (process.env.RESEND_API_KEY) return 'resend';
+        return 587;
+      }
+      case 'smtp_username': {
+        if (process.env.SMTP_HOST === 'smtp.resend.com' || (!process.env.SMTP_HOST && !process.env.SMTP_EMAIL && process.env.RESEND_API_KEY)) {
+          return 'resend';
+        }
         return process.env.SMTP_EMAIL || '';
-      case 'smtp_password': 
-        if (process.env.RESEND_API_KEY) return process.env.RESEND_API_KEY;
+      }
+      case 'smtp_password': {
+        if (process.env.SMTP_HOST === 'smtp.resend.com' || (!process.env.SMTP_HOST && !process.env.SMTP_EMAIL && process.env.RESEND_API_KEY)) {
+          return process.env.RESEND_API_KEY;
+        }
         return process.env.SMTP_PASSWORD || '';
-      case 'smtp_ssl':
-        if (process.env.RESEND_API_KEY) return true;
+      }
+      case 'smtp_ssl': {
+        if (process.env.SMTP_SSL !== undefined) {
+          return process.env.SMTP_SSL === 'true';
+        }
+        if (process.env.SMTP_HOST === 'smtp.resend.com') return true;
         return false;
-      case 'sender_email':
-        if (process.env.RESEND_API_KEY) return 'onboarding@resend.dev';
+      }
+      case 'sender_email': {
+        // When using Gmail, send FROM the Gmail address
+        if (process.env.SMTP_EMAIL && process.env.SMTP_EMAIL.includes('@gmail.com')) {
+          return process.env.SMTP_EMAIL;
+        }
+        // Resend requires a verified sender domain; use env override or resend sandbox
+        if (process.env.SENDER_EMAIL) return process.env.SENDER_EMAIL;
+        if (process.env.RESEND_API_KEY) return process.env.SMTP_EMAIL || 'onboarding@resend.dev';
         return process.env.SMTP_EMAIL || defaultValue;
+      }
       case 'sender_name':
         return process.env.SENDER_NAME || defaultValue;
       

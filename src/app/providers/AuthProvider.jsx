@@ -1,227 +1,220 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { apiClient, setAccessToken, getAccessToken } from '../../api/apiClient';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useAuth as useClerkAuth, useUser, useSignIn, useSignUp } from '@clerk/clerk-react';
+import { apiClient, setClerkGetToken } from '../../api/apiClient';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
+  const { isLoaded, isSignedIn, getToken, signOut } = useClerkAuth();
+  const { user: clerkUser } = useUser();
+  const { signIn, isLoaded: isSignInLoaded, setActive: setSignInActive } = useSignIn();
+  const { signUp, isLoaded: isSignUpLoaded, setActive: setSignUpActive } = useSignUp();
+
   const [user, setUser] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Setup silent refresh timer
-  const setupRefreshTimer = useCallback((token) => {
-    if (!token) return;
-    
-    // JWT contains an 'exp' field which is unix timestamp in seconds
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const expTimeMs = payload.exp * 1000;
-      const timeBeforeExpMs = expTimeMs - Date.now() - 60000; // Refresh 1 minute before expiry
-
-      if (timeBeforeExpMs > 0) {
-        const timer = setTimeout(async () => {
-          try {
-            const res = await apiClient.post('/auth/refresh-token');
-            const { token: newToken } = res.data;
-            setAccessToken(newToken);
-            setupRefreshTimer(newToken);
-          } catch (err) {
-            console.warn('Silent refresh failed:', err.message);
-            handleLogoutState();
-          }
-        }, timeBeforeExpMs);
-
-        return () => clearTimeout(timer);
-      }
-    } catch (e) {
-      console.error('Error parsing token exp:', e);
-    }
-  }, []);
-
-  const handleLoginState = useCallback((token, userData) => {
-    setAccessToken(token);
-    setUser(userData);
-    setIsAuthenticated(true);
-    setupRefreshTimer(token);
-    
-    // Store user data in localStorage for hydration of basic profile info
-    localStorage.setItem('user_session', JSON.stringify({ user: userData }));
-    localStorage.setItem('has_active_session', 'true');
-  }, [setupRefreshTimer]);
-
-  const handleLogoutState = useCallback(() => {
-    setAccessToken(null);
-    setUser(null);
-    setIsAuthenticated(false);
-    localStorage.removeItem('user_session');
-    localStorage.removeItem('has_active_session');
-  }, []);
-
-  // Hydrate session on mount
+  // Set Clerk token fetch function in Axios client on mount/update
   useEffect(() => {
-    const hydrateSession = async () => {
-      // Check if localStorage indicates we have an active session before making API call
-      const hasActiveSession = localStorage.getItem('has_active_session');
-      const cachedSession = localStorage.getItem('user_session');
-      
-      if (cachedSession) {
-        try {
-          const { user } = JSON.parse(cachedSession);
-          setUser(user);
-          setIsAuthenticated(true);
-        } catch (e) {
-          console.error('Failed to parse cached session:', e);
-        }
-      }
+    setClerkGetToken(getToken);
+  }, [getToken]);
 
-      if (hasActiveSession) {
+  // Synchronize Clerk auth state with local database user details
+  useEffect(() => {
+    const syncUser = async () => {
+      if (isSignedIn && clerkUser) {
         try {
-          const res = await apiClient.post('/auth/refresh-token');
-          const { token } = res.data;
-          
-          // Decode payload to extract user details
-          const payload = JSON.parse(atob(token.split('.')[1]));
-          const userData = {
-            id: payload.id,
-            email: payload.email,
-            mobileNumber: payload.phone,
-            role: payload.role,
-            fullName: payload.full_name
-          };
-
-          handleLoginState(token, userData);
+          // Call the backend sync endpoint
+          const res = await apiClient.post('/auth/sync');
+          setUser(res.data.user);
         } catch (err) {
-          console.warn('Initial session hydration failed:', err.message);
-          handleLogoutState();
+          console.error('Failed to sync authenticated Clerk user with database:', err);
+          setUser(null);
         }
+      } else {
+        setUser(null);
       }
       setLoading(false);
     };
 
-    hydrateSession();
+    if (isLoaded) {
+      syncUser();
+    }
+  }, [isSignedIn, clerkUser, isLoaded]);
 
-    // Listen to session expired event from axios interceptor
+  // Listen to custom expiration event to handle logout
+  useEffect(() => {
     const handleExpiredEvent = () => {
-      handleLogoutState();
+      signOut();
+      setUser(null);
     };
 
     window.addEventListener('auth_session_expired', handleExpiredEvent);
     return () => {
       window.removeEventListener('auth_session_expired', handleExpiredEvent);
     };
-  }, [handleLoginState, handleLogoutState]);
+  }, [signOut]);
 
   // Auth Operations
   const register = async (fullName, email, mobileNumber, password, role) => {
-    const res = await apiClient.post('/auth/register', {
-      fullName,
-      email,
-      mobileNumber,
-      password,
-      role
+    if (!isSignUpLoaded) throw new Error('Clerk SignUp SDK not loaded');
+
+    const res = await signUp.create({
+      emailAddress: email,
+      password: password,
+      unsafeMetadata: {
+        fullName,
+        role,
+        mobileNumber
+      }
     });
-    return res.data;
+
+    await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+
+    return {
+      message: 'Registration successful. Please enter the OTP sent to verify your identity.',
+      email,
+      phone: mobileNumber
+    };
   };
 
   const login = async (identifier, password, loginType = 'password', rememberMe = false) => {
-    const payload = {};
-    if (identifier.includes('@')) {
-      payload.email = identifier;
+    if (!isSignInLoaded) throw new Error('Clerk SignIn SDK not loaded');
+
+    let res;
+    if (loginType === 'otp') {
+      res = await signIn.create({
+        identifier,
+        strategy: 'email_code'
+      });
+      return { requiresOtp: true };
     } else {
-      payload.phone = identifier;
-    }
-    payload.password = password;
-    payload.loginType = loginType;
-    payload.rememberMe = rememberMe;
-
-    const res = await apiClient.post('/auth/login', payload);
-    
-    if (res.data.requiresOtp || res.data.requiresActivation) {
-      return res.data;
+      res = await signIn.create({
+        identifier,
+        password
+      });
     }
 
-    const { token, user: userData } = res.data;
-    handleLoginState(token, userData);
-    return res.data;
+    if (res.status === 'needs_second_factor') {
+      return { 
+        requiresOtp: true, 
+        message: 'Administrative accounts require a second factor. An OTP has been sent to your registered email/phone.' 
+      };
+    }
+
+    if (res.status === 'complete') {
+      await setSignInActive({ session: res.createdSessionId });
+      
+      const syncRes = await apiClient.post('/auth/sync');
+      setUser(syncRes.data.user);
+      return {
+        message: 'Login successful.',
+        user: syncRes.data.user
+      };
+    }
+
+    throw new Error(`Login failed with status: ${res.status}`);
   };
 
-  const loginWithGoogle = async (credential, rememberMe = false) => {
-    const res = await apiClient.post('/auth/google', { credential, rememberMe });
-    const { token, user: userData } = res.data;
-    handleLoginState(token, userData);
-    return res.data;
+  const loginWithGoogle = async () => {
+    if (!isSignInLoaded) throw new Error('Clerk SignIn SDK not loaded');
+    
+    await signIn.authenticateWithRedirect({
+      strategy: 'oauth_google',
+      redirectUrl: '/dashboard',
+      signUpRedirectUrl: '/dashboard'
+    });
   };
 
   const verifyOtp = async (identifier, otp, purpose, rememberMe = false) => {
-    const payload = { otp, purpose, rememberMe };
-    if (identifier.includes('@')) {
-      payload.email = identifier;
-    } else {
-      payload.phone = identifier;
-    }
+    if (purpose === 'registration') {
+      if (!isSignUpLoaded) throw new Error('Clerk SignUp SDK not loaded');
 
-    const res = await apiClient.post('/auth/verify-otp', payload);
-    const { token, user: userData } = res.data;
-    if (token && userData) {
-      handleLoginState(token, userData);
+      const res = await signUp.attemptEmailAddressVerification({ code: otp });
+      if (res.status === 'complete') {
+        await setSignUpActive({ session: res.createdSessionId });
+        
+        const syncRes = await apiClient.post('/auth/sync');
+        setUser(syncRes.data.user);
+        return {
+          message: 'Identity verified. Session authenticated.',
+          user: syncRes.data.user
+        };
+      }
+      throw new Error(`Verification failed with status: ${res.status}`);
+    } else {
+      if (!isSignInLoaded) throw new Error('Clerk SignIn SDK not loaded');
+
+      let res;
+      if (signIn.firstFactorVerification?.status === 'unverified') {
+        res = await signIn.attemptFirstFactor({ strategy: 'email_code', code: otp });
+      } else {
+        res = await signIn.attemptSecondFactor({ code: otp });
+      }
+
+      if (res.status === 'complete') {
+        await setSignInActive({ session: res.createdSessionId });
+        
+        const syncRes = await apiClient.post('/auth/sync');
+        setUser(syncRes.data.user);
+        return {
+          message: 'Identity verified. Session authenticated.',
+          user: syncRes.data.user
+        };
+      }
+      throw new Error(`Verification failed with status: ${res.status}`);
     }
-    return res.data;
   };
 
   const resendOtp = async (identifier, purpose) => {
-    const payload = { purpose };
-    if (identifier.includes('@')) {
-      payload.email = identifier;
+    if (purpose === 'registration') {
+      if (!isSignUpLoaded) throw new Error('Clerk SignUp SDK not loaded');
+      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
     } else {
-      payload.phone = identifier;
+      if (!isSignInLoaded) throw new Error('Clerk SignIn SDK not loaded');
+      await signIn.create({
+        identifier,
+        strategy: 'email_code'
+      });
     }
-    const res = await apiClient.post('/auth/resend-otp', payload);
-    return res.data;
+    return { message: 'A fresh security key has been dispatched.' };
   };
 
   const forgotPassword = async (email) => {
-    const res = await apiClient.post('/auth/forgot-password', { email });
-    return res.data;
+    if (!isSignInLoaded) throw new Error('Clerk SignIn SDK not loaded');
+    await signIn.create({
+      strategy: 'reset_password_email_code',
+      identifier: email
+    });
+    return { message: 'If registered, a security reset key has been sent.', email };
   };
 
   const resetPassword = async (email, password, resetCode) => {
-    const res = await apiClient.post('/auth/reset-password', {
-      email,
-      password,
-      resetCode
+    if (!isSignInLoaded) throw new Error('Clerk SignIn SDK not loaded');
+    
+    const res = await signIn.attemptFirstFactor({
+      strategy: 'reset_password_email_code',
+      code: resetCode,
+      password: password
     });
-    return res.data;
+
+    if (res.status === 'complete') {
+      await setSignInActive({ session: res.createdSessionId });
+      
+      const syncRes = await apiClient.post('/auth/sync');
+      setUser(syncRes.data.user);
+      return { message: 'Password updated successfully.' };
+    }
+    throw new Error(`Password reset failed with status: ${res.status}`);
   };
 
   const logout = async () => {
-    try {
-      await apiClient.post('/auth/logout');
-    } catch (err) {
-      console.warn('Logout request failed on server:', err.message);
-    } finally {
-      handleLogoutState();
-    }
+    await signOut();
+    setUser(null);
   };
 
   // User Profile Settings
   const getProfile = async () => {
     const res = await apiClient.get('/user/profile');
-    // Update local user state if changed
-    if (res.data?.account) {
-      const act = res.data.account;
-      const prof = res.data.profile;
-      setUser(prev => {
-        const updated = {
-          ...prev,
-          email: act.email,
-          mobileNumber: act.mobile_number,
-          role: act.role,
-          fullName: prof.fullName
-        };
-        localStorage.setItem('user_session', JSON.stringify({ user: updated }));
-        return updated;
-      });
-    }
     return res.data;
   };
 
@@ -231,11 +224,9 @@ export const AuthProvider = ({ children }) => {
       profilePicture,
       notificationPreferences
     });
-    // Update active name in session
     if (res.data?.profile?.fullName) {
       setUser(prev => {
         const updated = { ...prev, fullName: res.data.profile.fullName };
-        localStorage.setItem('user_session', JSON.stringify({ user: updated }));
         return updated;
       });
     }
@@ -251,16 +242,21 @@ export const AuthProvider = ({ children }) => {
   };
 
   const changePassword = async (oldPassword, newPassword) => {
-    const res = await apiClient.post('/user/change-password', {
-      oldPassword,
-      newPassword
-    });
-    return res.data;
+    if (clerkUser) {
+      await clerkUser.updatePassword({ currentPassword: oldPassword, newPassword: newPassword });
+      return { message: 'Password updated successfully.' };
+    } else {
+      const res = await apiClient.post('/user/change-password', {
+        oldPassword,
+        newPassword
+      });
+      return res.data;
+    }
   };
 
   const deleteAccount = async () => {
     const res = await apiClient.delete('/user/account');
-    handleLogoutState();
+    await logout();
     return res.data;
   };
 
@@ -272,10 +268,6 @@ export const AuthProvider = ({ children }) => {
 
   const revokeSession = async (sessionId) => {
     const res = await apiClient.delete(`/sessions/${sessionId}`);
-    // If the active session is revoked, logout occurs automatically from API interceptor or response code check
-    if (res.data.logoutRequired) {
-      handleLogoutState();
-    }
     return res.data;
   };
 
@@ -288,7 +280,7 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider
       value={{
         user,
-        isAuthenticated,
+        isAuthenticated: !!user,
         loading,
         register,
         login,

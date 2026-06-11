@@ -1,4 +1,5 @@
 import React, { useState, useEffect, Suspense } from 'react';
+import { ClerkProvider } from '@clerk/clerk-react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './app/layouts/Layout';
 import { isMisconfigured } from './lib/supabase';
@@ -66,6 +67,14 @@ const SetupError = () => (
   </div>
 );
 
+const AuthenticatedRedirect = () => {
+  const { user } = useAuth();
+  if (user?.role === 'admin' || user?.role === 'super admin') {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+  return <Navigate to="/dashboard" replace />;
+};
+
 function AppContent() {
   const { user, isAuthenticated, loading, logout } = useAuth();
   const [theme, setTheme] = useState(localStorage.getItem('app-theme') || 'ocean');
@@ -109,12 +118,12 @@ function AppContent() {
               <Route path="/status" element={<StatusPage />} />
               
               {/* Auth Gates */}
-              <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/dashboard" />} />
+              <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <AuthenticatedRedirect />} />
               <Route path="/admin" element={!isAuthenticated ? <AdminLoginPage /> : <Navigate to="/admin/dashboard" />} />
-              <Route path="/register" element={!isAuthenticated ? <RegisterPage /> : <Navigate to="/dashboard" />} />
-              <Route path="/verify-otp" element={!isAuthenticated ? <VerifyOtpPage /> : <Navigate to="/dashboard" />} />
-              <Route path="/forgot-password" element={!isAuthenticated ? <ForgotPasswordPage /> : <Navigate to="/dashboard" />} />
-              <Route path="/reset-password" element={!isAuthenticated ? <ResetPasswordPage /> : <Navigate to="/dashboard" />} />
+              <Route path="/register" element={!isAuthenticated ? <RegisterPage /> : <AuthenticatedRedirect />} />
+              <Route path="/verify-otp" element={!isAuthenticated ? <VerifyOtpPage /> : <AuthenticatedRedirect />} />
+              <Route path="/forgot-password" element={!isAuthenticated ? <ForgotPasswordPage /> : <AuthenticatedRedirect />} />
+              <Route path="/reset-password" element={!isAuthenticated ? <ResetPasswordPage /> : <AuthenticatedRedirect />} />
 
               {/* Student/Citizen console */}
               <Route 
@@ -337,10 +346,18 @@ function AppContent() {
 }
 
 function App() {
+  const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
+  if (!publishableKey) {
+    console.error("Clerk Publishable Key is missing!");
+  }
+
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ClerkProvider publishableKey={publishableKey}>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ClerkProvider>
   );
 }
 
