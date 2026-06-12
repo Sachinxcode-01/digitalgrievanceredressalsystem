@@ -204,6 +204,11 @@ const compileEmail = (templateName, variables = {}, title = '', type = 'user') =
   const institutionName = configService.getSetting('institution_name', 'ResolveNow');
   const supportEmail = configService.getSetting('support_email', 'support@resolvenow.system');
   const year = new Date().getFullYear().toString();
+  
+  let logoUrl = configService.getSetting('logo_url', '');
+  if (logoUrl === '""' || !logoUrl) {
+    logoUrl = `${process.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/logo.jpg`;
+  }
 
   const baseVars = {
     title,
@@ -212,10 +217,35 @@ const compileEmail = (templateName, variables = {}, title = '', type = 'user') =
     institution_name: institutionName,
     support_email: supportEmail,
     year,
+    logo_url: logoUrl,
     frontendUrl: process.env.VITE_FRONTEND_URL || 'http://localhost:5173'
   };
 
   const allVars = { ...baseVars, ...variables };
+
+  if (templateName === 'passwordResetEmail.html') {
+    if (!allVars.message) {
+      allVars.message = 'This is confirmation that the password for your ResolveNow account has been successfully updated.';
+    }
+    if (!allVars.displayBtn) {
+      allVars.displayBtn = 'none';
+    }
+    if (!allVars.displayAlert) {
+      allVars.displayAlert = 'block';
+    }
+    if (!allVars.alertMessage) {
+      allVars.alertMessage = 'If you did not authorize this change, please recover your account immediately or notify system security coordinators.';
+    }
+    if (!allVars.infoText) {
+      allVars.infoText = 'All other active sessions on different browsers and devices have been automatically terminated for your safety.';
+    }
+    if (!allVars.btnText) {
+      allVars.btnText = 'Reset Password';
+    }
+    if (!allVars.actionUrl) {
+      allVars.actionUrl = '#';
+    }
+  }
 
   const compiledHeader = header ? interpolateTemplate(header, allVars) : '';
   const compiledFooter = footer ? interpolateTemplate(footer, allVars) : '';

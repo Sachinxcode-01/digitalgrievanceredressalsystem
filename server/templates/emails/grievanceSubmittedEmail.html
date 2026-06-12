@@ -1,10 +1,15 @@
-<p>Hello,</p>
-<p>{{message}}</p>
-<div class="card">
-  <h3>{{cardTitle}}</h3>
-  <p style="margin: 5px 0;"><strong>Ticket ID:</strong> #{{ticketId}}</p>
-  <p style="margin: 5px 0;"><strong>Subject:</strong> {{title}}</p>
+<p style="margin: 0 0 16px 0;">Hello,</p>
+<p style="margin: 0 0 24px 0;">{{message}}</p>
+
+<div class="card" style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 20px; margin: 24px 0;">
+  <h3 style="margin: 0 0 12px 0; color: #0F172A; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #E2E8F0; padding-bottom: 8px; font-weight: 700;">{{cardTitle}}</h3>
+  <p style="margin: 8px 0; font-size: 14px;"><strong>Ticket ID:</strong> <span style="font-family: monospace; font-weight: 700; color: #2563EB;">#{{ticketId}}</span></p>
+  <p style="margin: 8px 0; font-size: 14px;"><strong>Subject:</strong> {{title}}</p>
   {{extraDetails}}
 </div>
-<p>{{actionText}}</p>
-<a href="{{actionUrl}}" class="btn {{btnClass}}">{{btnText}}</a>
+
+<p style="margin: 0 0 24px 0;">{{actionText}}</p>
+
+<div style="text-align: center; margin: 28px 0;">
+  <a href="{{actionUrl}}" class="btn {{btnClass}}">{{btnText}}</a>
+</div>

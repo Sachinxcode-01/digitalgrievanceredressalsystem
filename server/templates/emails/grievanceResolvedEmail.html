@@ -1,9 +1,14 @@
-<p>Hello,</p>
-<p>Your grievance filing <strong>#{{ticketId}}</strong> has been successfully resolved.</p>
-<div class="card">
-  <h3>Resolution Statement</h3>
-  <p style="font-style: italic;">"{{notes}}"</p>
-  <p style="margin: 15px 0 0 0; font-size: 12px; color: #64748b;"><strong>Resolved At:</strong> {{time}}</p>
+<p style="margin: 0 0 16px 0;">Hello,</p>
+<p style="margin: 0 0 24px 0;">Your grievance filing <strong style="color: #2563EB; font-family: monospace;">#{{ticketId}}</strong> has been successfully resolved.</p>
+
+<div class="card" style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 20px; margin: 24px 0;">
+  <h3 style="margin: 0 0 12px 0; color: #0F172A; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #E2E8F0; padding-bottom: 8px; font-weight: 700;">Resolution Statement</h3>
+  <p style="font-style: italic; margin: 0 0 12px 0; font-size: 14px; line-height: 1.6; color: #334155;">"{{notes}}"</p>
+  <p style="margin: 12px 0 0 0; font-size: 12px; color: #64748B;"><strong>Resolved At:</strong> {{time}}</p>
 </div>
-<p>Your feedback is valuable to our quality metrics. Please take a brief moment to rate the redressal process.</p>
-<a href="{{frontendUrl}}/dashboard" class="btn btn-resolved">Complete Feedback Survey</a>
+
+<p style="margin: 0 0 24px 0;">Your feedback is valuable to our quality metrics. Please take a brief moment to rate the redressal process.</p>
+
+<div style="text-align: center; margin: 28px 0;">
+  <a href="{{frontendUrl}}/dashboard" class="btn btn-resolved" style="background-color: #16A34A;">Complete Feedback Survey</a>
+</div>

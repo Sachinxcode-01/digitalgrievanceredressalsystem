@@ -1,5 +1,13 @@
-<p>Hello,</p>
-<p>A One-Time Password (OTP) has been generated to verify your identity for <strong>{{purpose}}</strong>.</p>
-<div class="highlight">{{otp}}</div>
-<p>For your security, this code is valid for exactly <strong>5 minutes</strong>. Do not share this credential with anyone.</p>
-<p>If you did not initiate this request, contact system security response immediately.</p>
+<p style="margin: 0 0 16px 0;">Hello,</p>
+<p style="margin: 0 0 24px 0;">A One-Time Password (OTP) has been generated to verify your identity for <strong>{{purpose}}</strong>.</p>
+
+<div class="card" style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 24px; text-align: center; margin: 24px 0;">
+  <div class="otp-code">{{otp}}</div>
+  <div style="font-size: 13px; color: #64748B; margin-top: 8px; font-weight: 600;">Valid for exactly <strong>5 minutes</strong></div>
+</div>
+
+<div class="warning-box">
+  <p><strong>Security Notice:</strong> Never share this verification code with anyone. System administrators or support officers will never request this code under any circumstances.</p>
+</div>
+
+<p style="margin: 0; font-size: 14px; color: #64748B;">If you did not initiate this request, you can safely ignore this security notification.</p>

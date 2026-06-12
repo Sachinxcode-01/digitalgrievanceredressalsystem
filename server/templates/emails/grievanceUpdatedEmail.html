@@ -1,11 +1,17 @@
-<p>Hello,</p>
-<p>Your grievance filing <strong>#{{ticketId}}</strong> has advanced to a new status milestone.</p>
-<div class="card" style="text-align: center; background: rgba(67, 97, 238, 0.05);">
-  <p style="font-size: 16px; margin: 0;">
-    <span style="color: #64748b; text-decoration: line-through;">{{oldStatus}}</span> 
-    <strong style="color: #38bdf8; margin: 0 15px;">➡️</strong> 
-    <strong style="color: #38bdf8; text-transform: uppercase;">{{newStatus}}</strong>
-  </p>
+<p style="margin: 0 0 16px 0;">Hello,</p>
+<p style="margin: 0 0 24px 0;">Your grievance filing <strong style="color: #2563EB; font-family: monospace;">#{{ticketId}}</strong> has advanced to a new status milestone.</p>
+
+<div class="card" style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 20px; margin: 24px 0; text-align: center;">
+  <div style="font-size: 13px; color: #64748B; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; font-weight: 700;">Status Transition</div>
+  <div style="font-size: 18px; font-weight: 600; margin: 8px 0; display: inline-flex; align-items: center; justify-content: center;">
+    <span style="color: #64748B; text-decoration: line-through; margin-right: 12px;">{{oldStatus}}</span>
+    <span style="color: #64748B; margin-right: 12px;">&rarr;</span>
+    <span class="badge" style="background-color: #DBEAFE; color: #1E40AF; padding: 6px 12px; border-radius: 9999px; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.025em; display: inline-block;">{{newStatus}}</span>
+  </div>
 </div>
-<p>Subject: <em>"{{title}}"</em></p>
-<a href="{{frontendUrl}}/dashboard" class="btn btn-user">View Timeline Log</a>
+
+<p style="margin: 0 0 24px 0; font-size: 14px;"><strong>Subject:</strong> <em>"{{title}}"</em></p>
+
+<div style="text-align: center; margin: 28px 0;">
+  <a href="{{frontendUrl}}/dashboard" class="btn btn-user" style="background-color: #2563EB;">View Timeline Log</a>
+</div>
