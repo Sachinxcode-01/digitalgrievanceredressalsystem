@@ -7,12 +7,11 @@ const notificationRepository = {
     const { data, error } = await supabase
       .from('email_logs')
       .insert([logData])
-      .select('id')
-      .maybeSingle();
+      .select('id');
     console.log("Supabase response (insertEmailLog):", data);
     console.log("Supabase error (insertEmailLog):", error);
     if (error) throw error;
-    return data;
+    return (data && data.length > 0) ? data[0] : null;
   },
 
   async updateEmailLog(id, updates) {
@@ -28,6 +27,9 @@ const notificationRepository = {
   // OTP Verifications
   async findOtpVerification(identifier, filterCol, purpose) {
     if (!supabase) return null;
+    // Use .limit(1).maybeSingle() to avoid PGRST116 when stale duplicate rows exist.
+    // Combining limit(1) with maybeSingle() ensures at most one row is returned,
+    // avoiding the PostgREST error while maintaining mock-compatibility.
     const { data, error } = await supabase
       .from('otp_verifications')
       .select('*')
@@ -108,12 +110,11 @@ const notificationRepository = {
       .from('email_templates')
       .update(updates)
       .eq('id', id)
-      .select()
-      .maybeSingle();
+      .select();
     console.log("Supabase response (updateEmailTemplate):", data);
     console.log("Supabase error (updateEmailTemplate):", error);
     if (error) throw error;
-    return data;
+    return (data && data.length > 0) ? data[0] : null;
   },
 
   async findSmsTemplate(name) {
@@ -143,12 +144,11 @@ const notificationRepository = {
       .from('sms_templates')
       .update(updates)
       .eq('id', id)
-      .select()
-      .maybeSingle();
+      .select();
     console.log("Supabase response (updateSmsTemplate):", data);
     console.log("Supabase error (updateSmsTemplate):", error);
     if (error) throw error;
-    return data;
+    return (data && data.length > 0) ? data[0] : null;
   },
 
   // Password Resets
@@ -163,6 +163,7 @@ const notificationRepository = {
 
   async findPasswordReset(userId, code) {
     if (!supabase) return null;
+    // Same PGRST116 fix: use limit(1).maybeSingle() to be safe and mock-compatible.
     const { data, error } = await supabase
       .from('password_resets')
       .select('*')

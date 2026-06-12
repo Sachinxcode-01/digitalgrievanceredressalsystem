@@ -353,7 +353,13 @@ function App() {
   }
 
   return (
-    <ClerkProvider publishableKey={publishableKey}>
+    <ClerkProvider 
+      publishableKey={publishableKey}
+      signInUrl="/login"
+      signUpUrl="/register"
+      afterSignInUrl="/dashboard"
+      afterSignUpUrl="/dashboard"
+    >
       <AuthProvider>
         <AppContent />
       </AuthProvider>

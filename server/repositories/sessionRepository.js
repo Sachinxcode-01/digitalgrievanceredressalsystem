@@ -6,12 +6,11 @@ const sessionRepository = {
     const { data, error } = await supabase
       .from('sessions')
       .insert([sessionData])
-      .select()
-      .maybeSingle();
+      .select();
     console.log("Supabase response (createSession):", data);
     console.log("Supabase error (createSession):", error);
     if (error) throw error;
-    return data;
+    return (data && data.length > 0) ? data[0] : null;
   },
 
   async findByRefreshToken(refreshToken) {
@@ -42,12 +41,11 @@ const sessionRepository = {
       .from('sessions')
       .update(updates)
       .eq('id', id)
-      .select()
-      .maybeSingle();
+      .select();
     console.log("Supabase response (updateSession):", data);
     console.log("Supabase error (updateSession):", error);
     if (error) throw error;
-    return data;
+    return (data && data.length > 0) ? data[0] : null;
   },
 
   async deleteById(id) {

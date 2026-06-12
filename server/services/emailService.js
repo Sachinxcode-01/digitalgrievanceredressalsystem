@@ -32,7 +32,9 @@ const getTransporter = async () => {
   const port = parseInt(configService.getSetting('smtp_port', process.env.SMTP_PORT || 587));
   const user = configService.getSetting('smtp_username', process.env.SMTP_EMAIL || '');
   const pass = configService.getSetting('smtp_password', process.env.SMTP_PASSWORD || '');
-  const ssl  = configService.getSetting('smtp_ssl', false);
+  
+  const sslSetting = configService.getSetting('smtp_ssl', false);
+  const ssl = typeof sslSetting === 'string' ? sslSetting.toLowerCase() === 'true' : !!sslSetting;
 
   const configHash = `${host}:${port}:${user}:${pass}:${ssl}`;
   if (currentTransporter && activeSmtpConfigHash === configHash) {
@@ -45,7 +47,7 @@ const getTransporter = async () => {
 
   // Initialize SMTP transport
   if (user && pass && host !== 'smtp.ethereal.email') {
-    currentTransporter = nodemailer.createTransport({
+    const transporterOptions = {
       host,
       port,
       secure: ssl,           // true for port 465 (SSL), false for 587 (STARTTLS)
@@ -54,7 +56,58 @@ const getTransporter = async () => {
       tls: {
         rejectUnauthorized: false  // Allow self-signed for dev; use true in prod
       }
-    });
+    };
+    let mainTransporter = nodemailer.createTransport(transporterOptions);
+    
+    currentTransporter = {
+      verify: async () => {
+        try {
+          return await mainTransporter.verify();
+        } catch (err) {
+          if (port === 587 && !ssl) {
+            console.warn(`[Email Service] SMTP verification failed on port 587, trying fallback port 465...`);
+            const fallbackTransporter = nodemailer.createTransport({
+              ...transporterOptions,
+              port: 465,
+              secure: true,
+              requireTLS: false
+            });
+            try {
+              const res = await fallbackTransporter.verify();
+              mainTransporter = fallbackTransporter;
+              return res;
+            } catch (fallbackErr) {
+              throw err;
+            }
+          }
+          throw err;
+        }
+      },
+      sendMail: async (mailOptions) => {
+        try {
+          return await mainTransporter.sendMail(mailOptions);
+        } catch (err) {
+          if (port === 587 && !ssl) {
+            console.warn(`[Email Service] SMTP send failed on port 587. Attempting fallback to port 465 (SSL/TLS direct)...`);
+            const fallbackTransporter = nodemailer.createTransport({
+              ...transporterOptions,
+              port: 465,
+              secure: true,
+              requireTLS: false
+            });
+            try {
+              const info = await fallbackTransporter.sendMail(mailOptions);
+              mainTransporter = fallbackTransporter;
+              return info;
+            } catch (fallbackErr) {
+              console.error(`[Email Service] Fallback to port 465 also failed:`, fallbackErr.message);
+              throw err;
+            }
+          }
+          throw err;
+        }
+      }
+    };
     activeSmtpConfigHash = configHash;
     console.log(`📧 SMTP Transporter initialized: ${host}:${port} (SSL: ${ssl}) user: ${user}`);
   } else {
@@ -333,20 +386,7 @@ const getBaseTemplateLegacy = (title, content, type = 'user') => {
   `;
 };
 
-/**
- * Queries templates from database with fallbacks
- */
-const getEmailTemplate = async (name, fallbackSubject, fallbackBody) => {
-  try {
-    const data = await notificationRepository.findEmailTemplate(name);
-    if (data) {
-      return { subject: data.subject, body: data.body };
-    }
-  } catch (err) {
-    console.error(`[Email Service] Template fetch failed for ${name}:`, err.message);
-  }
-  return { subject: fallbackSubject, body: fallbackBody };
-};
+
 
 /**
  * Core enqueuing function — returns a Promise that resolves when enqueued.

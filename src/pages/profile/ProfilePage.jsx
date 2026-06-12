@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { User, Save, CheckCircle, Bell, Shield, Camera, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../../lib/supabase';
+import { apiClient } from '../../api/apiClient';
 
 export const ProfilePage = ({ sessionUser, userProfile }) => {
   const [fullName, setFullName] = useState('');
@@ -25,11 +26,32 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
   useEffect(() => {
     if (sessionUser) {
       setEmail(sessionUser.email || '');
-      setFullName(userProfile?.full_name || sessionUser.user_metadata?.full_name || '');
-      setNotificationsEnabled(userProfile?.notifications_enabled !== false);
-      setAvatarUrl(userProfile?.avatar_url || sessionUser.user_metadata?.avatar_url || null);
+      
+      if (sessionUser.id?.startsWith('demo-')) {
+        setFullName(sessionUser.fullName || '');
+        setNotificationsEnabled(true);
+        setAvatarUrl(null);
+        return;
+      }
+
+      // Fetch fresh profile from backend
+      const loadProfile = async () => {
+        try {
+          const res = await apiClient.get('/user/profile');
+          if (res.data) {
+            setFullName(res.data.profile.fullName || '');
+            setNotificationsEnabled(res.data.profile.notificationPreferences?.email !== false);
+            setAvatarUrl(res.data.profile.profilePicture || null);
+          }
+        } catch (err) {
+          console.error("Failed to load profile details:", err.message);
+          setFullName(sessionUser.fullName || '');
+        }
+      };
+
+      loadProfile();
     }
-  }, [sessionUser, userProfile]);
+  }, [sessionUser]);
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -45,18 +67,14 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
     }
 
     try {
-      const { error: authError } = await supabase.auth.updateUser({
-        data: { full_name: fullName, notifications_enabled: notificationsEnabled },
+      await apiClient.put('/user/profile', {
+        fullName,
+        notificationPreferences: {
+          email: notificationsEnabled,
+          sms: notificationsEnabled
+        }
       });
       
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ full_name: fullName, notifications_enabled: notificationsEnabled })
-        .eq('id', sessionUser.id);
-
-      if (authError || profileError) {
-         throw new Error((authError?.message || '') + ' ' + (profileError?.message || ''));
-      }
       setSaved(true);
       toast.success("Profile updated successfully!");
       setTimeout(() => setSaved(false), 2500);

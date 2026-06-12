@@ -88,8 +88,8 @@ app.get('/api/health', async (req, res) => {
   try {
     if (supabase) {
       const dbStart = Date.now();
-      // Simple head check on profiles table to test connectivity
-      const { error } = await supabase.from('profiles').select('id', { count: 'exact', head: true }).limit(1);
+      // Simple head check on users table to test connectivity
+      const { error } = await supabase.from('users').select('id', { count: 'exact', head: true }).limit(1);
       dbLatency = Date.now() - dbStart;
       if (error) {
         dbStatus = 'degraded';
@@ -218,3 +218,6 @@ configService.init().then(() => {
     console.log(`🚀 Server running on port ${PORT} (fallback mode)`);
   });
 });
+
+// Nodemon port conflict resolution trigger
+

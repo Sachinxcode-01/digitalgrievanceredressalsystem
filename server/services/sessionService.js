@@ -36,19 +36,22 @@ const createSession = async (user, ip, userAgent, rememberMe = false) => {
     if (!existingDevice) {
       isNewDevice = true;
     }
-  } catch (err) {
-    console.error('[Device Check Failure]:', err.message);
-  }
 
-  await userRepository.upsertDevice({
-    user_id: user.id,
-    device_fingerprint: deviceFingerprint,
-    device_name: deviceInfo,
-    os,
-    browser,
-    last_ip: ip,
-    last_active_at: new Date().toISOString()
-  });
+    await userRepository.upsertDevice({
+      user_id: user.id,
+      device_fingerprint: deviceFingerprint,
+      device_name: deviceInfo,
+      os,
+      browser,
+      last_ip: ip,
+      last_active_at: new Date().toISOString()
+    });
+  } catch (err) {
+    // Device tracking is supplementary. A missing service role key (RLS violation)
+    // or any other error must NOT prevent the user from logging in.
+    console.error('[Device Tracking Failure — login will continue]:', err.message);
+    isNewDevice = false; // suppress new-device email if we cannot confirm device state
+  }
 
   if (isNewDevice) {
     const timeString = new Date().toLocaleString('en-US', { timeZone: 'UTC' }) + ' UTC';

@@ -22,6 +22,7 @@ const register = async (req, res, next) => {
  * POST /api/v1/auth/verify-otp
  */
 const verifyOtp = async (req, res, next) => {
+  console.log('📬 [verifyOtp] Request Body:', req.body);
   const { email, phone, otp, purpose, rememberMe } = req.body;
 
   try {
@@ -281,8 +282,35 @@ const syncUser = async (req, res, next) => {
       await userRepository.updateProfile(user.id, { full_name: fullName }).catch(console.error);
     }
 
+    // Create local session for legacy fallback/testing support
+    let localSessionData = null;
+    try {
+      localSessionData = await sessionService.createSession(
+        {
+          id: user.id,
+          email: user.email,
+          mobile_number: user.mobile_number,
+          role: user.role,
+          full_name: fullName
+        },
+        req.ip,
+        req.headers['user-agent']
+      );
+      
+      // Set the secure cookie
+      res.cookie('refresh_token', localSessionData.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: localSessionData.expiresAt.getTime() - Date.now()
+      });
+    } catch (sessionErr) {
+      console.error('Failed to create local session during sync:', sessionErr.message);
+    }
+
     res.json({
       message: 'User synchronized successfully.',
+      token: localSessionData?.accessToken || null,
       user: {
         id:           user.id,
         email:        user.email,

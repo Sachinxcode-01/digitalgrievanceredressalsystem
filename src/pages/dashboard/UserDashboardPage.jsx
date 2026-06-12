@@ -9,6 +9,7 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '../../lib/supabase';
 import { grievanceService } from '../../services/grievanceService';
+import { apiClient } from '../../api/apiClient';
 import StatusBadge from '../../components/ui/StatusBadge';
 import UrgencyBadge from '../../components/ui/UrgencyBadge';
 import TimelineStep from '../../components/ui/TimelineStep';
@@ -306,12 +307,24 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
       .from('ticket_comments')
       .select(`
         *,
-        profiles (full_name, role)
+        users (
+          role,
+          user_profiles (full_name)
+        )
       `)
       .eq('grievance_id', ticketId)
       .order('created_at', { ascending: true });
     
-    if (data) setComments(data);
+    if (data) {
+      const formatted = data.map(comment => ({
+        ...comment,
+        profiles: {
+          full_name: comment.users?.user_profiles?.full_name || 'System User',
+          role: comment.users?.role || 'student'
+        }
+      }));
+      setComments(formatted);
+    }
   };
 
   const handleSelectTicket = (ticket) => {
@@ -619,10 +632,14 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
                      toast.success('Alerts enabled! (Simulation)');
                      return;
                   }
-                  const { error } = await supabase.from('profiles').update({ notifications_enabled: true }).eq('id', sessionUser.id);
-                  if (!error) {
+                  try {
+                    await apiClient.put('/user/profile', {
+                      notificationPreferences: { email: true, sms: true }
+                    });
                     toast.success('Alert system initialized!');
                     window.location.reload();
+                  } catch (err) {
+                    toast.error('Failed to initialize alerts: ' + err.message);
                   }
                 }}
                 className="w-full btn-premium py-2"

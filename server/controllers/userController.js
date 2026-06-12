@@ -25,6 +25,7 @@ const getProfile = async (req, res, next) => {
 
     // Scrub password hash from response
     const cleanUser = {
+      id: user.id,
       email: user.email,
       mobile_number: user.mobile_number,
       role: user.role,

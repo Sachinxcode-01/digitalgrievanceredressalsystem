@@ -35,20 +35,19 @@ export const getAccessToken = () => {
 // Request Interceptor: Attach bearer token if present
 apiClient.interceptors.request.use(
   async (config) => {
+    let token = null;
     if (clerkGetTokenFn) {
       try {
-        const token = await clerkGetTokenFn();
-        if (token) {
-          config.headers['Authorization'] = `Bearer ${token}`;
-        }
+        token = await clerkGetTokenFn();
       } catch (err) {
         console.error('Failed to retrieve Clerk token:', err);
       }
-    } else {
-      const token = getAccessToken();
-      if (token) {
-        config.headers['Authorization'] = `Bearer ${token}`;
-      }
+    }
+    if (!token) {
+      token = getAccessToken();
+    }
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
     }
     return config;
   },
@@ -79,7 +78,7 @@ apiClient.interceptors.response.use(
 
     // If 401 error and request hasn't been retried yet
     if (error.response?.status === 401 && !originalRequest._retry) {
-      if (originalRequest.url === '/auth/refresh-token' || originalRequest.url === '/auth/login') {
+      if (originalRequest.url === '/auth/refresh-token' || originalRequest.url === '/auth/login' || originalRequest.url === '/auth/sync') {
         // If the refresh token request itself is failing, we must force logout
         setAccessToken(null);
         return Promise.reject(error);

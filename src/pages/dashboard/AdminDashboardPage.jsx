@@ -328,12 +328,24 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
       .from('ticket_comments')
       .select(`
         *,
-        profiles (full_name, role)
+        users (
+          role,
+          user_profiles (full_name)
+        )
       `)
       .eq('grievance_id', ticketId)
       .order('created_at', { ascending: true });
     
-    if (data) setComments(data);
+    if (data) {
+      const formatted = data.map(comment => ({
+        ...comment,
+        profiles: {
+          full_name: comment.users?.user_profiles?.full_name || 'System User',
+          role: comment.users?.role || 'student'
+        }
+      }));
+      setComments(formatted);
+    }
   };
 
   const handleSelectTicket = (ticket) => {

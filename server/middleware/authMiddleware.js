@@ -12,81 +12,118 @@ const userCache = new Map();
  * Automatically falls back to standard JWT validation for backward compatibility and test environments.
  */
 const authenticateToken = async (req, res, next) => {
-  // 1. Attempt Clerk Authentication
-  try {
-    const authState = getAuth(req);
-    const userId = authState?.userId;
+  // 1. Attempt Legacy/Local JWT Verification First
+  const authHeader = req.headers['authorization'];
+  let token = authHeader && authHeader.split(' ')[1];
+  let tokenExpiredOrInvalid = false;
 
-    if (userId) {
-      let email = null;
-      let fullName = 'Clerk User';
+  if (!token && req.cookies) {
+    token = req.cookies.access_token;
+  }
 
-      const cached = userCache.get(userId);
-      if (cached && cached.expiresAt > Date.now()) {
-        email = cached.email;
-        fullName = cached.fullName;
-      } else {
-        const clerkUser = await clerkClient.users.getUser(userId);
-        email = clerkUser.emailAddresses[0]?.emailAddress;
-        fullName = clerkUser.firstName ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim() : 'Clerk User';
-        
-        userCache.set(userId, {
-          email,
-          fullName,
-          expiresAt: Date.now() + 5 * 60 * 1000
-        });
-      }
+  if (token && JWT_SECRET) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      const userRole = decoded.role || 'student';
 
-      if (!email) {
-        return res.status(400).json({ error: 'Authenticated Clerk user has no primary email address.' });
-      }
-
-      // Lookup local user
-      let dbUser = await userRepository.findByEmail(email).catch(() => null);
-      if (!dbUser) {
-        // Sync on demand (auto-register)
-        const clerkUser = await clerkClient.users.getUser(userId);
-        const role = clerkUser.unsafeMetadata?.role || 'student';
-        const name = clerkUser.unsafeMetadata?.fullName || fullName;
-        const mobile = clerkUser.unsafeMetadata?.mobileNumber || clerkUser.phoneNumbers[0]?.phoneNumber || null;
-
-        dbUser = await userRepository.create({
-          email,
-          mobile_number: mobile,
-          password_hash: 'clerk-managed',
-          role: role,
-          status: 'active',
-          email_verified: true,
-          phone_verified: !!clerkUser.phoneNumbers[0] || !!clerkUser.unsafeMetadata?.mobileNumber
-        });
-
-        await userRepository.createProfile({
-          user_id: dbUser.id,
-          full_name: name,
-          notification_preferences: { email: true, sms: true }
-        });
-
-        // Refetch
-        dbUser = await userRepository.findByEmail(email).catch(() => null);
-      }
-
-      if (!dbUser) {
-        return res.status(500).json({ error: 'Failed to synchronize authenticated session with database.' });
-      }
-
-      if (dbUser.status === 'locked') {
-        return res.status(403).json({ error: 'This account has been locked. Please contact support.' });
+      // Verify MFA requirement for legacy admin sessions
+      if ((userRole === 'admin' || userRole === 'super admin') && !decoded.mfa_verified) {
+        return res.status(403).json({ error: 'Multi-Factor Authentication (MFA) required. Access denied.' });
       }
 
       req.user = {
-        id: dbUser.id,
-        email: dbUser.email,
-        role: dbUser.role,
-        full_name: dbUser.full_name || fullName,
-        clerk_id: userId
+        id: decoded.id,
+        email: decoded.email,
+        role: userRole,
+        full_name: decoded.full_name,
+        session_id: decoded.session_id
       };
 
       return next();
+    } catch (jwtErr) {
+      // If it's a valid bearer token format but verification fails,
+      // it might be a Clerk token, so we fall through to Clerk.
+      tokenExpiredOrInvalid = true;
+    }
+  }
+
+  // 2. Attempt Clerk Authentication
+  try {
+    if (req.auth) {
+      const authState = getAuth(req);
+      const userId = authState?.userId;
+
+      if (userId) {
+        let email = null;
+        let fullName = 'Clerk User';
+
+        const cached = userCache.get(userId);
+        if (cached && cached.expiresAt > Date.now()) {
+          email = cached.email;
+          fullName = cached.fullName;
+        } else {
+          const clerkUser = await clerkClient.users.getUser(userId);
+          email = clerkUser.emailAddresses[0]?.emailAddress;
+          fullName = clerkUser.firstName ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim() : 'Clerk User';
+          
+          userCache.set(userId, {
+            email,
+            fullName,
+            expiresAt: Date.now() + 5 * 60 * 1000
+          });
+        }
+
+        if (!email) {
+          return res.status(400).json({ error: 'Authenticated Clerk user has no primary email address.' });
+        }
+
+        // Lookup local user
+        let dbUser = await userRepository.findByEmail(email).catch(() => null);
+        if (!dbUser) {
+          // Sync on demand (auto-register)
+          const clerkUser = await clerkClient.users.getUser(userId);
+          const role = clerkUser.unsafeMetadata?.role || 'student';
+          const name = clerkUser.unsafeMetadata?.fullName || fullName;
+          const mobile = clerkUser.unsafeMetadata?.mobileNumber || clerkUser.phoneNumbers[0]?.phoneNumber || null;
+
+          dbUser = await userRepository.create({
+            email,
+            mobile_number: mobile,
+            password_hash: 'clerk-managed',
+            role: role,
+            status: 'active',
+            email_verified: true,
+            phone_verified: !!clerkUser.phoneNumbers[0] || !!clerkUser.unsafeMetadata?.mobileNumber
+          });
+
+          await userRepository.createProfile({
+            user_id: dbUser.id,
+            full_name: name,
+            notification_preferences: { email: true, sms: true }
+          });
+
+          // Refetch
+          dbUser = await userRepository.findByEmail(email).catch(() => null);
+        }
+
+        if (!dbUser) {
+          return res.status(500).json({ error: 'Failed to synchronize authenticated session with database.' });
+        }
+
+        if (dbUser.status === 'locked') {
+          return res.status(403).json({ error: 'This account has been locked. Please contact support.' });
+        }
+
+        req.user = {
+          id: dbUser.id,
+          email: dbUser.email,
+          role: dbUser.role,
+          full_name: dbUser.full_name || fullName,
+          clerk_id: userId
+        };
+
+        return next();
+      }
     }
   } catch (clerkErr) {
     try {
@@ -101,43 +138,11 @@ const authenticateToken = async (req, res, next) => {
     }
   }
 
-  // 2. Legacy JWT Fallback (critical for testing, backward compatibility, and transition support)
-  const authHeader = req.headers['authorization'];
-  let token = authHeader && authHeader.split(' ')[1];
-
-  if (!token && req.cookies) {
-    token = req.cookies.access_token;
-  }
-
-  if (!token) {
-    return res.status(401).json({ error: 'Access token required. Authorization denied.' });
-  }
-
-  try {
-    if (!JWT_SECRET) {
-      return res.status(500).json({ error: 'System secret missing. Authentication failed.' });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const userRole = decoded.role || 'student';
-
-    // Verify MFA requirement for legacy admin sessions
-    if ((userRole === 'admin' || userRole === 'super admin') && !decoded.mfa_verified) {
-      return res.status(403).json({ error: 'Multi-Factor Authentication (MFA) required. Access denied.' });
-    }
-
-    req.user = {
-      id: decoded.id,
-      email: decoded.email,
-      role: userRole,
-      full_name: decoded.full_name,
-      session_id: decoded.session_id
-    };
-
-    return next();
-  } catch (jwtErr) {
+  if (tokenExpiredOrInvalid) {
     return res.status(403).json({ error: 'Access denied: session invalid or expired.' });
   }
+
+  return res.status(401).json({ error: 'Access token required. Authorization denied.' });
 };
 
 /**

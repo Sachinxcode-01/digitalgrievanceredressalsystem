@@ -150,7 +150,20 @@ const userRepository = {
       p_role:          role,
       p_full_name:     fullName
     });
-    if (error) throw error;
+    if (error) {
+      const msg = error.message || '';
+      if (msg.includes('users_mobile_number_key') || msg.includes('mobile_number')) {
+        const e = new Error('Phone number is already associated with another account.');
+        e.status = 400;
+        throw e;
+      }
+      if (msg.includes('users_email_key') || msg.includes('email')) {
+        const e = new Error('Email address is already registered.');
+        e.status = 400;
+        throw e;
+      }
+      throw error;
+    }
     return data;
   },
 

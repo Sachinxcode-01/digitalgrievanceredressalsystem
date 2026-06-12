@@ -14,26 +14,17 @@ const broadcastToAll = async (req, res) => {
   }
 
   try {
-    // 1. Fetch all user emails from profiles
-    const { data: users, error } = await supabase
-      .from('profiles')
-      .select('id') // We usually want the email from auth.users, but profiles often has it too
-      // Wait, if profiles doesn't have email, we might need a different way.
-      // But in this project, we often use the identifier as the 'email' field in profiles or related tables.
+    // Fetch all user emails from users table
+    const { data: dbUsers, error: uError } = await supabase
+      .from('users')
+      .select('email')
+      .not('email', 'is', null);
     
-    // Actually, let's look at authController.js again to see where it gets the email.
-    // It seems it uses the identifier passed in.
-    
-    // For now, let's assume we have a 'profiles' table with 'email' or we can fetch from auth.users (if admin key)
-    // But since this is a demo/prototype, let's fetch emails from the 'profiles' table if it has it.
-    
-    const { data: profiles, error: pError } = await supabase.from('profiles').select('*');
-    if (pError) throw pError;
+    if (uError) throw uError;
 
-    // Filter valid emails (some might be phone-based synthetic emails)
-    const emailList = profiles
-      .map(p => p.email || p.id + '@user.system') // Fallback if no email field
-      .filter(e => e.includes('@'));
+    const emailList = dbUsers
+      .map(u => u.email)
+      .filter(e => e && e.includes('@'));
 
     if (emailList.length === 0) {
       return res.status(404).json({ error: 'No recipients found.' });
@@ -75,7 +66,7 @@ const getHealthMetrics = async (req, res, next) => {
     
     try {
       const dbStart = Date.now();
-      const { error: pingError } = await supabase.from('profiles').select('id', { count: 'exact', head: true }).limit(1);
+      const { error: pingError } = await supabase.from('users').select('id', { count: 'exact', head: true }).limit(1);
       dbLatency = Date.now() - dbStart;
       
       if (pingError) {

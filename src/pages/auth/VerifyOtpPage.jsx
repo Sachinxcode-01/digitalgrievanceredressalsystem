@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../app/providers/AuthProvider';
+import { useSignUp, useSignIn } from '@clerk/clerk-react';
 import { motion } from 'framer-motion';
 import { ShieldCheck, ArrowRight, RefreshCw, ArrowLeft, Sun, Moon, Home } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -8,15 +9,17 @@ import { getErrorMessage } from '../../utils/errors';
 
 export const VerifyOtpPage = () => {
   const { verifyOtp, resendOtp } = useAuth();
+  const { signUp, isLoaded: isSignUpLoaded } = useSignUp();
+  const { signIn, isLoaded: isSignInLoaded } = useSignIn();
   const navigate = useNavigate();
   const location = useLocation();
 
   // Retrieve state passed from registration or login
-  const identifier = location.state?.identifier || '';
   const purpose = location.state?.purpose || 'registration';
   const rememberMe = location.state?.rememberMe || false;
   const fromPath = location.state?.from || null;
 
+  const [identifier, setIdentifier] = useState(() => location.state?.identifier || '');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState(30); // 30s resend timer
@@ -36,9 +39,22 @@ export const VerifyOtpPage = () => {
     useRef(null)
   ];
 
+  // Recover identifier from Clerk SDK if lost on page refresh
   useEffect(() => {
-    // If we accessed page directly without identifier, redirect
     if (!identifier) {
+      if (purpose === 'registration' && isSignUpLoaded && signUp?.emailAddress) {
+        console.log('[VerifyOtpPage] Recovered registration identifier from Clerk:', signUp.emailAddress);
+        setIdentifier(signUp.emailAddress);
+      } else if ((purpose === 'login' || purpose === 'mfa') && isSignInLoaded && signIn?.identifier) {
+        console.log('[VerifyOtpPage] Recovered login identifier from Clerk:', signIn.identifier);
+        setIdentifier(signIn.identifier);
+      }
+    }
+  }, [identifier, purpose, isSignUpLoaded, signUp, isSignInLoaded, signIn]);
+
+  useEffect(() => {
+    // If Clerk has loaded and we still don't have an identifier, redirect
+    if (isSignUpLoaded && isSignInLoaded && !identifier) {
       toast.error('Session expired. Please restart your flow.');
       if (purpose === 'forgot_password') {
         navigate('/forgot-password');
@@ -46,7 +62,7 @@ export const VerifyOtpPage = () => {
         navigate('/login');
       }
     }
-  }, [identifier, purpose, navigate]);
+  }, [identifier, purpose, navigate, isSignUpLoaded, isSignInLoaded]);
 
   useEffect(() => {
     let timer;
@@ -78,13 +94,17 @@ export const VerifyOtpPage = () => {
     }
   };
 
+  const isSubmittingRef = useRef(false);
+
   const handlePaste = (e) => {
     e.preventDefault();
-    const pasteData = e.clipboardData.getData('text').trim();
-    if (pasteData.length === 6 && !isNaN(pasteData)) {
+    const pasteData = e.clipboardData.getData('text').trim().replace(/\D/g, ''); // Extract only digits
+    if (pasteData.length === 6) {
       const newOtp = pasteData.split('');
       setOtp(newOtp);
       inputRefs[5].current.focus();
+    } else {
+      toast.error('Pasted code must contain exactly 6 digits.');
     }
   };
 
@@ -102,17 +122,30 @@ export const VerifyOtpPage = () => {
 
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
+    if (loading || isSubmittingRef.current) return; // Prevent double submission/race conditions
     const otpCode = otp.join('');
     
     if (otpCode.length !== 6) {
       return toast.error('Verification code must be exactly 6 digits.');
     }
 
+    isSubmittingRef.current = true;
     setLoading(true);
     try {
+      console.log('[VerifyOtpPage] Submitting OTP verification code:', otpCode);
       if (purpose === 'forgot_password') {
-        toast.success('Identity code confirmed.');
-        navigate('/reset-password', { state: { email: identifier, resetCode: otpCode } });
+        const isSandbox = typeof identifier === 'string' && identifier.toLowerCase().trim().endsWith('@resolve.now');
+        if (isSandbox) {
+          // Sandbox: backend verifies the OTP and returns a resetCode
+          const data = await verifyOtp(identifier, otpCode, purpose, rememberMe);
+          toast.success(data.message || 'Identity confirmed.');
+          navigate('/reset-password', { state: { email: identifier, resetCode: data.resetCode } });
+        } else {
+          // Clerk: the OTP code IS the reset code — pass it directly to ResetPasswordPage
+          // which calls resetPassword(email, newPassword, code) → signIn.attemptFirstFactor
+          toast.success('Code accepted. Please set your new password.');
+          navigate('/reset-password', { state: { email: identifier, resetCode: otpCode } });
+        }
         return;
       }
 
@@ -122,7 +155,22 @@ export const VerifyOtpPage = () => {
       const targetPath = fromPath || (data.user?.role === 'admin' || data.user?.role === 'super admin' ? '/admin/dashboard' : '/dashboard');
       navigate(targetPath);
     } catch (err) {
-      toast.error(getErrorMessage(err, 'Verification failed. Try again.'));
+      const msg = getErrorMessage(err, 'Verification failed. Try again.');
+      console.error('[VerifyOtpPage] Verification error details:', err);
+
+      // Stale Clerk state: signUp/signIn lost after page refresh — redirect to restart
+      if (msg.includes('expired') || msg.includes('expired_code') || msg.includes('not found') || msg.includes('session expired') || msg.includes('register again')) {
+        toast.error('Verification session expired. Please start again.');
+        navigate(purpose === 'registration' ? '/register' : '/login');
+        return;
+      }
+      if (msg.includes('Please sign in again')) {
+        toast.error('Login session expired. Please sign in again.');
+        navigate('/login');
+        return;
+      }
+
+      toast.error(msg);
       // Clear inputs on error
       setOtp(['', '', '', '', '', '']);
       if (inputRefs[0] && inputRefs[0].current) {
@@ -130,12 +178,13 @@ export const VerifyOtpPage = () => {
       }
     } finally {
       setLoading(false);
+      isSubmittingRef.current = false;
     }
   };
 
-  // Trigger submission automatically when all fields are completed
+  // Trigger submission automatically when all fields are completed and not already submitting
   useEffect(() => {
-    if (otp.every(val => val !== '')) {
+    if (otp.every(val => val !== '') && !loading && !isSubmittingRef.current) {
       handleSubmit();
     }
   }, [otp]);

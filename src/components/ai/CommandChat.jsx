@@ -21,12 +21,25 @@ export const CommandChat = ({ grievanceId, currentUser, role = 'user' }) => {
   const fetchMessages = async () => {
     const { data } = await supabase
       .from('ticket_comments')
-      .select('*, profiles(full_name, role)')
+      .select(`
+        *,
+        users (
+          role,
+          user_profiles (full_name)
+        )
+      `)
       .eq('grievance_id', grievanceId)
       .order('created_at', { ascending: true });
     
     if (data) {
-      setMessages(data);
+      const formatted = data.map(comment => ({
+        ...comment,
+        profiles: {
+          full_name: comment.users?.user_profiles?.full_name || 'System User',
+          role: comment.users?.role || 'student'
+        }
+      }));
+      setMessages(formatted);
       setTimeout(scrollToBottom, 100);
     }
   };
@@ -51,13 +64,26 @@ export const CommandChat = ({ grievanceId, currentUser, role = 'user' }) => {
           // Fetch full message with profile data
           const { data: fullMsg } = await supabase
             .from('ticket_comments')
-            .select('*, profiles(full_name, role)')
+            .select(`
+              *,
+              users (
+                role,
+                user_profiles (full_name)
+              )
+            `)
             .eq('id', payload.new.id)
             .limit(1)
             .maybeSingle();
           
           if (fullMsg) {
-            setMessages(prev => [...prev, fullMsg]);
+            const formatted = {
+              ...fullMsg,
+              profiles: {
+                full_name: fullMsg.users?.user_profiles?.full_name || 'System User',
+                role: fullMsg.users?.role || 'student'
+              }
+            };
+            setMessages(prev => [...prev, formatted]);
             scrollToBottom();
           }
         }

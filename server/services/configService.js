@@ -91,13 +91,15 @@ const configService = {
         return 587;
       }
       case 'smtp_username': {
-        if (process.env.SMTP_HOST === 'smtp.resend.com' || (!process.env.SMTP_HOST && !process.env.SMTP_EMAIL && process.env.RESEND_API_KEY)) {
+        const host = this.getSetting('smtp_host');
+        if (host === 'smtp.resend.com') {
           return 'resend';
         }
         return process.env.SMTP_EMAIL || '';
       }
       case 'smtp_password': {
-        if (process.env.SMTP_HOST === 'smtp.resend.com' || (!process.env.SMTP_HOST && !process.env.SMTP_EMAIL && process.env.RESEND_API_KEY)) {
+        const host = this.getSetting('smtp_host');
+        if (host === 'smtp.resend.com') {
           return process.env.RESEND_API_KEY;
         }
         return process.env.SMTP_PASSWORD || '';
