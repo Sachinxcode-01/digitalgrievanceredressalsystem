@@ -15,9 +15,6 @@ const validateCreateUser = [
   body('email')
     .isEmail().withMessage('A valid email address is required')
     .normalizeEmail(),
-  body('mobileNumber')
-    .optional({ checkFalsy: true })
-    .matches(/^\+?[1-9]\d{1,14}$/).withMessage('A valid E.164 phone number is required'),
   body('password')
     .isLength({ min: 8 }).withMessage('Password must be at least 8 characters long'),
   body('role')
@@ -41,13 +38,6 @@ const validateUpdateUser = [
     .optional()
     .isEmail().withMessage('A valid email address is required')
     .normalizeEmail(),
-  body('mobileNumber')
-    .optional({ nullable: true })
-    .custom((val) => {
-      if (val === null || val === '') return true;
-      if (/^\+?[1-9]\d{1,14}$/.test(val)) return true;
-      throw new Error('A valid E.164 phone number is required');
-    }),
   body('role')
     .optional()
     .isIn(VALID_ROLES).withMessage('Invalid role specified'),
@@ -94,6 +84,14 @@ const validateProfileUpdate = [
   body('notificationPreferences')
     .optional()
     .isObject().withMessage('Notification preferences must be an object'),
+  body('department')
+    .optional()
+    .trim()
+    .isLength({ max: 150 }).withMessage('Department cannot exceed 150 characters'),
+  body('institution')
+    .optional()
+    .trim()
+    .isLength({ max: 150 }).withMessage('Institution cannot exceed 150 characters'),
   validate
 ];
 
@@ -105,13 +103,6 @@ const validateAccountUpdate = [
     .optional()
     .isEmail().withMessage('A valid email address is required')
     .normalizeEmail(),
-  body('mobileNumber')
-    .optional({ nullable: true })
-    .custom((val) => {
-      if (val === null || val === '') return true;
-      if (/^\+?[1-9]\d{1,14}$/.test(val)) return true;
-      throw new Error('A valid E.164 phone number is required');
-    }),
   validate
 ];
 

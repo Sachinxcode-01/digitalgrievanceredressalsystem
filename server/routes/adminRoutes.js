@@ -64,7 +64,8 @@ const {
   getSmsTemplates,
   updateSmsTemplate,
   clearCache,
-  runBackup
+  runBackup,
+  checkSlaBreachesRoute
 } = require('../controllers/settingsController');
 
 // Ensure all routes are protected
@@ -165,5 +166,8 @@ router.put('/settings/templates/sms/:id', authorizePermissions('manage_settings'
 // Maintenance Mode Operations
 router.post('/settings/maintenance/cache', authorizePermissions('manage_settings'), clearCache);
 router.post('/settings/maintenance/backup', authorizePermissions('manage_settings'), runBackup);
+
+// SLA Background Breach Trigger (Cron)
+router.post('/settings/cron/check-slas', authorizePermissions('manage_settings'), checkSlaBreachesRoute);
 
 module.exports = router;

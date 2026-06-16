@@ -10,12 +10,26 @@ export const AdminAuditPage = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [actionFilter, setActionFilter] = useState('All');
+  const [availableActions, setAvailableActions] = useState(['All']);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   const fetchLogs = async () => {
     setLoading(true);
     try {
-      const res = await apiClient.get('/admin/audit');
-      setLogs(res.data || []);
+      const params = {};
+      if (actionFilter !== 'All') params.action = actionFilter;
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+      
+      const res = await apiClient.get('/admin/audit', { params });
+      const logsData = res.data || [];
+      setLogs(logsData);
+      
+      if (availableActions.length <= 1 && logsData.length > 0) {
+        const actions = ['All', ...new Set(logsData.map(log => log.action))];
+        setAvailableActions(actions);
+      }
     } catch (err) {
       toast.error('Failed to retrieve firewall audit: ' + (err.response?.data?.error || err.message));
     } finally {
@@ -25,9 +39,35 @@ export const AdminAuditPage = () => {
 
   useEffect(() => {
     fetchLogs();
-  }, []);
+  }, [actionFilter, startDate, endDate]);
 
-  const uniqueActions = ['All', ...new Set(logs.map(log => log.action))];
+  const handleExportCSV = () => {
+    if (filteredLogs.length === 0) {
+      return toast.error('No logs available to export.');
+    }
+    
+    const headers = ['Timestamp', 'Action', 'Operator', 'IP Address', 'Details', 'User Agent'];
+    const rows = filteredLogs.map(log => [
+      new Date(log.created_at).toISOString(),
+      log.action,
+      log.operatorName,
+      log.ip_address || 'System',
+      JSON.stringify(log.details || {}).replace(/"/g, '""'),
+      (log.user_agent || '').replace(/"/g, '""')
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + [headers.join(','), ...rows.map(e => e.map(val => `"${val}"`).join(','))].join('\n');
+       
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `security_audit_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Audit log CSV exported successfully!');
+  };
 
   const filteredLogs = logs.filter(log => {
     const matchesSearch = 
@@ -36,9 +76,7 @@ export const AdminAuditPage = () => {
       (log.action || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       JSON.stringify(log.details || {}).toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesAction = actionFilter === 'All' || log.action === actionFilter;
-
-    return matchesSearch && matchesAction;
+    return matchesSearch;
   });
 
   const getActionBadgeColor = (action) => {
@@ -68,17 +106,23 @@ export const AdminAuditPage = () => {
             Real-time security log registry of access controls, configuration changes, and session lifecycles.
           </p>
         </div>
+        <button
+          onClick={handleExportCSV}
+          className="btn-premium px-5 py-3 text-xs uppercase tracking-widest font-bold shrink-0 cursor-pointer rounded-xl bg-primary text-white border border-primary/20 hover:bg-primary/95 transition-all shadow-lg"
+        >
+          Export CSV Log
+        </button>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-background/20 backdrop-blur-md p-4 rounded-2xl border border-white/5">
-        <div className="md:col-span-2 relative">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-background/20 backdrop-blur-md p-4 rounded-2xl border border-white/5">
+        <div className="relative">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by IP, operator, details, action..."
+            placeholder="Search operator, IP, details..."
             className="w-full bg-[#0d1324]/60 border border-white/5 rounded-xl py-3 pl-10 pr-4 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-primary/50 transition-colors font-medium"
           />
         </div>
@@ -87,14 +131,34 @@ export const AdminAuditPage = () => {
           <select
             value={actionFilter}
             onChange={(e) => setActionFilter(e.target.value)}
-            className="w-full bg-[#0d1324]/60 border border-white/5 rounded-xl py-3 px-4 text-xs text-slate-300 focus:outline-none focus:border-primary/50 transition-colors font-bold uppercase tracking-wider cursor-pointer"
+            className="w-full bg-[#0d1324]/60 border border-white/5 rounded-xl py-3 px-4 text-xs text-slate-300 focus:outline-none focus:border-primary/50 transition-colors font-bold uppercase tracking-wider cursor-pointer h-[42px]"
           >
-            {uniqueActions.map(act => (
+            {availableActions.map(act => (
               <option key={act} value={act}>
                 {act === 'All' ? 'All Operations' : act.replace(/_/g, ' ')}
               </option>
             ))}
           </select>
+        </div>
+
+        <div className="relative">
+          <Calendar size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="w-full bg-[#0d1324]/60 border border-white/5 rounded-xl py-3 pl-10 pr-4 text-xs text-slate-300 focus:outline-none focus:border-primary/50 transition-colors font-medium h-[42px]"
+          />
+        </div>
+
+        <div className="relative">
+          <Calendar size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="w-full bg-[#0d1324]/60 border border-white/5 rounded-xl py-3 pl-10 pr-4 text-xs text-slate-300 focus:outline-none focus:border-primary/50 transition-colors font-medium h-[42px]"
+          />
         </div>
       </div>
 

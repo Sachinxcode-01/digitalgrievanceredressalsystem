@@ -82,24 +82,23 @@ const authenticateToken = async (req, res, next) => {
         if (!dbUser) {
           // Sync on demand (auto-register)
           const clerkUser = await clerkClient.users.getUser(userId);
-          const role = clerkUser.unsafeMetadata?.role || 'student';
+          const role = clerkUser.publicMetadata?.role || 'student';
           const name = clerkUser.unsafeMetadata?.fullName || fullName;
-          const mobile = clerkUser.unsafeMetadata?.mobileNumber || clerkUser.phoneNumbers[0]?.phoneNumber || null;
 
           dbUser = await userRepository.create({
             email,
-            mobile_number: mobile,
+            mobile_number: null,
             password_hash: 'clerk-managed',
             role: role,
             status: 'active',
             email_verified: true,
-            phone_verified: !!clerkUser.phoneNumbers[0] || !!clerkUser.unsafeMetadata?.mobileNumber
+            phone_verified: false
           });
 
           await userRepository.createProfile({
             user_id: dbUser.id,
             full_name: name,
-            notification_preferences: { email: true, sms: true }
+            notification_preferences: { email: true, sms: false }
           });
 
           // Refetch
@@ -112,6 +111,25 @@ const authenticateToken = async (req, res, next) => {
 
         if (dbUser.status === 'locked') {
           return res.status(403).json({ error: 'This account has been locked. Please contact support.' });
+        }
+
+        // Mandatory Clerk MFA for Admins/Super Admins
+        const isMfaMandatory = dbUser.role === 'admin' || dbUser.role === 'super admin';
+        if (isMfaMandatory) {
+          try {
+            const clerkUser = await clerkClient.users.getUser(userId);
+            if (!clerkUser.twoFactorEnabled) {
+              const isTestEmail = process.env.NODE_ENV === 'test';
+              if (!isTestEmail) {
+                return res.status(403).json({ 
+                  error: 'Multi-Factor Authentication (MFA) is mandatory for administrators. Please enable MFA in Settings.',
+                  mfa_required: true 
+                });
+              }
+            }
+          } catch (err) {
+            console.error('Clerk MFA verification error:', err.message);
+          }
         }
 
         req.user = {

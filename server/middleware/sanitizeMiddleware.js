@@ -10,12 +10,24 @@ const sanitizeString = (str, keepHtmlTags = false) => {
   // 1. Strip <script>...</script> tags entirely
   let cleaned = str.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
 
-  // 2. Strip standard HTML/XML tags
   if (!keepHtmlTags) {
+    // 2. Strip standard HTML/XML tags
     cleaned = cleaned.replace(/<\/?[^>]+(>|$)/g, '');
+    
+    // 3. Escape HTML special characters
+    cleaned = cleaned
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  } else {
+    // 4. If keeping tags (email templates), strip event handlers and javascript: schemes
+    cleaned = cleaned
+      .replace(/on\w+\s*=\s*(['"])(.*?)\1/gi, '')
+      .replace(/javascript\s*:/gi, 'no-javascript:');
   }
 
-  // 3. Trim extra whitespace
   return cleaned.trim();
 };
 

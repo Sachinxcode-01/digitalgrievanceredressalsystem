@@ -7,14 +7,16 @@ const {
   updateGrievanceStatus,
   assignGrievance,
   escalateGrievance,
-  getGrievanceTimeline
+  getGrievanceTimeline,
+  submitFeedback
 } = require('../controllers/grievanceController');
 const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
 const { 
   validateCreateGrievance, 
   validateUpdateGrievanceStatus, 
   validateAssignGrievance, 
-  validateEscalateGrievance 
+  validateEscalateGrievance,
+  validateFeedback
 } = require('../validators/grievanceValidator');
 
 router.use(authenticateToken);
@@ -46,5 +48,9 @@ router.put('/:id/escalate', validateEscalateGrievance, escalateGrievance);
 // @route   GET /api/v1/grievances/:id/timeline
 // @desc    Fetch timeline log for a grievance
 router.get('/:id/timeline', getGrievanceTimeline);
+
+// @route   POST /api/v1/grievances/:id/feedback
+// @desc    Submit user satisfaction feedback rating and close ticket
+router.post('/:id/feedback', validateFeedback, submitFeedback);
 
 module.exports = router;

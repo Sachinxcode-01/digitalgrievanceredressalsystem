@@ -8,7 +8,8 @@ const notificationRepository = require('../repositories/notificationRepository')
 class NotificationQueue {
   constructor() {
     this.queue = [];
-    this.isProcessing = false;
+    this.activeWorkers = 0;
+    this.maxConcurrency = 10;
   }
 
   /**
@@ -50,101 +51,110 @@ class NotificationQueue {
   }
 
   /**
-   * Process the next job in the queue sequence.
+   * Process jobs in the queue concurrently up to the concurrency limit.
    */
   async processQueue() {
-    if (this.isProcessing || this.queue.length === 0) return;
-    this.isProcessing = true;
+    if (this.queue.length === 0) return;
+    if (this.activeWorkers >= this.maxConcurrency) return;
 
-    while (this.queue.length > 0) {
+    while (this.queue.length > 0 && this.activeWorkers < this.maxConcurrency) {
       const job = this.queue.shift();
-      try {
-        job.attempt++;
+      this.activeWorkers++;
+      this.processJob(job).finally(() => {
+        this.activeWorkers--;
+        this.processQueue();
+      });
+    }
+  }
 
-        // 1. Log or update status in Supabase table
-        if (job.type === 'EMAIL') {
-          if (!job.dbLogId) {
-            try {
-              const data = await notificationRepository.insertEmailLog({
-                recipient: job.payload.to || 'unknown',
-                subject: job.payload.subject || 'No Subject',
-                event_type: job.payload.type || 'UNKNOWN',
-                status: 'pending',
-                attempts: job.attempt,
-                max_attempts: job.maxRetries
-              });
-              
-              if (data) {
-                job.dbLogId = data.id;
-              }
-            } catch (err) {
-              console.error('[Notification Queue] Failed to write database log:', err.message);
+  /**
+   * Processes an individual job.
+   */
+  async processJob(job) {
+    try {
+      job.attempt++;
+
+      // 1. Log or update status in Supabase table
+      if (job.type === 'EMAIL') {
+        if (!job.dbLogId) {
+          try {
+            const data = await notificationRepository.insertEmailLog({
+              recipient: job.payload.to || 'unknown',
+              subject: job.payload.subject || 'No Subject',
+              event_type: job.payload.type || 'UNKNOWN',
+              status: 'pending',
+              attempts: job.attempt,
+              max_attempts: job.maxRetries
+            });
+            
+            if (data) {
+              job.dbLogId = data.id;
             }
-          } else {
-            // Update attempt count in log
-            try {
-              await notificationRepository.updateEmailLog(job.dbLogId, { 
-                attempts: job.attempt, 
-                status: 'pending',
-                updated_at: new Date().toISOString() 
-              });
-            } catch (err) {
-              console.error('[Notification Queue] Failed to update job attempt count:', err.message);
-            }
+          } catch (err) {
+            console.error('[Notification Queue] Failed to write database log:', err.message);
           }
-        }
-
-        console.log(`[Notification Queue] Executing Job ${job.id} (Attempt ${job.attempt}/${job.maxRetries})`);
-        
-        // Execute the dispatch task
-        await job.taskFn();
-        
-        // 2. Mark enqueued log as sent
-        if (job.dbLogId) {
+        } else {
+          // Update attempt count in log
           try {
             await notificationRepository.updateEmailLog(job.dbLogId, { 
-              status: 'sent', 
+              attempts: job.attempt, 
+              status: 'pending',
               updated_at: new Date().toISOString() 
             });
           } catch (err) {
-            console.error('[Notification Queue] Failed to mark job as sent:', err.message);
+            console.error('[Notification Queue] Failed to update job attempt count:', err.message);
           }
-        }
-        
-        console.log(`[Notification Queue] Job ${job.id} dispatched successfully.`);
-      } catch (err) {
-        console.error(`[Notification Queue] Job ${job.id} failed: ${err.message}`);
-        
-        const isPermanentFailure = job.attempt >= job.maxRetries;
-
-        // 3. Mark enqueued log as failed or retrying
-        if (job.dbLogId) {
-          try {
-            await notificationRepository.updateEmailLog(job.dbLogId, { 
-              status: isPermanentFailure ? 'failed' : 'retrying', 
-              error_message: err.message,
-              updated_at: new Date().toISOString() 
-            });
-          } catch (dbErr) {
-            console.error('[Notification Queue] Failed to log failure status:', dbErr.message);
-          }
-        }
-
-        if (!isPermanentFailure) {
-          // Calculate exponential backoff delay: baseDelay * 2^(attempt - 1)
-          const backoffDelay = job.baseDelayMs * Math.pow(2, job.attempt - 1);
-          console.warn(`[Notification Queue] Scheduling retry for Job ${job.id} in ${backoffDelay / 1000} seconds.`);
-          
-          setTimeout(() => {
-            this.enqueueWithId(job);
-          }, backoffDelay);
-        } else {
-          console.error(`[Notification Queue] CRITICAL: Job ${job.id} exceeded maximum retries. Discarding job.`, job.payload);
         }
       }
-    }
 
-    this.isProcessing = false;
+      console.log(`[Notification Queue] Executing Job ${job.id} (Attempt ${job.attempt}/${job.maxRetries})`);
+      
+      // Execute the dispatch task
+      await job.taskFn();
+      
+      // 2. Mark enqueued log as sent
+      if (job.dbLogId) {
+        try {
+          await notificationRepository.updateEmailLog(job.dbLogId, { 
+            status: 'sent', 
+            updated_at: new Date().toISOString() 
+          });
+        } catch (err) {
+          console.error('[Notification Queue] Failed to mark job as sent:', err.message);
+        }
+      }
+      
+      console.log(`[Notification Queue] Job ${job.id} dispatched successfully.`);
+    } catch (err) {
+      console.error(`[Notification Queue] Job ${job.id} failed: ${err.message}`);
+      
+      const isPermanentFailure = job.attempt >= job.maxRetries;
+
+      // 3. Mark enqueued log as failed or retrying
+      if (job.dbLogId) {
+        try {
+          await notificationRepository.updateEmailLog(job.dbLogId, { 
+            status: isPermanentFailure ? 'failed' : 'retrying', 
+            error_message: err.message,
+            updated_at: new Date().toISOString() 
+          });
+        } catch (dbErr) {
+          console.error('[Notification Queue] Failed to log failure status:', dbErr.message);
+        }
+      }
+
+      if (!isPermanentFailure) {
+        // Calculate exponential backoff delay: baseDelay * 2^(attempt - 1)
+        const backoffDelay = job.baseDelayMs * Math.pow(2, job.attempt - 1);
+        console.warn(`[Notification Queue] Scheduling retry for Job ${job.id} in ${backoffDelay / 1000} seconds.`);
+        
+        setTimeout(() => {
+          this.enqueueWithId(job);
+        }, backoffDelay);
+      } else {
+        console.error(`[Notification Queue] CRITICAL: Job ${job.id} exceeded maximum retries. Discarding job.`, job.payload);
+      }
+    }
   }
 }
 

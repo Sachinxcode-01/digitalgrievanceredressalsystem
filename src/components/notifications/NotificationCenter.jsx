@@ -4,10 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
 import { supabase } from '../../lib/supabase';
+import { apiClient } from '../../api/apiClient';
 
 export const NotificationCenter = ({ user }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [hasUnread, setHasUnread] = useState(false);
   const [notifications, setNotifications] = useState(() => {
     try {
       const cached = localStorage.getItem('nexus_alerts');
@@ -16,6 +16,8 @@ export const NotificationCenter = ({ user }) => {
       return [];
     }
   });
+
+  const hasUnread = notifications.some(n => !n.read);
 
   // Persist alerts to cache
   useEffect(() => {
@@ -26,6 +28,37 @@ export const NotificationCenter = ({ user }) => {
     }
   }, [notifications]);
 
+  const fetchDbNotifications = async () => {
+    try {
+      const res = await apiClient.get('/user/notifications');
+      const mapped = (res.data || []).map(n => ({
+        id: n.id,
+        title: n.title,
+        message: n.message,
+        type: n.type,
+        time: new Date(n.created_at),
+        read: n.is_read
+      }));
+      setNotifications(mapped);
+    } catch (err) {
+      console.error('Failed to fetch notifications:', err.message);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.id) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      fetchDbNotifications();
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (isOpen && user?.id) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      fetchDbNotifications();
+    }
+  }, [isOpen, user?.id]);
+
   useEffect(() => {
     // 1. Listen for local custom notification events (legacy fallback support)
     const handleNotification = (e) => {
@@ -35,8 +68,7 @@ export const NotificationCenter = ({ user }) => {
         read: false,
         ...e.detail
       };
-      setNotifications(prev => [newNotif, ...prev].slice(0, 10));
-      setHasUnread(true);
+      setNotifications(prev => [newNotif, ...prev].slice(0, 50));
     };
     window.addEventListener('app-notification', handleNotification);
 
@@ -47,143 +79,56 @@ export const NotificationCenter = ({ user }) => {
       };
     }
 
-    const isAdmin = user.role === 'admin' || user.role === 'super admin';
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    const isUuid = uuidRegex.test(user.id);
-
-    const activeChannels = [];
-
-    if (isAdmin) {
-      // Admin subscriptions
-      // A. Listen for ALL new grievances
-      const adminGrievanceChan = supabase
-        .channel('admin-notif-grievances')
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'grievances' },
-          (payload) => {
-            const newNotif = {
-              id: Date.now() + Math.random(),
-              title: 'Grievance Submission',
-              message: `New ticket ${payload.new.ticket_id} filed under ${payload.new.category}.`,
-              type: 'info',
-              time: new Date(),
-              read: false
-            };
-            setNotifications(prev => [newNotif, ...prev].slice(0, 10));
-            setHasUnread(true);
-            toast(`New Grievance: ${payload.new.ticket_id}`, { icon: '📝' });
-          }
-        )
-        .subscribe();
-      activeChannels.push(adminGrievanceChan);
-
-      // B. Listen for system security alerts
-      const adminSystemAlertsChan = supabase
-        .channel('admin-notif-alerts')
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'system_alerts' },
-          (payload) => {
-            const newNotif = {
-              id: Date.now() + Math.random(),
-              title: 'Kernel Alert',
-              message: payload.new.message,
-              type: payload.new.priority === 'high' ? 'error' : 'warning',
-              time: new Date(),
-              read: false
-            };
-            setNotifications(prev => [newNotif, ...prev].slice(0, 10));
-            setHasUnread(true);
-            if (payload.new.priority === 'high') {
-              toast.error(`CRITICAL: ${payload.new.message}`, { duration: 6000 });
-            } else {
-              toast.warn(`System Alert: ${payload.new.message}`);
-            }
-          }
-        )
-        .subscribe();
-      activeChannels.push(adminSystemAlertsChan);
-
-    } else {
-      // Citizen subscriptions
-      // A. Listen for status changes on OWN grievances
-      if (isUuid) {
-        const citizenGrievanceChan = supabase
-          .channel('citizen-notif-grievances')
-          .on(
-            'postgres_changes',
-            { 
-              event: 'UPDATE', 
-              schema: 'public', 
-              table: 'grievances',
-              filter: `user_id=eq.${user.id}`
-            },
-            (payload) => {
-              if (payload.old.status !== payload.new.status) {
-                const newNotif = {
-                  id: Date.now() + Math.random(),
-                  title: 'Status Modified',
-                  message: `Ticket ${payload.new.ticket_id} updated from ${payload.old.status} to ${payload.new.status}.`,
-                  type: 'success',
-                  time: new Date(),
-                  read: false
-                };
-                setNotifications(prev => [newNotif, ...prev].slice(0, 10));
-                setHasUnread(true);
-                toast.success(`Ticket ${payload.new.ticket_id} updated: ${payload.new.status}`);
-              }
-            }
-          )
-          .subscribe();
-        activeChannels.push(citizenGrievanceChan);
-      }
-
-      // B. Listen for comments on OWN grievances
-      const citizenCommentsChan = supabase
-        .channel('citizen-notif-comments')
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'ticket_comments' },
-          async (payload) => {
-            // Verify if comment is written by someone else and belongs to current user's ticket
-            if (payload.new.user_id !== user.id) {
-              const { data: ticket } = await supabase
-                .from('grievances')
-                .select('ticket_id, user_id')
-                .eq('id', payload.new.grievance_id)
-                .limit(1)
-                .maybeSingle();
-              
-              if (ticket && ticket.user_id === user.id) {
-                const newNotif = {
-                  id: Date.now() + Math.random(),
-                  title: 'Official Clarification',
-                  message: `New comment posted on ticket ${ticket.ticket_id}.`,
-                  type: 'info',
-                  time: new Date(),
-                  read: false
-                };
-                setNotifications(prev => [newNotif, ...prev].slice(0, 10));
-                setHasUnread(true);
-                toast(`New update on ticket ${ticket.ticket_id}`, { icon: '💬' });
-              }
-            }
-          }
-        )
-        .subscribe();
-      activeChannels.push(citizenCommentsChan);
-    }
+    const notifChan = supabase
+      .channel(`user-notifications-${user.id}`)
+      .on(
+        'postgres_changes',
+        { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'in_app_notifications', 
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          const newNotif = {
+            id: payload.new.id,
+            title: payload.new.title,
+            message: payload.new.message,
+            type: payload.new.type,
+            time: new Date(payload.new.created_at),
+            read: payload.new.is_read
+          };
+          setNotifications(prev => {
+            if (prev.some(p => p.id === newNotif.id)) return prev;
+            return [newNotif, ...prev].slice(0, 50);
+          });
+          toast(payload.new.title, { icon: '🔔' });
+        }
+      )
+      .subscribe();
 
     return () => {
       window.removeEventListener('app-notification', handleNotification);
-      activeChannels.forEach(chan => supabase.removeChannel(chan));
+      supabase.removeChannel(notifChan);
     };
-  }, [user?.id, user?.role]);
+  }, [user?.id]);
 
-  const markAllRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    setHasUnread(false);
+  const markAllRead = async () => {
+    try {
+      await apiClient.put('/user/notifications/read-all');
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch (err) {
+      console.error('Failed to mark all read:', err.message);
+    }
+  };
+
+  const handleMarkAsRead = async (id) => {
+    try {
+      await apiClient.put(`/user/notifications/${id}/read`);
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    } catch (err) {
+      console.error('Failed to mark notification read:', err.message);
+    }
   };
 
   const getIcon = (type) => {
@@ -198,7 +143,7 @@ export const NotificationCenter = ({ user }) => {
   return (
     <div className="relative">
       <button 
-        onClick={() => { setIsOpen(!isOpen); setHasUnread(false); }}
+        onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 rounded-xl bg-background border border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
         aria-label="Notifications"
       >
@@ -239,7 +184,11 @@ export const NotificationCenter = ({ user }) => {
                 ) : (
                   <div className="divide-y divide-border/50">
                     {notifications.map((n) => (
-                      <div key={n.id} className={`p-4 hover:bg-muted/40 transition-colors cursor-default ${n.read ? 'opacity-50' : ''}`}>
+                      <div 
+                        key={n.id} 
+                        onClick={() => !n.read && handleMarkAsRead(n.id)}
+                        className={`p-4 hover:bg-muted/40 transition-colors ${n.read ? 'opacity-50 cursor-default' : 'cursor-pointer bg-primary/5'}`}
+                      >
                         <div className="flex gap-3">
                           <div className="mt-0.5 shrink-0">{getIcon(n.type)}</div>
                           <div className="space-y-1 text-left">

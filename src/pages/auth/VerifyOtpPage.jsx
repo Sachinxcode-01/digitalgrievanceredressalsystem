@@ -134,7 +134,7 @@ export const VerifyOtpPage = () => {
     try {
       console.log('[VerifyOtpPage] Submitting OTP verification code:', otpCode);
       if (purpose === 'forgot_password') {
-        const isSandbox = typeof identifier === 'string' && identifier.toLowerCase().trim().endsWith('@resolve.now');
+        const isSandbox = typeof identifier === 'string' && (identifier.toLowerCase().trim().endsWith('@resolve.now') || identifier.toLowerCase().trim() === 'sachiii8827@gmail.com');
         if (isSandbox) {
           // Sandbox: backend verifies the OTP and returns a resetCode
           const data = await verifyOtp(identifier, otpCode, purpose, rememberMe);

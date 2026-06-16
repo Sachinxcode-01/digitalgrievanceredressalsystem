@@ -403,6 +403,16 @@ const runBackup = async (req, res, next) => {
   }
 };
 
+const checkSlaBreachesRoute = async (req, res, next) => {
+  const grievanceService = require('../services/grievanceService');
+  try {
+    const result = await grievanceService.checkSLABreaches(req.ip, req.headers['user-agent']);
+    res.json({ message: 'SLA breach check completed successfully.', escalatedCount: result.count });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getSettings,
   updateSettings,
@@ -425,5 +435,6 @@ module.exports = {
   getSmsTemplates,
   updateSmsTemplate,
   clearCache,
-  runBackup
+  runBackup,
+  checkSlaBreachesRoute
 };

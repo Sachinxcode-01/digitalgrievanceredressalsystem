@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 export const CommandChat = ({ grievanceId, currentUser, role = 'user' }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [isInternal, setIsInternal] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [typingUsers, setTypingUsers] = useState([]);
@@ -141,7 +142,8 @@ export const CommandChat = ({ grievanceId, currentUser, role = 'user' }) => {
         { 
           grievance_id: grievanceId,
           user_id: currentUser.id,
-          message: newMessage.trim()
+          message: newMessage.trim(),
+          is_internal: role === 'admin' ? isInternal : false
         }
       ]);
 
@@ -149,6 +151,7 @@ export const CommandChat = ({ grievanceId, currentUser, role = 'user' }) => {
       toast.error("Failed to transmit message.");
     } else {
       setNewMessage('');
+      setIsInternal(false);
       stopTyping();
     }
     setIsSending(false);
@@ -219,6 +222,11 @@ export const CommandChat = ({ grievanceId, currentUser, role = 'user' }) => {
                   <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
                     {msg.profiles?.full_name || 'System User'}
                   </span>
+                  {msg.is_internal && (
+                    <span className="text-[8px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded font-black uppercase tracking-wider">
+                      Internal Note
+                    </span>
+                  )}
                   <span className="text-[9px] font-mono text-slate-600">
                     {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
                   </span>
@@ -226,10 +234,14 @@ export const CommandChat = ({ grievanceId, currentUser, role = 'user' }) => {
                 
                 <div className={`p-4 rounded-2xl text-sm leading-relaxed ${
                   isMe 
-                    ? 'bg-primary text-white rounded-tr-sm' 
-                    : isAdmin 
-                      ? 'bg-primary/10 border border-primary/20 text-slate-200 rounded-tl-sm'
-                      : 'bg-white/5 border border-white/10 text-slate-300 rounded-tl-sm'
+                    ? msg.is_internal
+                      ? 'bg-amber-600/70 border border-amber-500/30 text-white rounded-tr-sm'
+                      : 'bg-primary text-white rounded-tr-sm' 
+                    : msg.is_internal
+                      ? 'bg-amber-500/10 border border-amber-500/20 text-amber-200 rounded-tl-sm'
+                      : isAdmin 
+                        ? 'bg-primary/10 border border-primary/20 text-slate-200 rounded-tl-sm'
+                        : 'bg-white/5 border border-white/10 text-slate-300 rounded-tl-sm'
                 }`}>
                   {msg.message}
                 </div>
@@ -260,6 +272,20 @@ export const CommandChat = ({ grievanceId, currentUser, role = 'user' }) => {
 
       {/* Input Area */}
       <div className="p-4 bg-black/40 border-t border-white/10">
+        {role === 'admin' && (
+          <div className="flex items-center gap-2 mb-2 px-1 text-left">
+            <input
+              type="checkbox"
+              id="isInternalNote"
+              checked={isInternal}
+              onChange={(e) => setIsInternal(e.target.checked)}
+              className="rounded border-white/10 bg-[#1a1f2e] text-amber-500 focus:ring-amber-500 cursor-pointer"
+            />
+            <label htmlFor="isInternalNote" className="text-[10px] text-amber-500 font-bold uppercase tracking-wider cursor-pointer select-none flex items-center gap-1">
+              <Shield size={10} /> Internal Note (Officers only)
+            </label>
+          </div>
+        )}
         <form onSubmit={handleSend} className="relative flex items-center gap-3">
           <button 
             type="button"

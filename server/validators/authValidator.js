@@ -12,9 +12,6 @@ const validateRegister = [
   body('email')
     .isEmail().withMessage('A valid email address is required')
     .normalizeEmail(),
-  body('mobileNumber')
-    .optional({ checkFalsy: true })
-    .matches(/^\+?[1-9]\d{1,14}$/).withMessage('A valid E.164 phone number is required'),
   body('password')
     .isLength({ min: 8 }).withMessage('Password must be at least 8 characters long')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/)
@@ -30,12 +27,8 @@ const validateRegister = [
  */
 const validateLogin = [
   body('email')
-    .optional()
     .isEmail().withMessage('A valid email address is required')
     .normalizeEmail(),
-  body('phone')
-    .optional()
-    .matches(/^\+?[1-9]\d{1,14}$/).withMessage('A valid E.164 phone number is required'),
   body('loginType')
     .optional()
     .isIn(['password', 'otp']).withMessage('Invalid login type'),
@@ -46,12 +39,6 @@ const validateLogin = [
       }
       return true;
     }),
-  body().custom(body => {
-    if (!body.email && !body.phone) {
-      throw new Error('Either email or phone must be provided to sign in');
-    }
-    return true;
-  }),
   validate
 ];
 
@@ -60,47 +47,27 @@ const validateLogin = [
  */
 const validateVerifyOtp = [
   body('email')
-    .optional()
     .isEmail().withMessage('A valid email address is required')
     .normalizeEmail(),
-  body('phone')
-    .optional()
-    .matches(/^\+?[1-9]\d{1,14}$/).withMessage('A valid E.164 phone number is required'),
   body('otp')
     .isLength({ min: 6, max: 6 }).withMessage('OTP must be exactly 6 digits')
     .isNumeric().withMessage('OTP must contain only numbers'),
   body('purpose')
     .optional()
     .isIn(['registration', 'login', 'forgot_password']).withMessage('Invalid OTP purpose'),
-  body().custom(body => {
-    if (!body.email && !body.phone) {
-      throw new Error('Either email or phone must be provided');
-    }
-    return true;
-  }),
   validate
 ];
 
 /**
- * Validation rules for requesting OTP/Forgot Password
+ * Validation rules for requesting OTP
  */
 const validateOtpRequest = [
   body('email')
-    .optional()
     .isEmail().withMessage('A valid email address is required')
     .normalizeEmail(),
-  body('phone')
-    .optional()
-    .matches(/^\+?[1-9]\d{1,14}$/).withMessage('A valid E.164 phone number is required'),
   body('purpose')
     .optional()
     .isIn(['registration', 'login', 'forgot_password']).withMessage('Invalid OTP purpose'),
-  body().custom(body => {
-    if (!body.email && !body.phone) {
-      throw new Error('Either email or phone must be provided');
-    }
-    return true;
-  }),
   validate
 ];
 

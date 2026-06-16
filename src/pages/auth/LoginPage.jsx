@@ -51,7 +51,7 @@ export const LoginPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!identifier.trim()) {
-      return toast.error('Email or mobile number is required.');
+      return toast.error('Email address is required.');
     }
     if (loginType === 'password' && !password) {
       return toast.error('Password is required.');
@@ -172,14 +172,14 @@ export const LoginPage = () => {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Email or Mobile Number</label>
+                <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Email Address</label>
                 <div className="relative group">
                   <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                   <input
-                    type="text"
+                    type="email"
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
-                    placeholder="name@institution.edu or +91..."
+                    placeholder="name@institution.edu"
                     className="glass-input w-full pl-10"
                     required
                   />

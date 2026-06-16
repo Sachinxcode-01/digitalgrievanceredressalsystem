@@ -19,10 +19,99 @@ import { PlacePicker } from '@googlemaps/extended-component-library/react';
 import { CommandChat } from '../../components/ai/CommandChat';
 import { useRealtimeConnection } from '../../hooks/useRealtimeConnection';
 
+const SLACountdown = ({ ticket }) => {
+  const isTerminal = !ticket || ticket.status === 'Resolved' || ticket.status === 'Closed' || ticket.status === 'Rejected';
+
+  const [timeLeft, setTimeLeft] = useState('');
+  const [isBreached, setIsBreached] = useState(false);
+
+  useEffect(() => {
+    if (isTerminal) {
+      return;
+    }
+
+    const calculateTime = () => {
+      const dueAt = ticket.sla_due_at ? new Date(ticket.sla_due_at) : null;
+      if (!dueAt) {
+        const urgency = ticket.urgency || 'Medium';
+        const hours = urgency === 'High' ? 24 : urgency === 'Medium' ? 72 : 120;
+        const created = new Date(ticket.created_at);
+        const deadline = new Date(created.getTime() + hours * 60 * 60 * 1000);
+        return deadline - new Date();
+      }
+      return dueAt - new Date();
+    };
+
+    const updateClock = () => {
+      const diff = calculateTime();
+      if (diff <= 0) {
+        setTimeLeft('SLA Overdue');
+        setIsBreached(true);
+      } else {
+        const hrs = Math.floor(diff / (1000 * 60 * 60));
+        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const secs = Math.floor((diff % (1000 * 60)) / 1000);
+        setTimeLeft(`${hrs}h ${mins}m ${secs}s remaining`);
+        setIsBreached(false);
+      }
+    };
+
+    updateClock();
+    const interval = setInterval(updateClock, 1000);
+
+    return () => clearInterval(interval);
+  }, [ticket?.id, ticket?.status, isTerminal]);
+
+  const displayTime = isTerminal ? (ticket?.status || 'Closed') : timeLeft;
+  const displayBreached = isTerminal ? false : isBreached;
+
+  return (
+    <span className={`px-2 py-0.5 border rounded-md font-mono text-[9px] font-bold uppercase tracking-wider ${
+      displayBreached 
+        ? 'text-error border-error/20 bg-error/5 animate-pulse' 
+        : 'text-success border-success/20 bg-success/5'
+    }`}>
+      {displayTime}
+    </span>
+  );
+};
+
 export const UserDashboard = ({ sessionUser, userProfile }) => {
   const [showModal, setShowModal] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  const [feedbackRating, setFeedbackRating] = useState(0);
+  const [feedbackComments, setFeedbackComments] = useState('');
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+
+  const getProfileCompletion = () => {
+    let fields = [
+      sessionUser?.fullName || userProfile?.fullName,
+      sessionUser?.email || userProfile?.email,
+      userProfile?.mobile_number || sessionUser?.mobile_number,
+      userProfile?.department || sessionUser?.department,
+      userProfile?.institution || sessionUser?.institution,
+      userProfile?.profile_picture || sessionUser?.profile_picture
+    ];
+    let filled = fields.filter(Boolean).length;
+    return Math.round((filled / fields.length) * 100);
+  };
+
+  async function fetchNotifications() {
+    try {
+      const isDemoUser = sessionUser?.id?.startsWith('demo-');
+      if (isDemoUser) return;
+      const res = await apiClient.get('/user/notifications');
+      setNotifications(res.data || []);
+    } catch (err) {
+      console.error('Failed to retrieve unread alerts:', err.message);
+    }
+  }
+
   const { connectionState, isSystemHealthy } = useRealtimeConnection(() => {
     fetchTickets();
+    fetchNotifications();
   });
 
   // Check URL query parameters
@@ -230,7 +319,7 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
     }
   };
 
-  const fetchTickets = async () => {
+  async function fetchTickets() {
     setLoading(true);
     try {
       const isDemoUser = sessionUser?.id?.startsWith('demo-');
@@ -243,10 +332,11 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   useEffect(() => {
     fetchTickets();
+    fetchNotifications();
 
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     const isUuid = uuidRegex.test(sessionUser?.id);
@@ -329,7 +419,29 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
 
   const handleSelectTicket = (ticket) => {
     setSelectedTicket(ticket);
+    setFeedbackRating(0);
+    setFeedbackComments('');
     fetchComments(ticket.id);
+  };
+
+  const handleSubmitFeedback = async () => {
+    if (!selectedTicket || feedbackRating === 0) return;
+    setIsSubmittingFeedback(true);
+    try {
+      await apiClient.post(`/grievances/${selectedTicket.id}/feedback`, {
+        rating: feedbackRating,
+        feedback_comments: feedbackComments
+      });
+      toast.success('Thank you! Your feedback has been registered and the ticket is now closed.');
+      setFeedbackRating(0);
+      setFeedbackComments('');
+      fetchTickets();
+      setSelectedTicket(null);
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Failed to submit feedback.');
+    } finally {
+      setIsSubmittingFeedback(false);
+    }
   };
 
   const handleCreateGrievance = async (e) => {
@@ -378,15 +490,19 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
 
   // Stats KPIs
   const totalGrievances = tickets.length;
-  const pendingGrievances = tickets.filter(t => t.status === 'Pending').length;
+  const pendingGrievances = tickets.filter(t => t.status === 'Pending' || t.status === 'New' || t.status === 'Assigned').length;
   const progressGrievances = tickets.filter(t => t.status === 'In-Progress').length;
   const resolvedGrievances = tickets.filter(t => t.status === 'Resolved').length;
+  const closedGrievances = tickets.filter(t => t.status === 'Closed').length;
+  const rejectedGrievances = tickets.filter(t => t.status === 'Rejected').length;
 
   const stats = [
-    { label: 'Total Grievances', value: totalGrievances, color: 'border-l-primary-bright text-primary-bright' },
-    { label: 'Pending Action', value: pendingGrievances, color: 'border-l-warning text-warning' },
-    { label: 'In Progress', value: progressGrievances, color: 'border-l-secondary text-secondary' },
-    { label: 'Resolved Closed', value: resolvedGrievances, color: 'border-l-success text-success' },
+    { label: 'Total', value: totalGrievances, color: 'border-l-primary-bright text-primary-bright' },
+    { label: 'Open', value: pendingGrievances, color: 'border-l-indigo-400 text-indigo-400' },
+    { label: 'In Progress', value: progressGrievances, color: 'border-l-warning text-warning' },
+    { label: 'Resolved', value: resolvedGrievances, color: 'border-l-success text-success' },
+    { label: 'Closed', value: closedGrievances, color: 'border-l-cyan-400 text-cyan-400' },
+    { label: 'Rejected', value: rejectedGrievances, color: 'border-l-error text-error' },
   ];
 
   // Filters & Search logic
@@ -419,26 +535,90 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
       )}
 
       {/* Welcome Card */}
-      <div className="bg-surface border border-border/80 rounded-xl p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-sm">
-        <div className="space-y-1">
+      <div className="bg-surface border border-border/80 rounded-xl p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-sm relative">
+        <div className="space-y-1 flex-1">
           <h1 className="text-xl font-heading font-black text-foreground">
             Welcome back, {sessionUser?.fullName || 'User'}
           </h1>
           <p className="text-xs text-muted-foreground font-medium">
             Here is a summary of your grievance submissions. You have <span className="font-bold text-primary-bright">{pendingGrievances} pending</span> issues awaiting administrative triage.
           </p>
+          <div className="mt-4 pt-3 border-t border-border/40 w-full max-w-md">
+            <div className="flex justify-between items-center text-[9px] font-bold text-muted-foreground mb-1 uppercase tracking-wider">
+              <span>Profile Completion</span>
+              <span className="text-primary-bright">{getProfileCompletion()}%</span>
+            </div>
+            <div className="h-1.5 w-full bg-background border border-border rounded-full overflow-hidden">
+              <div className="h-full bg-primary-bright transition-all duration-500" style={{ width: `${getProfileCompletion()}%` }} />
+            </div>
+          </div>
         </div>
-        <button 
-          onClick={() => setShowModal(true)}
-          className="btn-premium flex items-center gap-2"
-        >
-          <Plus size={14} />
-          <span>New Grievance</span>
-        </button>
+        <div className="flex items-center gap-3 self-stretch md:self-auto justify-end">
+          <div className="relative">
+            <button 
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="p-2.5 bg-background border border-border hover:border-primary-bright/20 hover:bg-muted/40 text-muted-foreground hover:text-foreground rounded-xl transition-all cursor-pointer relative"
+              type="button"
+            >
+              <Bell size={16} />
+              {notifications.filter(n => !n.is_read).length > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-error rounded-full animate-pulse" />
+              )}
+            </button>
+            <AnimatePresence>
+              {showNotifications && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute right-0 mt-2 w-72 bg-surface border border-border rounded-xl shadow-xl z-50 p-4 space-y-3 text-left"
+                  >
+                    <h4 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground border-b border-border/40 pb-2">In-App Notifications</h4>
+                    <div className="max-h-60 overflow-y-auto space-y-2 custom-scrollbar">
+                      {notifications.length === 0 ? (
+                        <p className="text-[10px] text-muted-foreground italic text-center py-4">No unread notifications.</p>
+                      ) : (
+                        notifications.map(notif => (
+                          <div 
+                            key={notif.id} 
+                            onClick={async () => {
+                              try {
+                                await apiClient.put(`/user/notifications/${notif.id}/read`);
+                                setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n));
+                              } catch (err) {
+                                console.error(err);
+                              }
+                            }}
+                            className={`p-2 rounded-lg border text-left cursor-pointer transition-all ${notif.is_read ? 'bg-background/20 border-border/40 opacity-60' : 'bg-primary-bright/[0.02] border-primary-bright/10 hover:bg-primary-bright/[0.04]'}`}
+                          >
+                            <p className="text-[10px] font-bold text-foreground leading-snug">{notif.title}</p>
+                            <p className="text-[9px] text-muted-foreground mt-0.5 leading-snug">{notif.message}</p>
+                            <span className="text-[8px] text-muted-foreground/60 font-mono mt-1 block">
+                              {formatDistanceToNow(new Date(notif.created_at), { addSuffix: true })}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
+          <button 
+            onClick={() => setShowModal(true)}
+            className="btn-premium flex items-center gap-2 h-10 px-4"
+          >
+            <Plus size={14} />
+            <span>New Grievance</span>
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         {stats.map((stat, idx) => (
           <div 
             key={idx} 
@@ -737,11 +917,7 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
                     <span className="flex items-center gap-1">
                       <Clock size={10} /> Filed {formatDistanceToNow(new Date(selectedTicket.created_at), { addSuffix: true })}
                     </span>
-                    {getSLAStatus(selectedTicket) && (
-                      <span className={`px-2 py-0.5 border rounded-md font-bold uppercase ${getSLAStatus(selectedTicket).color}`}>
-                        {getSLAStatus(selectedTicket).label}
-                      </span>
-                    )}
+                    <SLACountdown ticket={selectedTicket} />
                   </div>
                 </div>
 
@@ -843,6 +1019,53 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
                     />
                   </div>
                 </div>
+
+                {selectedTicket.status === 'Resolved' && (
+                  <>
+                    <div className="h-px bg-border/50" />
+                    <div className="p-4 rounded-lg border border-success/20 bg-success/[0.01] space-y-4">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-success block">Share Your Redressal Feedback</span>
+                      <p className="text-[10px] text-muted-foreground leading-normal">
+                        This ticket is marked as Resolved. Please let us know if you are satisfied with the redressal quality. Submitting this feedback will close the ticket.
+                      </p>
+                      {/* Star Selector */}
+                      <div className="flex items-center gap-2">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            onClick={() => setFeedbackRating(star)}
+                            className={`p-1 transition-colors cursor-pointer ${
+                              feedbackRating >= star ? 'text-warning' : 'text-muted-foreground/30 hover:text-warning/60'
+                            }`}
+                          >
+                            <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
+                              <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                            </svg>
+                          </button>
+                        ))}
+                      </div>
+                      {/* Comments Box */}
+                      <div className="space-y-1">
+                        <textarea
+                          rows="2"
+                          value={feedbackComments}
+                          onChange={(e) => setFeedbackComments(e.target.value)}
+                          placeholder="Write a brief comment about your redressal experience (optional)..."
+                          className="glass-input w-full text-xs resize-none"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        disabled={isSubmittingFeedback || feedbackRating === 0}
+                        onClick={handleSubmitFeedback}
+                        className="w-full btn-premium py-2 text-xs font-semibold"
+                      >
+                        {isSubmittingFeedback ? 'Submitting Feedback...' : 'Submit & Close Ticket'}
+                      </button>
+                    </div>
+                  </>
+                )}
 
                 <div className="h-px bg-border/50" />
 

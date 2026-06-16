@@ -83,7 +83,27 @@ const escalateGrievance = async (req, res, next) => {
 const getGrievanceTimeline = async (req, res, next) => {
   try {
     const timeline = await grievanceService.getGrievanceTimeline(req.params.id, req.user);
-    res.json(timeline);
+    return res.json(timeline);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Handle user feedback and satisfaction rating submission.
+ */
+const submitFeedback = async (req, res, next) => {
+  const { rating, feedback_comments } = req.body;
+  try {
+    const updatedTicket = await grievanceService.submitFeedback(
+      req.params.id,
+      rating,
+      feedback_comments,
+      req.user,
+      req.ip,
+      req.headers['user-agent']
+    );
+    res.json(updatedTicket);
   } catch (err) {
     next(err);
   }
@@ -96,5 +116,6 @@ module.exports = {
   updateGrievanceStatus,
   assignGrievance,
   escalateGrievance,
-  getGrievanceTimeline
+  getGrievanceTimeline,
+  submitFeedback
 };

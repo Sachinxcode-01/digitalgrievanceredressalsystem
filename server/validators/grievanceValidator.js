@@ -14,7 +14,7 @@ const validateCreateGrievance = [
     .trim()
     .isLength({ min: 10, max: 5000 }).withMessage('Description must be between 10 and 5000 characters'),
   body('category')
-    .isIn(['Financial', 'Academic', 'Maintenance', 'IT Support']).withMessage('Invalid grievance category'),
+    .isIn(['Financial', 'Academic', 'Maintenance', 'IT Support', 'Public Infrastructure', 'Eco-Sustainability', 'Social Welfare']).withMessage('Invalid grievance category'),
   body('urgency')
     .isIn(['High', 'Medium', 'Low']).withMessage('Invalid urgency level'),
   body('email')
@@ -49,7 +49,7 @@ const validateCreateGrievance = [
  */
 const validateUpdateGrievanceStatus = [
   body('status')
-    .isIn(['New', 'Pending', 'Assigned', 'In Progress', 'Resolved', 'Closed']).withMessage('Invalid ticket status'),
+    .isIn(['Draft', 'Submitted', 'Under Review', 'Assigned', 'In Progress', 'Pending User Response', 'Escalated', 'Resolved', 'Closed', 'Reopened']).withMessage('Invalid ticket status'),
   body('resolution_notes')
     .optional()
     .trim()
@@ -96,10 +96,24 @@ const validateComment = [
   validate
 ];
 
+/**
+ * Validation rules for grievance feedback survey
+ */
+const validateFeedback = [
+  body('rating')
+    .isInt({ min: 1, max: 5 }).withMessage('Rating must be an integer between 1 and 5'),
+  body('feedback_comments')
+    .optional()
+    .trim()
+    .isLength({ max: 2000 }).withMessage('Feedback comments cannot exceed 2000 characters'),
+  validate
+];
+
 module.exports = {
   validateCreateGrievance,
   validateUpdateGrievanceStatus,
   validateAssignGrievance,
   validateEscalateGrievance,
-  validateComment
+  validateComment,
+  validateFeedback
 };

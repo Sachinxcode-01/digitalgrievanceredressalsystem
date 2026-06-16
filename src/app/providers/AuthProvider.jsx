@@ -46,7 +46,6 @@ export const AuthProvider = ({ children }) => {
             setUser({
               id: pData.account.id,
               email: pData.account.email,
-              mobileNumber: pData.account.mobile_number,
               role: pData.account.role,
               fullName: pData.profile.fullName
             });
@@ -111,22 +110,20 @@ export const AuthProvider = ({ children }) => {
   }, [signOut, isSignedIn]);
 
   // Auth Operations
-  const register = async (fullName, email, mobileNumber, password, role) => {
-    const isSandbox = typeof email === 'string' && email.toLowerCase().trim().endsWith('@resolve.now');
+  const register = async (fullName, email, password, role) => {
+    const isSandbox = typeof email === 'string' && (email.toLowerCase().trim().endsWith('@resolve.now') || email.toLowerCase().trim() === 'sachiii8827@gmail.com');
 
     if (isSandbox) {
       const payload = {
         fullName,
         email: email.toLowerCase().trim(),
-        mobileNumber,
         password,
         role
       };
       const response = await apiClient.post('/auth/register', payload);
       return {
         message: response.data.message || 'Registration successful. Please enter the OTP sent to verify your identity.',
-        email,
-        phone: mobileNumber
+        email
       };
     }
 
@@ -142,17 +139,7 @@ export const AuthProvider = ({ children }) => {
     const suffix = Math.random().toString(36).slice(2, 6); // 4 random alphanumeric chars
     const username = `${emailPrefix}_${suffix}`;
 
-    // Clerk requires phone_number in E.164 format (+CountryCodeNumber).
-    // Validate presence and basic format before calling Clerk's API.
-    const trimmedPhone = (mobileNumber || '').trim();
-    if (!trimmedPhone) {
-      throw new Error('Mobile number is required for account verification. Please enter your phone number in international format (e.g. +919876543210).');
-    }
-    if (!/^\+[1-9]\d{6,14}$/.test(trimmedPhone)) {
-      throw new Error('Invalid phone number format. Use international format starting with + (e.g. +919876543210).');
-    }
-
-    console.log('[Clerk] signUp.create() payload:', { firstName, lastName, username, emailAddress: email, phoneNumber: trimmedPhone });
+    console.log('[Clerk] signUp.create() payload:', { firstName, lastName, username, emailAddress: email });
 
     const res = await signUp.create({
       firstName,
@@ -160,11 +147,9 @@ export const AuthProvider = ({ children }) => {
       username,
       emailAddress: email,
       password: password,
-      phoneNumber: trimmedPhone,
       unsafeMetadata: {
         fullName,
-        role,
-        mobileNumber: trimmedPhone
+        role
       }
     });
 
@@ -179,13 +164,12 @@ export const AuthProvider = ({ children }) => {
 
     return {
       message: 'Registration successful. Please enter the OTP sent to verify your identity.',
-      email,
-      phone: trimmedPhone
+      email
     };
   };
 
   const login = async (identifier, password, loginType = 'password', rememberMe = false) => {
-    const isSandbox = typeof identifier === 'string' && identifier.toLowerCase().trim().endsWith('@resolve.now');
+    const isSandbox = typeof identifier === 'string' && (identifier.toLowerCase().trim().endsWith('@resolve.now') || identifier.toLowerCase().trim() === 'sachiii8827@gmail.com');
 
     if (isSandbox) {
       const payload = {
@@ -268,7 +252,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const verifyOtp = async (identifier, otp, purpose, rememberMe = false) => {
-    const isSandbox = typeof identifier === 'string' && identifier.toLowerCase().trim().endsWith('@resolve.now');
+    const isSandbox = typeof identifier === 'string' && (identifier.toLowerCase().trim().endsWith('@resolve.now') || identifier.toLowerCase().trim() === 'sachiii8827@gmail.com');
 
     if (isSandbox) {
       const payload = {
@@ -381,7 +365,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const resendOtp = async (identifier, purpose) => {
-    const isSandbox = typeof identifier === 'string' && identifier.toLowerCase().trim().endsWith('@resolve.now');
+    const isSandbox = typeof identifier === 'string' && (identifier.toLowerCase().trim().endsWith('@resolve.now') || identifier.toLowerCase().trim() === 'sachiii8827@gmail.com');
 
     if (isSandbox) {
       const payload = {
@@ -406,7 +390,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const forgotPassword = async (email) => {
-    const isSandbox = typeof email === 'string' && email.toLowerCase().trim().endsWith('@resolve.now');
+    const isSandbox = typeof email === 'string' && (email.toLowerCase().trim().endsWith('@resolve.now') || email.toLowerCase().trim() === 'sachiii8827@gmail.com');
 
     if (isSandbox) {
       const payload = { email: email.toLowerCase().trim() };
@@ -426,7 +410,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const resetPassword = async (email, password, resetCode) => {
-    const isSandbox = typeof email === 'string' && email.toLowerCase().trim().endsWith('@resolve.now');
+    const isSandbox = typeof email === 'string' && (email.toLowerCase().trim().endsWith('@resolve.now') || email.toLowerCase().trim() === 'sachiii8827@gmail.com');
 
     if (isSandbox) {
       const payload = {
@@ -479,11 +463,13 @@ export const AuthProvider = ({ children }) => {
     return res.data;
   };
 
-  const updateProfile = async (fullName, profilePicture, notificationPreferences) => {
+  const updateProfile = async (fullName, profilePicture, notificationPreferences, department, institution) => {
     const res = await apiClient.put('/user/profile', {
       fullName,
       profilePicture,
-      notificationPreferences
+      notificationPreferences,
+      department,
+      institution
     });
     if (res.data?.profile?.fullName) {
       setUser(prev => {

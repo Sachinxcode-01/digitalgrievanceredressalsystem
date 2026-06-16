@@ -14,6 +14,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { SecurityAudit } from '../../components/dashboard/SecurityAudit';
 import { supabase } from '../../lib/supabase';
 import { grievanceService, getAuthHeaders } from '../../services/grievanceService';
+import { apiClient } from '../../api/apiClient';
 import { CommandChat } from '../../components/ai/CommandChat';
 import { useRealtimeConnection } from '../../hooks/useRealtimeConnection';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -28,6 +29,7 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
   });
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [resolutionNote, setResolutionNote] = useState('');
+  const [reassignDept, setReassignDept] = useState('');
   const [loading, setLoading] = useState(true);
   const [bulkSelection, setBulkSelection] = useState([]);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -351,11 +353,27 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
   const handleSelectTicket = (ticket) => {
     setSelectedTicket(ticket);
     setResolutionNote(ticket.resolution_notes || '');
+    setReassignDept('');
     setSpecialistBriefing('');
     setDeepAnalysis(null);
     setScannedTable(null);
     fetchComments(ticket.id);
     fetchAiSuggestion(ticket);
+  };
+
+  const handleReassign = async (deptName) => {
+    if (!selectedTicket || !deptName) return;
+    try {
+      await apiClient.put(`/grievances/${selectedTicket.id}/assign`, {
+        department: deptName
+      });
+      toast.success(`Ticket successfully assigned to department: ${deptName}`);
+      setReassignDept('');
+      setSelectedTicket(null);
+      fetchGlobalTickets();
+    } catch (err) {
+      toast.error(err.response?.data?.error || err.message || 'Assignment update failed');
+    }
   };
 
   const applyAiResolution = (text) => {
@@ -633,10 +651,12 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
   };
 
   const adminStats = [
-    { label: 'Unresolved High Priority', value: tickets.filter(t => t.urgency === 'High' && t.status !== 'Resolved').length, icon: <AlertTriangle size={18} />, borderColor: 'border-l-error text-error', iconColor: 'text-error border-error/10 bg-error/5' },
-    { label: 'Awaiting Action', value: tickets.filter(t => t.status === 'Pending').length, icon: <Clock size={18} />, borderColor: 'border-l-warning text-warning', iconColor: 'text-warning border-warning/10 bg-warning/5' },
-    { label: 'Resolved Tickets', value: tickets.filter(t => t.status === 'Resolved').length, icon: <CheckCircle size={18} />, borderColor: 'border-l-success text-success', iconColor: 'text-success border-success/10 bg-success/5' },
-    { label: 'Online Operators', value: onlineOperators.length || 1, icon: <Users size={18} />, borderColor: 'border-l-accent text-accent', iconColor: 'text-accent border-accent/10 bg-accent/5' },
+    { label: 'High Priority', value: tickets.filter(t => t.urgency === 'High' && t.status !== 'Resolved' && t.status !== 'Closed').length, icon: <AlertTriangle size={16} />, borderColor: 'border-l-error text-error', iconColor: 'text-error border-error/10 bg-error/5' },
+    { label: 'Pending', value: tickets.filter(t => t.status === 'Pending' || t.status === 'New').length, icon: <Clock size={16} />, borderColor: 'border-l-warning text-warning', iconColor: 'text-warning border-warning/10 bg-warning/5' },
+    { label: 'Resolved', value: tickets.filter(t => t.status === 'Resolved').length, icon: <CheckCircle size={16} />, borderColor: 'border-l-success text-success', iconColor: 'text-success border-success/10 bg-success/5' },
+    { label: 'Closed', value: tickets.filter(t => t.status === 'Closed').length, icon: <CheckCircle2 size={16} />, borderColor: 'border-l-cyan-500 text-cyan-500', iconColor: 'text-cyan-500 border-cyan-500/10 bg-cyan-500/5' },
+    { label: 'Rejected', value: tickets.filter(t => t.status === 'Rejected').length, icon: <X size={16} />, borderColor: 'border-l-rose-400 text-rose-400', iconColor: 'text-rose-400 border-rose-400/10 bg-rose-400/5' },
+    { label: 'Escalated', value: tickets.filter(t => t.status === 'Escalated').length, icon: <TrendingUp size={16} />, borderColor: 'border-l-purple-500 text-purple-500', iconColor: 'text-purple-500 border-purple-500/10 bg-purple-500/5' }
   ];
 
   const getPriorityScore = (ticket) => {
@@ -724,7 +744,7 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         {adminStats.map((stat, idx) => (
           <div 
             key={idx} 
@@ -852,6 +872,58 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
                       <p className="text-muted-foreground text-xs italic">No status data compiled.</p>
                    )}
                 </div>
+              </div>
+            </div>
+
+            {/* Department Performance Telemetry Table */}
+            <div className="bg-surface border border-border/80 rounded-xl p-5 shadow-xs text-left">
+              <h3 className="font-heading font-extrabold text-xs uppercase tracking-wider text-muted-foreground mb-4">Department Performance Telemetry</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left">
+                  <thead>
+                    <tr className="bg-background text-[10px] uppercase text-muted-foreground tracking-wider font-bold border-b border-border/60">
+                      <th className="px-6 py-3.5">Department</th>
+                      <th className="px-6 py-3.5 text-center">Active Volume</th>
+                      <th className="px-6 py-3.5 text-center">Resolution Rate</th>
+                      <th className="px-6 py-3.5 text-center">Avg Resolution Duration</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/40 text-foreground">
+                    {[
+                      'IT Support',
+                      'Academic Affairs',
+                      'Financial Services',
+                      'Facilities & Maintenance',
+                      'General'
+                    ].map((dept) => {
+                      const deptTickets = tickets.filter(t => t.category === dept || t.department === dept);
+                      const total = deptTickets.length;
+                      let resRate = '100%';
+                      let avgTime = '24h';
+                      if (total > 0) {
+                        const resolvedCount = deptTickets.filter(t => t.status === 'Resolved' || t.status === 'Closed').length;
+                        resRate = `${Math.round((resolvedCount / total) * 100)}%`;
+                        
+                        const resolvedWithTimes = deptTickets.filter(t => (t.status === 'Resolved' || t.status === 'Closed') && t.resolved_at && t.created_at);
+                        if (resolvedWithTimes.length > 0) {
+                          const totalHours = resolvedWithTimes.reduce((acc, t) => {
+                            const diffMs = new Date(t.resolved_at) - new Date(t.created_at);
+                            return acc + (diffMs / (1000 * 60 * 60));
+                          }, 0);
+                          avgTime = `${Math.round(totalHours / resolvedWithTimes.length)}h`;
+                        }
+                      }
+                      return (
+                        <tr key={dept} className="hover:bg-muted/30">
+                          <td className="px-6 py-3 font-semibold">{dept}</td>
+                          <td className="px-6 py-3 text-center font-mono font-bold">{total}</td>
+                          <td className="px-6 py-3 text-center font-mono text-success font-bold">{resRate}</td>
+                          <td className="px-6 py-3 text-center font-mono text-primary-bright font-bold">{avgTime}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
 
@@ -1243,6 +1315,31 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
                           )}
                         </div>
                       )}
+                    </div>
+
+                    {/* Manual Assignment Override */}
+                    <div className="border-t border-border/50 pt-4 space-y-3 text-left">
+                      <span className="text-[9px] font-black uppercase text-muted-foreground block tracking-wider font-mono">Manual Route Override</span>
+                      <div className="flex gap-2">
+                        <select
+                          value={reassignDept}
+                          onChange={(e) => setReassignDept(e.target.value)}
+                          className="glass-input flex-1 text-xs bg-background border border-border/60 font-bold text-foreground"
+                        >
+                          <option value="">Select Department...</option>
+                          <option value="IT Support">IT Support</option>
+                          <option value="Academic Affairs">Academic Affairs</option>
+                          <option value="Financial Services">Financial Services</option>
+                          <option value="Facilities & Maintenance">Facilities & Maintenance</option>
+                        </select>
+                        <button
+                          onClick={() => handleReassign(reassignDept)}
+                          disabled={!reassignDept}
+                          className="px-4 py-2 bg-primary-bright hover:bg-secondary text-white text-[9px] font-bold uppercase tracking-wider rounded-xl transition-colors cursor-pointer disabled:opacity-40"
+                        >
+                          Reroute
+                        </button>
+                      </div>
                     </div>
 
                     {/* Action button resolution */}

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../app/providers/AuthProvider';
 import { motion } from 'framer-motion';
-import { User, Mail, Phone, Lock, Check, ShieldAlert, ArrowRight, Sparkles, Sun, Moon, Home } from 'lucide-react';
+import { User, Mail, Lock, Check, ShieldAlert, ArrowRight, Sparkles, Sun, Moon, Home } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../utils/errors';
 
@@ -13,7 +13,6 @@ export const RegisterPage = () => {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
-    mobileNumber: '',
     password: '',
     confirmPassword: '',
     role: 'student'
@@ -61,17 +60,6 @@ export const RegisterPage = () => {
     if (!formData.email.trim()) return toast.error('Email is required.');
     if (!formData.password) return toast.error('Password is required.');
 
-    // For non-sandbox (Clerk) accounts, phone number is required by Clerk
-    const isSandbox = formData.email.toLowerCase().trim().endsWith('@resolve.now');
-    if (!isSandbox) {
-      if (!formData.mobileNumber.trim()) {
-        return toast.error('Mobile number is required. Enter in international format, e.g. +919876543210.');
-      }
-      if (!/^\+[1-9]\d{6,14}$/.test(formData.mobileNumber.trim())) {
-        return toast.error('Invalid phone format. Use international format: +CountryCodeNumber (e.g. +919876543210).');
-      }
-    }
-    
     if (formData.password !== formData.confirmPassword) {
       return toast.error('Passwords do not match.');
     }
@@ -85,7 +73,6 @@ export const RegisterPage = () => {
       const data = await register(
         formData.fullName,
         formData.email,
-        formData.mobileNumber,
         formData.password,
         formData.role
       );
@@ -166,44 +153,19 @@ export const RegisterPage = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Email Address</label>
-                  <div className="relative group">
-                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      placeholder="john@institution.edu"
-                      className="glass-input w-full pl-10"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">
-                    Mobile Number
-                    {!formData.email.toLowerCase().trim().endsWith('@resolve.now') && (
-                      <span className="text-red-400 ml-1">*</span>
-                    )}
-                  </label>
-                  <div className="relative group">
-                    <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                    <input
-                      type="tel"
-                      name="mobileNumber"
-                      value={formData.mobileNumber}
-                      onChange={handleInputChange}
-                      placeholder="+919876543210"
-                      className="glass-input w-full pl-10"
-                    />
-                  </div>
-                  <p className="text-[9px] text-muted-foreground/60 ml-1 leading-tight">
-                    Include country code (e.g. +91 for India). Required for real accounts.
-                  </p>
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Email Address</label>
+                <div className="relative group">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    placeholder="john@institution.edu"
+                    className="glass-input w-full pl-10"
+                    required
+                  />
                 </div>
               </div>
 

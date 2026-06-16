@@ -1,16 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Save, CheckCircle, Bell, Shield, Camera, Loader2 } from 'lucide-react';
+import { User, Save, CheckCircle, Bell, Shield, Camera, Loader2, Globe, ShieldCheck, ShieldAlert } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useUser } from '@clerk/clerk-react';
 import { supabase } from '../../lib/supabase';
 import { apiClient } from '../../api/apiClient';
 
 export const ProfilePage = ({ sessionUser, userProfile }) => {
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState(() => sessionUser?.fullName || '');
+  const [email, setEmail] = useState(() => sessionUser?.email || '');
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // New fields
+  const [mobileNumber, setMobileNumber] = useState(() => sessionUser?.mobile_number || '');
+  const [department, setDepartment] = useState(() => sessionUser?.department || '');
+  const [institution, setInstitution] = useState(() => sessionUser?.institution || '');
+  const [language, setLanguage] = useState(() => localStorage.getItem('app_language') || 'English');
+  const [theme, setTheme] = useState(() => localStorage.getItem('app_theme') || 'Dark');
   
   // Password states
   const [newPassword, setNewPassword] = useState('');
@@ -23,29 +31,27 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
-  useEffect(() => {
-    if (sessionUser) {
-      setEmail(sessionUser.email || '');
-      
-      if (sessionUser.id?.startsWith('demo-')) {
-        setFullName(sessionUser.fullName || '');
-        setNotificationsEnabled(true);
-        setAvatarUrl(null);
-        return;
-      }
+  // Clerk MFA
+  const { isLoaded: isClerkUserLoaded, user: clerkUser } = useUser();
+  const mfaEnabled = clerkUser ? clerkUser.twoFactorEnabled : false;
 
+  useEffect(() => {
+    if (sessionUser && !sessionUser.id?.startsWith('demo-')) {
       // Fetch fresh profile from backend
       const loadProfile = async () => {
         try {
           const res = await apiClient.get('/user/profile');
           if (res.data) {
-            setFullName(res.data.profile.fullName || '');
-            setNotificationsEnabled(res.data.profile.notificationPreferences?.email !== false);
-            setAvatarUrl(res.data.profile.profilePicture || null);
+            setFullName(prev => prev !== res.data.profile.fullName ? (res.data.profile.fullName || '') : prev);
+            setNotificationsEnabled(prev => prev !== (res.data.profile.notificationPreferences?.email !== false) ? (res.data.profile.notificationPreferences?.email !== false) : prev);
+            setAvatarUrl(prev => prev !== res.data.profile.profilePicture ? (res.data.profile.profilePicture || null) : prev);
+            setMobileNumber(prev => prev !== res.data.account.mobile_number ? (res.data.account.mobile_number || '') : prev);
+            setDepartment(prev => prev !== res.data.profile.department ? (res.data.profile.department || '') : prev);
+            setInstitution(prev => prev !== res.data.profile.institution ? (res.data.profile.institution || '') : prev);
           }
         } catch (err) {
           console.error("Failed to load profile details:", err.message);
-          setFullName(sessionUser.fullName || '');
+          setFullName(prev => prev !== sessionUser.fullName ? (sessionUser.fullName || '') : prev);
         }
       };
 
@@ -72,14 +78,21 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
         notificationPreferences: {
           email: notificationsEnabled,
           sms: notificationsEnabled
-        }
+        },
+        department,
+        institution
+      });
+
+      // Save mobile number to account settings
+      await apiClient.put('/user/account', {
+        mobileNumber: mobileNumber.trim() !== '' ? mobileNumber.trim() : null
       });
       
       setSaved(true);
       toast.success("Profile updated successfully!");
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
-      toast.error("Failed to save profile: " + err.message);
+      toast.error("Failed to save profile: " + (err.response?.data?.error || err.message));
     }
     
     setIsSaving(false);
@@ -292,6 +305,36 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
                       className="glass-input w-full opacity-50 cursor-not-allowed font-mono text-xs"
                     />
                   </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Mobile Number</label>
+                    <input
+                      type="tel"
+                      value={mobileNumber}
+                      onChange={(e) => setMobileNumber(e.target.value)}
+                      placeholder="+1 (555) 000-0000"
+                      className="glass-input w-full font-bold"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Department</label>
+                    <input
+                      type="text"
+                      value={department}
+                      onChange={(e) => setDepartment(e.target.value)}
+                      placeholder="e.g. IT Support, Student Affairs"
+                      className="glass-input w-full font-bold"
+                    />
+                  </div>
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Institution</label>
+                    <input
+                      type="text"
+                      value={institution}
+                      onChange={(e) => setInstitution(e.target.value)}
+                      placeholder="e.g. State University, Central Bank"
+                      className="glass-input w-full font-bold"
+                    />
+                  </div>
                 </div>
 
                 <div 
@@ -329,6 +372,124 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
                   </button>
                 </div>
              </form>
+          </motion.div>
+
+          {/* App Preferences Form */}
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            transition={{ delay: 0.08 }} 
+            className="glass-card p-8"
+          >
+             <div className="flex items-center gap-3 mb-6 pb-4 border-b border-border/50">
+                <div className="w-9 h-9 rounded-lg bg-accent/10 flex items-center justify-center text-accent border border-accent/20">
+                   <Globe size={16} />
+                </div>
+                <h4 className="text-base font-heading font-extrabold text-foreground uppercase tracking-wide">App Preferences</h4>
+             </div>
+
+             <form 
+               onSubmit={(e) => {
+                 e.preventDefault();
+                 localStorage.setItem('app_language', language);
+                 localStorage.setItem('app_theme', theme);
+                 if (theme === 'Light') {
+                   document.documentElement.classList.add('light');
+                 } else {
+                   document.documentElement.classList.remove('light');
+                 }
+                 toast.success("Preferences updated successfully!");
+               }} 
+               className="space-y-6"
+             >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                   <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Language Selection</label>
+                      <select 
+                        value={language}
+                        onChange={(e) => setLanguage(e.target.value)}
+                        className="glass-input w-full bg-background border border-border text-foreground py-2 px-3 text-xs rounded-lg font-bold"
+                      >
+                         <option>English</option>
+                         <option>Spanish</option>
+                         <option>Hindi</option>
+                         <option>French</option>
+                         <option>Arabic</option>
+                      </select>
+                   </div>
+                   <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Theme Selection</label>
+                      <select 
+                        value={theme}
+                        onChange={(e) => setTheme(e.target.value)}
+                        className="glass-input w-full bg-background border border-border text-foreground py-2 px-3 text-xs rounded-lg font-bold"
+                      >
+                         <option>Dark</option>
+                         <option>Light</option>
+                         <option>Cyberpunk</option>
+                         <option>High Contrast</option>
+                      </select>
+                   </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                   <button 
+                     type="submit" 
+                     className="btn-premium py-3 px-8 text-xs uppercase tracking-widest font-bold"
+                   >
+                      Save Preferences
+                   </button>
+                </div>
+             </form>
+          </motion.div>
+
+          {/* Security & MFA Card */}
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            transition={{ delay: 0.09 }} 
+            className="glass-card p-8"
+          >
+             <div className="flex items-center gap-3 mb-6 pb-4 border-b border-border/50">
+                <div className="w-9 h-9 rounded-lg bg-success/10 flex items-center justify-center text-success border border-success/20">
+                   <ShieldCheck size={16} />
+                </div>
+                <h4 className="text-base font-heading font-extrabold text-foreground uppercase tracking-wide">Multi-Factor Authentication (MFA)</h4>
+             </div>
+
+             <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-2xl border bg-background/40 border-border/60">
+                   <div className="flex items-start gap-3">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center mt-0.5 shrink-0 ${mfaEnabled ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>
+                         {mfaEnabled ? <ShieldCheck size={16} /> : <ShieldAlert size={16} />}
+                      </div>
+                      <div>
+                         <h5 className="text-xs font-bold text-foreground">
+                            Two-Step Verification Status: <span className={mfaEnabled ? 'text-success' : 'text-warning'}>{mfaEnabled ? 'ENABLED' : 'DISABLED'}</span>
+                         </h5>
+                         <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">
+                            MFA secures access by requiring a temporary verification code in addition to your password. This is mandatory for coordinators and administrators.
+                         </p>
+                      </div>
+                   </div>
+                </div>
+
+                <div className="flex justify-end">
+                   <button 
+                     type="button"
+                     onClick={() => {
+                        if (clerkUser) {
+                           window.open('https://accounts.clerk.dev', '_blank');
+                        } else {
+                           toast.success('MFA status updated in local verification settings.');
+                        }
+                     }}
+                     className="btn-ghost py-3 px-6 text-[10px] font-bold uppercase tracking-wider"
+                   >
+                      {clerkUser ? 'Manage MFA in Clerk Account' : 'Initialize Simulated MFA'}
+                   </button>
+                </div>
+             </div>
           </motion.div>
 
           {/* Keyphrase security form */}

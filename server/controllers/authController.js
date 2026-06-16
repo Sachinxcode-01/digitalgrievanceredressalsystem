@@ -7,10 +7,10 @@ const auditService = require('../services/auditService');
  * POST /api/v1/auth/register
  */
 const register = async (req, res, next) => {
-  const { fullName, email, mobileNumber, password, role } = req.body;
+  const { fullName, email, password, role } = req.body;
 
   try {
-    const result = await authService.register(fullName, email, mobileNumber, password, role, req.ip, req.headers['user-agent']);
+    const result = await authService.register(fullName, email, password, role, req.ip, req.headers['user-agent']);
     res.status(201).json(result);
   } catch (err) {
     next(err);
@@ -23,10 +23,10 @@ const register = async (req, res, next) => {
  */
 const verifyOtp = async (req, res, next) => {
   console.log('📬 [verifyOtp] Request Body:', req.body);
-  const { email, phone, otp, purpose, rememberMe } = req.body;
+  const { email, otp, purpose, rememberMe } = req.body;
 
   try {
-    const result = await authService.verifyOtp(email, phone, otp, purpose, rememberMe, req.ip, req.headers['user-agent']);
+    const result = await authService.verifyOtp(email, otp, purpose, rememberMe, req.ip, req.headers['user-agent']);
     
     if (result.requiresReset) {
       return res.json({ message: 'Identity confirmed. You may now update your password.', resetCode: result.resetCode });
@@ -55,10 +55,10 @@ const verifyOtp = async (req, res, next) => {
  * POST /api/v1/auth/login
  */
 const login = async (req, res, next) => {
-  const { email, phone, password, loginType, rememberMe } = req.body;
+  const { email, password, loginType, rememberMe } = req.body;
 
   try {
-    const result = await authService.login(email, phone, password, loginType, rememberMe, req.ip, req.headers['user-agent']);
+    const result = await authService.login(email, password, loginType, rememberMe, req.ip, req.headers['user-agent']);
 
     if (result.requiresOtp) {
       return res.json({ message: result.message || 'Security key sent.', requiresOtp: true });
@@ -95,10 +95,10 @@ const login = async (req, res, next) => {
  * POST /api/v1/auth/resend-otp
  */
 const resendOtp = async (req, res, next) => {
-  const { email, phone, purpose } = req.body;
+  const { email, purpose } = req.body;
 
   try {
-    const result = await authService.resendOtp(email, phone, purpose);
+    const result = await authService.resendOtp(email, purpose);
     res.json(result);
   } catch (err) {
     next(err);
@@ -259,7 +259,7 @@ const syncUser = async (req, res, next) => {
       return res.status(400).json({ error: 'Authenticated Clerk user has no primary email address.' });
     }
 
-    const role     = clerkUser.unsafeMetadata?.role || 'student';
+    const role     = clerkUser.publicMetadata?.role || 'student';
     const fullName = clerkUser.unsafeMetadata?.fullName
       || (clerkUser.firstName ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim() : 'Clerk User');
     const mobile   = clerkUser.unsafeMetadata?.mobileNumber

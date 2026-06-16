@@ -41,7 +41,9 @@ const getProfile = async (req, res, next) => {
       profile: {
         fullName: profile.full_name,
         profilePicture: profile.profile_picture,
-        notificationPreferences: profile.notification_preferences
+        notificationPreferences: profile.notification_preferences,
+        department: profile.department,
+        institution: profile.institution
       },
       account: cleanUser,
       logs: auditLogs
@@ -57,13 +59,20 @@ const getProfile = async (req, res, next) => {
  */
 const updateProfile = async (req, res, next) => {
   const userId = req.user.id;
-  const { fullName, profilePicture, notificationPreferences } = req.body;
+  const { fullName, profilePicture, notificationPreferences, department, institution } = req.body;
+
+  const isAuthorized = req.user.role === 'admin' || req.user.role === 'super admin';
+  if ((department !== undefined || institution !== undefined) && !isAuthorized) {
+    return res.status(403).json({ error: 'Access Denied: Only administrators can modify institutional and department details.' });
+  }
 
   try {
     const updates = {};
     if (fullName !== undefined) updates.full_name = fullName;
     if (profilePicture !== undefined) updates.profile_picture = profilePicture;
     if (notificationPreferences !== undefined) updates.notification_preferences = notificationPreferences;
+    if (department !== undefined) updates.department = department;
+    if (institution !== undefined) updates.institution = institution;
 
     const updatedProfile = await userRepository.updateProfile(userId, updates);
 
@@ -74,7 +83,9 @@ const updateProfile = async (req, res, next) => {
       profile: {
         fullName: updatedProfile.full_name,
         profilePicture: updatedProfile.profile_picture,
-        notificationPreferences: updatedProfile.notification_preferences
+        notificationPreferences: updatedProfile.notification_preferences,
+        department: updatedProfile.department,
+        institution: updatedProfile.institution
       }
     });
   } catch (err) {
@@ -200,10 +211,72 @@ const deleteAccount = async (req, res, next) => {
   }
 };
 
+const getNotifications = async (req, res, next) => {
+  const userId = req.user.id;
+  const supabase = require('../config/supabase');
+  try {
+    if (!supabase) return res.json([]);
+    const { data, error } = await supabase
+      .from('in_app_notifications')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) throw error;
+    res.json(data || []);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const markNotificationRead = async (req, res, next) => {
+  const userId = req.user.id;
+  const { id } = req.params;
+  const supabase = require('../config/supabase');
+  try {
+    if (!supabase) return res.json({ success: false });
+    const { data, error } = await supabase
+      .from('in_app_notifications')
+      .update({ is_read: true })
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select()
+      .maybeSingle();
+
+    if (error) throw error;
+    res.json({ success: true, notification: data });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const markAllNotificationsRead = async (req, res, next) => {
+  const userId = req.user.id;
+  const supabase = require('../config/supabase');
+  try {
+    if (!supabase) return res.json({ success: false });
+    const { data, error } = await supabase
+      .from('in_app_notifications')
+      .update({ is_read: true })
+      .eq('user_id', userId)
+      .eq('is_read', false)
+      .select();
+
+    if (error) throw error;
+    res.json({ success: true, count: data ? data.length : 0 });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getProfile,
   updateProfile,
   updateAccount,
   changePassword,
-  deleteAccount
+  deleteAccount,
+  getNotifications,
+  markNotificationRead,
+  markAllNotificationsRead
 };

@@ -29,8 +29,7 @@ const checkOtpCooldown = async (identifier, purpose) => {
 };
 
 const authService = {
-  async register(fullName, email, mobileNumber, password, role, ip, userAgent) {
-    const finalMobileNumber = (mobileNumber && mobileNumber.trim() !== '') ? mobileNumber.trim() : null;
+  async register(fullName, email, password, role, ip, userAgent) {
     const normalizedEmail   = email.toLowerCase().trim();
 
     // 1. Hash password
@@ -42,7 +41,7 @@ const authService = {
     //    with status 400 if duplicates exist.
     const newUser = await userRepository.registerAtomic(
       normalizedEmail,
-      finalMobileNumber,
+      null,
       passwordHash,
       'student',   // always force student for public registration
       'inactive'
@@ -52,7 +51,7 @@ const authService = {
     await userRepository.createProfile({
       user_id: newUser.id,
       full_name: fullName,
-      notification_preferences: { email: true, sms: true }
+      notification_preferences: { email: true, sms: false }
     }).catch(console.error);
 
     // 4. Generate and dispatch OTP
@@ -65,7 +64,7 @@ const authService = {
 
     await notificationRepository.insertOtpVerification({
       email:      normalizedEmail,
-      phone:      finalMobileNumber,
+      phone:      null,
       code:       otp,
       purpose:    'registration',
       expires_at: expiresAt,
@@ -74,26 +73,21 @@ const authService = {
 
     // Dispatch notifications
     await emailService.sendOTPEmail(normalizedEmail, otp).catch(console.error);
-    if (finalMobileNumber) {
-      await smsService.sendOTPSMS(finalMobileNumber, otp).catch(console.error);
-    }
 
     await logAudit(newUser.id, 'REGISTRATION_INITIATED', ip, userAgent);
 
     return {
       message: 'Registration successful. Please enter the OTP sent to verify your identity.',
       email:   normalizedEmail,
-      phone:   finalMobileNumber
+      phone:   null
     };
   },
 
-  async verifyOtp(email, phone, otp, purpose, rememberMe, ip, userAgent) {
+  async verifyOtp(email, otp, purpose, rememberMe, ip, userAgent) {
     const targetPurpose = purpose || 'registration';
-    const identifier = email || phone;
-    const filterCol = email ? 'email' : 'phone';
 
     // 1. Fetch OTP record
-    const verification = await notificationRepository.findOtpVerification(identifier, filterCol, targetPurpose);
+    const verification = await notificationRepository.findOtpVerification(email, 'email', targetPurpose);
     if (!verification) {
       throw createError('No verification session found. Request a new key.', 400);
     }
@@ -120,12 +114,7 @@ const authService = {
     await notificationRepository.deleteOtpVerificationById(verification.id);
 
     // Fetch user
-    let user;
-    if (email) {
-      user = await userRepository.findByEmail(email);
-    } else {
-      user = await userRepository.findByPhone(phone);
-    }
+    const user = await userRepository.findByEmail(email);
 
     if (!user) {
       throw createError('Associated user account not found.', 404);
@@ -139,8 +128,8 @@ const authService = {
     if (targetPurpose === 'registration') {
       await userRepository.update(user.id, {
         status: 'active',
-        email_verified: !!email,
-        phone_verified: !!phone
+        email_verified: true,
+        phone_verified: false
       });
       user.status = 'active';
 
@@ -167,23 +156,16 @@ const authService = {
       user: {
         id: user.id,
         email: user.email,
-        mobileNumber: user.mobile_number,
+        mobileNumber: null,
         role: user.role,
         fullName: user.full_name
       }
     };
   },
 
-  async login(email, phone, password, loginType, rememberMe, ip, userAgent) {
-    const identifier = email || phone;
-
+  async login(email, password, loginType, rememberMe, ip, userAgent) {
     // 1. Fetch user
-    let user;
-    if (email) {
-      user = await userRepository.findByEmail(email);
-    } else {
-      user = await userRepository.findByPhone(phone);
-    }
+    const user = await userRepository.findByEmail(email);
 
     if (!user) {
       throw createError('Invalid credentials.', 401);
@@ -201,7 +183,7 @@ const authService = {
 
     // 3. Passwordless OTP Login
     if (loginType === 'otp') {
-      const cooldownSec = await checkOtpCooldown(identifier, 'login');
+      const cooldownSec = await checkOtpCooldown(email, 'login');
       if (cooldownSec > 0) {
         throw createError(`Please wait ${cooldownSec} seconds before requesting a new login OTP.`, 429);
       }
@@ -210,17 +192,16 @@ const authService = {
       const otpExpirySec = parseInt(configService.getSetting('otp_expiry_seconds', 300));
       const expiresAt = new Date(Date.now() + otpExpirySec * 1000).toISOString();
 
-      await notificationRepository.deleteOtpVerification(identifier, email ? 'email' : 'phone', 'login');
+      await notificationRepository.deleteOtpVerification(email, 'email', 'login');
       await notificationRepository.insertOtpVerification({
         email: user.email,
-        phone: user.mobile_number,
+        phone: null,
         code: otp,
         purpose: 'login',
         expires_at: expiresAt
       });
 
-      if (email) await emailService.sendOTPEmail(user.email, otp).catch(console.error);
-      if (phone) await smsService.sendOTPSMS(user.mobile_number, otp).catch(console.error);
+      await emailService.sendOTPEmail(user.email, otp).catch(console.error);
 
       return { requiresOtp: true };
     }
@@ -271,7 +252,7 @@ const authService = {
       await notificationRepository.deleteOtpVerification(user.email, 'email', 'registration');
       await notificationRepository.insertOtpVerification({
         email: user.email,
-        phone: user.mobile_number,
+        phone: null,
         code: otp,
         purpose: 'registration',
         expires_at: expiresAt
@@ -286,7 +267,7 @@ const authService = {
 
     // Enforce MFA for Admin/Super Admin
     if (user.role === 'admin' || user.role === 'super admin') {
-      const cooldownSec = await checkOtpCooldown(identifier, 'login');
+      const cooldownSec = await checkOtpCooldown(email, 'login');
       if (cooldownSec > 0) {
         throw createError(`Please wait ${cooldownSec} seconds before requesting a new login OTP.`, 429);
       }
@@ -295,21 +276,20 @@ const authService = {
       const otpExpirySec = parseInt(configService.getSetting('otp_expiry_seconds', 300));
       const expiresAt = new Date(Date.now() + otpExpirySec * 1000).toISOString();
 
-      await notificationRepository.deleteOtpVerification(identifier, email ? 'email' : 'phone', 'login');
+      await notificationRepository.deleteOtpVerification(email, 'email', 'login');
       await notificationRepository.insertOtpVerification({
         email: user.email,
-        phone: user.mobile_number,
+        phone: null,
         code: otp,
         purpose: 'login',
         expires_at: expiresAt
       });
 
-      if (user.email) await emailService.sendOTPEmail(user.email, otp).catch(console.error);
-      if (user.mobile_number) await smsService.sendOTPSMS(user.mobile_number, otp).catch(console.error);
+      await emailService.sendOTPEmail(user.email, otp).catch(console.error);
 
       return {
         requiresOtp: true,
-        message: 'Administrative accounts require a second factor. An OTP has been sent to your registered email/phone.'
+        message: 'Administrative accounts require a second factor. An OTP has been sent to your registered email.'
       };
     }
 
@@ -322,38 +302,35 @@ const authService = {
       user: {
         id: user.id,
         email: user.email,
-        mobileNumber: user.mobile_number,
+        mobileNumber: null,
         role: user.role,
         fullName: user.full_name
       }
     };
   },
 
-  async resendOtp(email, phone, purpose) {
+  async resendOtp(email, purpose) {
     const targetPurpose = purpose || 'registration';
-    const identifier = email || phone;
-    const filterCol = email ? 'email' : 'phone';
 
-    const cooldownSec = await checkOtpCooldown(identifier, targetPurpose);
+    const cooldownSec = await checkOtpCooldown(email, targetPurpose);
     if (cooldownSec > 0) {
       throw createError(`Please wait ${cooldownSec} seconds before requesting a new verification key.`, 429);
     }
 
-    await notificationRepository.deleteOtpVerification(identifier, filterCol, targetPurpose);
+    await notificationRepository.deleteOtpVerification(email, 'email', targetPurpose);
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
     await notificationRepository.insertOtpVerification({
       email,
-      phone,
+      phone: null,
       code: otp,
       purpose: targetPurpose,
       expires_at: expiresAt
     });
 
-    if (email) await emailService.sendOTPEmail(email, otp);
-    if (phone) await smsService.sendOTPSMS(phone, otp);
+    await emailService.sendOTPEmail(email, otp);
 
     return { message: 'A fresh security key has been dispatched.' };
   },
@@ -376,7 +353,7 @@ const authService = {
     await notificationRepository.deleteOtpVerification(email, 'email', 'forgot_password');
     await notificationRepository.insertOtpVerification({
       email,
-      phone: user.mobile_number,
+      phone: null,
       code: otp,
       purpose: 'forgot_password',
       expires_at: expiresAt
@@ -489,6 +466,34 @@ const authService = {
 
     const profile = await userRepository.findProfileByUserId(user.id);
     user.full_name = profile ? profile.full_name : name || 'Google User';
+
+    // Enforce MFA for Admin/Super Admin in Google login
+    if (user.role === 'admin' || user.role === 'super admin') {
+      const cooldownSec = await checkOtpCooldown(email, 'login');
+      if (cooldownSec > 0) {
+        throw createError(`Please wait ${cooldownSec} seconds before requesting a new login OTP.`, 429);
+      }
+
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otpExpirySec = parseInt(configService.getSetting('otp_expiry_seconds', 300));
+      const expiresAt = new Date(Date.now() + otpExpirySec * 1000).toISOString();
+
+      await notificationRepository.deleteOtpVerification(email, 'email', 'login');
+      await notificationRepository.insertOtpVerification({
+        email: user.email,
+        phone: null,
+        code: otp,
+        purpose: 'login',
+        expires_at: expiresAt
+      });
+
+      await emailService.sendOTPEmail(user.email, otp).catch(console.error);
+
+      return {
+        requiresOtp: true,
+        message: 'Administrative accounts require a second factor. An OTP has been sent to your registered email.'
+      };
+    }
 
     const sessionResult = await sessionService.createSession(user, ip, userAgent, rememberMe);
     return {

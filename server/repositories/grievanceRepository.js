@@ -269,6 +269,17 @@ const grievanceRepository = {
       .eq('id', id);
     if (error) throw error;
     return true;
+  },
+
+  async getOverdueGrievances(nowString) {
+    if (!supabase) return [];
+    const { data, error } = await supabase
+      .from('grievances')
+      .select('*')
+      .lt('sla_due_at', nowString)
+      .not('status', 'in', '("Resolved","Closed","Rejected","Escalated","Draft")');
+    if (error) throw error;
+    return data || [];
   }
 };
 

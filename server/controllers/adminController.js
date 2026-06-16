@@ -188,6 +188,21 @@ const updateUserRole = async (req, res, next) => {
 
     if (error) throw error;
 
+    // Sync to Clerk publicMetadata if the user has a Clerk account
+    if (data && data.clerk_user_id) {
+      try {
+        const { clerkClient } = require('@clerk/express');
+        await clerkClient.users.updateUserMetadata(data.clerk_user_id, {
+          publicMetadata: {
+            role: role
+          }
+        });
+        console.log(`Successfully synced updated role '${role}' to Clerk for user ${data.clerk_user_id}`);
+      } catch (clerkErr) {
+        console.error(`Failed to update user role metadata in Clerk:`, clerkErr.message);
+      }
+    }
+
     const { logAudit } = require('../services/sessionService');
     await logAudit(req.user.id, 'USER_ROLE_UPDATED', req.ip, req.headers['user-agent'], { target_user_id: id, role });
 
@@ -240,12 +255,34 @@ const updateUserStatus = async (req, res, next) => {
  */
 const listSystemAuditLogs = async (req, res, next) => {
   try {
-    const { data: logs, error } = await supabase
+    const { action, operator, startDate, endDate, limit } = req.query;
+
+    let query = supabase
       .from('audit_logs')
       .select('id, user_id, action, ip_address, user_agent, details, created_at')
-      .order('created_at', { ascending: false })
-      .limit(100);
+      .order('created_at', { ascending: false });
 
+    if (action && action !== 'All') {
+      query = query.eq('action', action);
+    }
+    if (operator) {
+      query = query.eq('user_id', operator);
+    }
+    if (startDate) {
+      query = query.gte('created_at', new Date(startDate).toISOString());
+    }
+    if (endDate) {
+      const end = new Date(endDate);
+      if (endDate.length <= 10) {
+        end.setHours(23, 59, 59, 999);
+      }
+      query = query.lte('created_at', end.toISOString());
+    }
+
+    const maxLimit = limit ? parseInt(limit, 10) : 500;
+    query = query.limit(maxLimit);
+
+    const { data: logs, error } = await query;
     if (error) throw error;
 
     const { data: profiles } = await supabase
@@ -408,6 +445,21 @@ const updateUser = async (req, res, next) => {
       if (dbRole) {
         await supabase.from('user_roles').delete().eq('user_id', id);
         await supabase.from('user_roles').insert([{ user_id: id, role_id: dbRole.id }]);
+      }
+
+      // Sync to Clerk publicMetadata if the user has a Clerk account
+      if (userBefore.clerk_user_id) {
+        try {
+          const { clerkClient } = require('@clerk/express');
+          await clerkClient.users.updateUserMetadata(userBefore.clerk_user_id, {
+            publicMetadata: {
+              role: role
+            }
+          });
+          console.log(`Successfully synced updated role '${role}' to Clerk for user ${userBefore.clerk_user_id}`);
+        } catch (clerkErr) {
+          console.error(`Failed to update user role metadata in Clerk:`, clerkErr.message);
+        }
       }
     }
 

@@ -187,6 +187,17 @@ const notificationRepository = {
       .eq('user_id', userId);
     if (error) throw error;
     return true;
+  },
+
+  // In-App Notifications
+  async insertInAppNotification(notificationData) {
+    if (!supabase) return null;
+    const { data, error } = await supabase
+      .from('in_app_notifications')
+      .insert([notificationData])
+      .select();
+    if (error) throw error;
+    return (data && data.length > 0) ? data[0] : null;
   }
 };
 

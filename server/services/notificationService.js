@@ -38,11 +38,29 @@ const checkPreferenceAndQueue = async (userId, preferenceKey, subject, htmlConte
   return emailService.queueEmail(recipientEmail, subject, htmlContent, label);
 };
 
+const createInApp = async (userId, title, message, type = 'info') => {
+  if (!userId) return;
+  try {
+    const notificationRepository = require('../repositories/notificationRepository');
+    await notificationRepository.insertInAppNotification({
+      user_id: userId,
+      title,
+      message,
+      type
+    });
+  } catch (err) {
+    console.error('[In-App Notification Error]:', err.message);
+  }
+};
+
 const notificationService = {
   // Authentication Emails
   async sendWelcomeEmail(email, fullName, userId = null) {
     const htmlContent = emailService.compileEmail('welcomeEmail.html', { fullName, email }, 'Identity Verified', 'user');
     const subject = 'Welcome to ResolveNow: Identity Verified';
+    if (userId) {
+      await createInApp(userId, 'Welcome to ResolveNow', 'Your identity has been verified and your account is active.', 'success');
+    }
     return checkPreferenceAndQueue(userId, 'status_updates', subject, htmlContent, 'Welcome Dossier', email);
   },
 
@@ -55,6 +73,7 @@ const notificationService = {
   async sendPasswordChangedEmail(userId) {
     const htmlContent = emailService.compileEmail('passwordResetEmail.html', {}, 'Security Event: Password Updated', 'user');
     const subject = 'ResolveNow: Password Changed Successfully';
+    await createInApp(userId, 'Password Changed Successfully', 'Your account password has been updated. Other device sessions have been terminated.', 'warning');
     return checkPreferenceAndQueue(userId, 'password_changed', subject, htmlContent, 'Password Changed Alert');
   },
 
@@ -62,6 +81,7 @@ const notificationService = {
     const securityAlert = require('../templates/notifications/securityAlert');
     const data = securityAlert.email.newDevice({ device, browser, time, location });
     const htmlContent = emailService.compileEmail(data.template, data.variables, 'Security Alert: Unknown Sign-in', 'user');
+    await createInApp(userId, 'Security Alert: New Sign-in', `A new session was authenticated on ${device} via ${browser} at ${time}.`, 'error');
     return checkPreferenceAndQueue(userId, 'security_alerts', data.subject, htmlContent, 'New Device Sign-in');
   },
 
@@ -74,6 +94,9 @@ const notificationService = {
       frontendUrl: process.env.VITE_FRONTEND_URL || 'http://localhost:5173'
     });
     const htmlContent = emailService.compileEmail(data.template, data.variables, 'Filing Confirmation', 'user');
+    if (userId) {
+      await createInApp(userId, 'Grievance Registered', `Ticket #${ticketId} ("${title}") was successfully submitted.`, 'success');
+    }
     return checkPreferenceAndQueue(userId, 'status_updates', data.subject, htmlContent, 'Ticket Confirmation', email);
   },
 
@@ -87,6 +110,12 @@ const notificationService = {
       frontendUrl: process.env.VITE_FRONTEND_URL || 'http://localhost:5173'
     });
     const htmlContent = emailService.compileEmail(data.template, data.variables, 'Officer Task Assigned', 'admin');
+    
+    const officerUser = await userRepository.findByEmail(officerEmail).catch(() => null);
+    if (officerUser) {
+      await createInApp(officerUser.id, 'New Grievance Assigned', `Ticket #${ticketId} ("${title}") has been assigned to you.`, 'info');
+    }
+    
     return emailService.queueEmail(officerEmail, data.subject, htmlContent, 'Assignment Alert');
   },
 
@@ -98,6 +127,7 @@ const notificationService = {
       newStatus
     }, 'Timeline Milestone Updated', 'user');
     const subject = `ResolveNow Status Update: #${ticketId}`;
+    await createInApp(userId, 'Grievance Status Update', `Ticket #${ticketId} transitioned from ${oldStatus} to ${newStatus}.`, 'info');
     return checkPreferenceAndQueue(userId, 'status_updates', subject, htmlContent, 'Status Milestone Update');
   },
 
@@ -111,6 +141,7 @@ const notificationService = {
       frontendUrl: process.env.VITE_FRONTEND_URL || 'http://localhost:5173'
     });
     const htmlContent = emailService.compileEmail(data.template, data.variables, 'Redressal Verification Complete', 'user');
+    await createInApp(userId, 'Grievance Resolved', `Ticket #${ticketId} has been resolved: "${notes}"`, 'success');
     return checkPreferenceAndQueue(userId, 'status_updates', data.subject, htmlContent, 'Resolution Complete');
   },
 
@@ -136,6 +167,9 @@ const notificationService = {
       authorName,
       frontendUrl: process.env.VITE_FRONTEND_URL || 'http://localhost:5173'
     });
+
+    const snippet = commentText.length > 60 ? commentText.substring(0, 57) + '...' : commentText;
+    await createInApp(targetUserId, 'New Comment Posted', `${authorName} commented on ticket #${ticketId}: "${snippet}"`, 'info');
 
     const htmlContent = emailService.compileEmail(data.template, data.variables, isTargetAdmin ? 'Response Received' : 'Grievance Comment Posted', isTargetAdmin ? 'admin' : 'user');
     return checkPreferenceAndQueue(targetUserId, 'comment_notifications', data.subject, htmlContent, 'Comment Notification');
@@ -174,6 +208,11 @@ const notificationService = {
       btnText: 'Access Escalations Queue'
     }, 'Emergency Escalation Briefing', 'admin');
 
+    const adminUser = await userRepository.findByEmail(seniorAdminEmail).catch(() => null);
+    if (adminUser) {
+      await createInApp(adminUser.id, 'Critical Escalation Alert', `Ticket #${ticketId} escalated. Frustration: ${frustrationIndex}/10.`, 'error');
+    }
+
     const subject = `CRITICAL ESCALATION: Ticket #${ticketId}`;
     return emailService.queueEmail(seniorAdminEmail, subject, htmlContent, 'Escalated Grievance Alert');
   },
@@ -205,6 +244,11 @@ const notificationService = {
       btnClass: 'btn-admin',
       btnText: 'Deploy Remediation'
     }, 'SLA Compliance Warning', 'admin');
+
+    const adminUser = await userRepository.findByEmail(adminEmail).catch(() => null);
+    if (adminUser) {
+      await createInApp(adminUser.id, 'SLA Breach Warning', `Ticket #${ticketId} is within ${hoursRemaining} hours of breaching SLA.`, 'warning');
+    }
 
     const subject = `SLA BREACH WARNING: #${ticketId}`;
     return emailService.queueEmail(adminEmail, subject, htmlContent, 'SLA Warning Alert');
@@ -258,6 +302,7 @@ const notificationService = {
     const securityAlert = require('../templates/notifications/securityAlert');
     const data = securityAlert.email.alert({ alertMessage });
     const htmlContent = emailService.compileEmail(data.template, data.variables, 'Account Security Warning', 'user');
+    await createInApp(userId, 'Security Warning', alertMessage, 'error');
     return checkPreferenceAndQueue(userId, 'security_alerts', data.subject, htmlContent, 'Security Alert Email', fallbackEmail);
   },
 

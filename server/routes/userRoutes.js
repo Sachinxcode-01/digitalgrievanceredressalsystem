@@ -1,6 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const { getProfile, updateProfile, updateAccount, changePassword, deleteAccount } = require('../controllers/userController');
+const { 
+  getProfile, 
+  updateProfile, 
+  updateAccount, 
+  changePassword, 
+  deleteAccount,
+  getNotifications,
+  markNotificationRead,
+  markAllNotificationsRead
+} = require('../controllers/userController');
 const { authenticateToken } = require('../middleware/authMiddleware');
 const { 
   validateProfileUpdate, 
@@ -30,5 +39,17 @@ router.post('/change-password', validateChangePassword, changePassword);
 // @route   DELETE /api/v1/user/account
 // @desc    Delete user account and cascade erase all associated DB rows
 router.delete('/account', deleteAccount);
+
+// @route   GET /api/v1/user/notifications
+// @desc    Retrieve user unread in-app alerts
+router.get('/notifications', getNotifications);
+
+// @route   PUT /api/v1/user/notifications/read-all
+// @desc    Mark all in-app notices as read
+router.put('/notifications/read-all', markAllNotificationsRead);
+
+// @route   PUT /api/v1/user/notifications/:id/read
+// @desc    Mark in-app notice as read
+router.put('/notifications/:id/read', markNotificationRead);
 
 module.exports = router;

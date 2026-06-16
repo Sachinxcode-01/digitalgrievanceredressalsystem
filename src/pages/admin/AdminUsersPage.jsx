@@ -28,7 +28,6 @@ export const AdminUsersPage = () => {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
-    mobileNumber: '',
     password: '',
     role: 'student',
     status: 'active'
@@ -54,7 +53,6 @@ export const AdminUsersPage = () => {
     setFormData({
       fullName: '',
       email: '',
-      mobileNumber: '',
       password: '',
       role: 'student',
       status: 'active'
@@ -67,7 +65,6 @@ export const AdminUsersPage = () => {
     setFormData({
       fullName: user.fullName || '',
       email: user.email || '',
-      mobileNumber: user.mobile_number || '',
       role: user.role || 'student',
       status: user.status || 'active'
     });
@@ -146,8 +143,7 @@ export const AdminUsersPage = () => {
   const filteredUsers = users.filter(u => {
     const matchesSearch = 
       (u.fullName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (u.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (u.mobile_number || '').includes(searchQuery);
+      (u.email || '').toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesRole = roleFilter === 'All' || u.role === roleFilter;
     const matchesStatus = statusFilter === 'All' || u.status === statusFilter;
@@ -192,7 +188,7 @@ export const AdminUsersPage = () => {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by name, email, or mobile..."
+            placeholder="Search by name or email..."
             className="w-full bg-slate-950/60 border border-white/5 rounded-xl py-3 pl-10 pr-4 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 transition-colors font-medium"
           />
         </div>
@@ -276,10 +272,6 @@ export const AdminUsersPage = () => {
                       <div className="flex justify-between items-center">
                         <span className="text-slate-600">User identifier</span>
                         <span className="text-slate-400 select-all">{user.id.slice(0, 8)}...</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-600">Mobile queue</span>
-                        <span className="text-slate-400">{user.mobile_number || 'None'}</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-slate-600">Registration Node</span>
@@ -393,17 +385,6 @@ export const AdminUsersPage = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Mobile Number</label>
-                <input 
-                  type="text"
-                  value={formData.mobileNumber}
-                  onChange={(e) => setFormData({...formData, mobileNumber: e.target.value})}
-                  className="w-full bg-slate-950 border border-white/5 rounded-xl p-3 text-xs text-white placeholder:text-slate-700 focus:outline-none focus:border-indigo-500/50" 
-                  placeholder="e.g. +91 9988776655"
-                />
-              </div>
-
-              <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Password</label>
                 <input 
                   type="password" 
@@ -489,17 +470,6 @@ export const AdminUsersPage = () => {
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
                   className="w-full bg-slate-950 border border-white/5 rounded-xl p-3 text-xs text-white placeholder:text-slate-700 focus:outline-none focus:border-indigo-500/50" 
                   placeholder="jane.doe@resolve.now"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Mobile Number</label>
-                <input 
-                  type="text"
-                  value={formData.mobileNumber}
-                  onChange={(e) => setFormData({...formData, mobileNumber: e.target.value})}
-                  className="w-full bg-slate-950 border border-white/5 rounded-xl p-3 text-xs text-white placeholder:text-slate-700 focus:outline-none focus:border-indigo-500/50" 
-                  placeholder="e.g. +91 9988776655"
                 />
               </div>
 
