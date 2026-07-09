@@ -38,11 +38,27 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        connectSrc: ["'self'", "https://*.supabase.co", "wss://*.supabase.co"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        // Supabase (DB + realtime websockets), Clerk (auth SDK + telemetry) and Google (OAuth)
+        connectSrc: [
+          "'self'",
+          "https://*.supabase.co", "wss://*.supabase.co",
+          "https://*.clerk.accounts.dev", "https://*.clerk.com", "https://clerk-telemetry.com",
+          "https://accounts.google.com", "https://*.googleapis.com"
+        ],
+        scriptSrc: [
+          "'self'", "'unsafe-inline'", "'unsafe-eval'",
+          "https://*.clerk.accounts.dev", "https://*.clerk.com",
+          "https://accounts.google.com", "https://apis.google.com"
+        ],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-        fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        imgSrc: ["'self'", "data:", "blob:", "https://*.supabase.co"]
+        fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+        imgSrc: [
+          "'self'", "data:", "blob:",
+          "https://*.supabase.co", "https://img.clerk.com", "https://*.googleusercontent.com"
+        ],
+        // Clerk uses web workers (blob:) and renders sign-in flows in frames
+        workerSrc: ["'self'", "blob:"],
+        frameSrc: ["'self'", "https://*.clerk.accounts.dev", "https://accounts.google.com"]
       }
     },
     frameguard: { action: 'deny' },
@@ -109,16 +125,7 @@ app.get('/api/health', async (req, res) => {
       status: dbStatus,
       latencyMs: dbLatency
     },
-    active_sms_target: process.env.SMS_GATEWAY_URL || 'http://10.105.47.157:8080/api/v1',
     service: 'Digital Grievance API'
-  });
-});
-
-app.get('/api/diag-sms', (req, res) => {
-  const sms = require('./services/smsService');
-  res.json({ 
-    config: 'Check your server logs or smsService.js directly.',
-    active: !!sms.sendOTPSMS
   });
 });
 
@@ -162,22 +169,30 @@ app.get('*', (req, res) => {
 
 // 6. Centralized Error Handling Middleware
 app.use((err, req, res, next) => {
-  console.error('[Central System Error]:', err.stack);
-  
-  // Write to a diagnostic log file for debugging redirect loops
-  try {
+  const status = err.status || 500;
+
+  // Full detail is logged server-side only, never returned to the client.
+  console.error(`[Central System Error] ${req.method} ${req.originalUrl}:`, err.stack || err.message);
+
+  // Optional file logging for debugging. Gated behind ERROR_LOG_FILE=true and written
+  // asynchronously so it never blocks the event loop (and does not grow silently in prod).
+  if (process.env.ERROR_LOG_FILE === 'true') {
     const fs = require('fs');
     const logPath = path.join(__dirname, '../server_errors.log');
     const timestamp = new Date().toISOString();
     const logMessage = `[${timestamp}] ${req.method} ${req.originalUrl}\nError: ${err.message}\nStack: ${err.stack}\n\n`;
-    fs.appendFileSync(logPath, logMessage);
-  } catch (fsErr) {
-    console.error('Failed to write to server_errors.log:', fsErr.message);
+    fs.appendFile(logPath, logMessage, (fsErr) => {
+      if (fsErr) console.error('Failed to write to server_errors.log:', fsErr.message);
+    });
   }
 
-  const status = err.status || 500;
-  const message = err.message || 'Something went wrong on the server!';
-  res.status(status).json({ 
+  // For unexpected 5xx errors in production, return a generic message so internal
+  // details / stack traces are never leaked. User-facing 4xx messages pass through.
+  const message = (status >= 500 && process.env.NODE_ENV === 'production')
+    ? 'An unexpected error occurred. Please try again later.'
+    : (err.message || 'Something went wrong on the server!');
+
+  res.status(status).json({
     error: message,
     timestamp: new Date().toISOString()
   });

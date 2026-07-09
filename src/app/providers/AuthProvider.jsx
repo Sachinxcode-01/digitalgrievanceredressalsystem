@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useAuth as useClerkAuth, useUser, useSignIn, useSignUp } from '@clerk/clerk-react';
 import { apiClient, setClerkGetToken, setAccessToken } from '../../api/apiClient';
+import { isSandboxAccount } from '../../utils/authMode';
 
 const AuthContext = createContext(null);
 
@@ -13,35 +14,36 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Tracks the Clerk user id we've already synced, so we never fire /auth/sync
+  // more than once per session (Clerk re-renders several times while loading).
+  const syncedClerkIdRef = useRef(null);
+
   // Set Clerk token fetch function in Axios client on mount/update
   useEffect(() => {
     setClerkGetToken(getToken);
   }, [getToken]);
 
-  // Synchronize auth state (Clerk or local credentials session)
+  // Synchronize auth state (Clerk session or local credentials session)
   useEffect(() => {
     let active = true;
 
     const initializeAuth = async () => {
-      // Fast path: if user is already synced and active, do nothing
+      // Fast path: user already resolved — nothing to do.
       if (user) {
-        if (active) {
-          setLoading(false);
-        }
+        if (active) setLoading(false);
         return;
       }
 
-      // 1. Check for active local sandbox session first
+      // 1. Restore an existing local (sandbox/JWT) session if one is flagged.
       const hasLocalSession = localStorage.getItem('has_active_session') === 'true';
       if (hasLocalSession) {
         try {
           const refreshRes = await apiClient.post('/auth/refresh-token');
-          const token = refreshRes.data.token;
-          setAccessToken(token);
-          
+          setAccessToken(refreshRes.data.token);
+
           const profileRes = await apiClient.get('/user/profile');
           const pData = profileRes.data;
-          
+
           if (active) {
             setUser({
               id: pData.account.id,
@@ -52,37 +54,32 @@ export const AuthProvider = ({ children }) => {
             setLoading(false);
           }
           return;
-        } catch (err) {
-          console.log('Failed to restore local session, clearing local token:', err.message);
+        } catch {
+          // Local session could not be restored — clear it and fall through to Clerk.
           setAccessToken(null);
-          // Fall through to check Clerk
         }
       }
 
-      // 2. Synchronize Clerk session if available
+      // 2. Otherwise synchronize the Clerk session once it has finished loading.
       if (isAuthLoaded && isUserLoaded) {
         if (isSignedIn && clerkUser) {
-          try {
-            console.log('[Clerk] Session is signed in. Syncing user with backend database...');
-            const res = await apiClient.post('/auth/sync');
-            if (active) {
-              setUser(res.data.user);
-            }
-          } catch (err) {
-            console.error('Failed to sync authenticated Clerk user with database:', err);
-            if (active) {
-              setUser(null);
+          // Only sync a given Clerk user once (avoids duplicate /auth/sync calls).
+          if (syncedClerkIdRef.current !== clerkUser.id) {
+            syncedClerkIdRef.current = clerkUser.id;
+            try {
+              const res = await apiClient.post('/auth/sync');
+              if (active) setUser(res.data.user);
+            } catch (err) {
+              console.error('Failed to sync Clerk user with backend:', err.message);
+              syncedClerkIdRef.current = null; // allow a retry on the next trigger
+              if (active) setUser(null);
             }
           }
-        } else {
-          if (active && user) {
-            console.log('[Clerk] Session is signed out. Clearing user state.');
-            setUser(null);
-          }
+        } else if (active && user) {
+          setUser(null);
+          syncedClerkIdRef.current = null;
         }
-        if (active) {
-          setLoading(false);
-        }
+        if (active) setLoading(false);
       }
     };
 
@@ -91,7 +88,7 @@ export const AuthProvider = ({ children }) => {
     return () => {
       active = false;
     };
-  }, [user, isSignedIn, clerkUser, isAuthLoaded, isUserLoaded]);
+  }, [user, isSignedIn, clerkUser?.id, isAuthLoaded, isUserLoaded]);
 
   // Listen to custom expiration event to handle logout
   useEffect(() => {
@@ -111,7 +108,7 @@ export const AuthProvider = ({ children }) => {
 
   // Auth Operations
   const register = async (fullName, email, password, role) => {
-    const isSandbox = typeof email === 'string' && (email.toLowerCase().trim().endsWith('@resolve.now') || email.toLowerCase().trim() === 'sachiii8827@gmail.com');
+    const isSandbox = isSandboxAccount(email);
 
     if (isSandbox) {
       const payload = {
@@ -139,8 +136,8 @@ export const AuthProvider = ({ children }) => {
     const suffix = Math.random().toString(36).slice(2, 6); // 4 random alphanumeric chars
     const username = `${emailPrefix}_${suffix}`;
 
-    console.log('[Clerk] signUp.create() payload:', { firstName, lastName, username, emailAddress: email });
-
+    // Note: `role` is stored in unsafeMetadata only for display convenience. The backend
+    // never trusts it for authorization — server-side role comes from publicMetadata.
     const res = await signUp.create({
       firstName,
       lastName,
@@ -153,10 +150,7 @@ export const AuthProvider = ({ children }) => {
       }
     });
 
-    console.log('[Clerk] signUp.create() status:', res.status, res);
-
     if (res.status === 'missing_requirements') {
-      console.error('[Clerk] missing_requirements — missingFields:', res.missingFields, 'requiredFields:', res.requiredFields);
       throw new Error(`Registration incomplete — Clerk requires: ${res.missingFields?.join(', ') || 'unknown fields'}. Check Clerk dashboard field configuration.`);
     }
 
@@ -169,7 +163,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (identifier, password, loginType = 'password', rememberMe = false) => {
-    const isSandbox = typeof identifier === 'string' && (identifier.toLowerCase().trim().endsWith('@resolve.now') || identifier.toLowerCase().trim() === 'sachiii8827@gmail.com');
+    const isSandbox = isSandboxAccount(identifier);
 
     if (isSandbox) {
       const payload = {
@@ -223,7 +217,7 @@ export const AuthProvider = ({ children }) => {
     if (res.status === 'needs_second_factor') {
       return { 
         requiresOtp: true, 
-        message: 'Administrative accounts require a second factor. An OTP has been sent to your registered email/phone.' 
+        message: 'Administrative accounts require a second factor. An OTP has been sent to your registered email.' 
       };
     }
 
@@ -243,7 +237,7 @@ export const AuthProvider = ({ children }) => {
 
   const loginWithGoogle = async () => {
     if (!isSignInLoaded) throw new Error('Clerk SignIn SDK not loaded');
-    
+
     await signIn.authenticateWithRedirect({
       strategy: 'oauth_google',
       redirectUrl: '/dashboard',
@@ -251,8 +245,19 @@ export const AuthProvider = ({ children }) => {
     });
   };
 
+  const loginWithMicrosoft = async () => {
+    if (!isSignInLoaded) throw new Error('Clerk SignIn SDK not loaded');
+
+    // Requires the Microsoft OAuth connection to be enabled in the Clerk dashboard.
+    await signIn.authenticateWithRedirect({
+      strategy: 'oauth_microsoft',
+      redirectUrl: '/dashboard',
+      signUpRedirectUrl: '/dashboard'
+    });
+  };
+
   const verifyOtp = async (identifier, otp, purpose, rememberMe = false) => {
-    const isSandbox = typeof identifier === 'string' && (identifier.toLowerCase().trim().endsWith('@resolve.now') || identifier.toLowerCase().trim() === 'sachiii8827@gmail.com');
+    const isSandbox = isSandboxAccount(identifier);
 
     if (isSandbox) {
       const payload = {
@@ -288,15 +293,10 @@ export const AuthProvider = ({ children }) => {
       // Guard: if signUp object is stale (e.g. after page refresh), it won't have
       // a pending email verification. Surface a clear error rather than a cryptic Clerk one.
       if (!signUp.status || signUp.status === 'abandoned') {
-        console.error('[Clerk] signUp object is stale/missing. Status:', signUp.status);
         throw new Error('Verification session expired. Please register again.');
       }
 
-      console.log('[Clerk] signUp before attemptEmailAddressVerification — status:', signUp.status, 'emailVerification:', signUp.verifications?.emailAddress);
-
       const res = await signUp.attemptEmailAddressVerification({ code: otp });
-
-      console.log('[Clerk] attemptEmailAddressVerification result — status:', res.status, 'createdSessionId:', res.createdSessionId);
 
       if (res.status === 'complete') {
         if (!res.createdSessionId) {
@@ -310,8 +310,6 @@ export const AuthProvider = ({ children }) => {
           user: syncRes.data.user
         };
       }
-      // Log the full object so we can see exactly what's missing
-      console.error('[Clerk] Registration verification failed:', res.status, 'missingFields:', res.missingFields, res);
       throw new Error(`Verification failed with status: ${res.status}${
         res.missingFields?.length ? ` (missing: ${res.missingFields.join(', ')})` : ''
       }`);
@@ -320,13 +318,8 @@ export const AuthProvider = ({ children }) => {
 
       // Guard: if signIn object is stale (page refresh), surface a clear error.
       if (!signIn.status) {
-        console.error('[Clerk] signIn object is stale/missing. Status:', signIn.status);
         throw new Error('Login session expired. Please sign in again.');
       }
-
-      console.log('[Clerk] signIn before verification — status:', signIn.status,
-        'firstFactorVerification:', signIn.firstFactorVerification,
-        'secondFactorVerification:', signIn.secondFactorVerification);
 
       let res;
       // For email_code OTP login (loginType='otp'), the flow is:
@@ -341,8 +334,6 @@ export const AuthProvider = ({ children }) => {
         res = await signIn.attemptFirstFactor({ strategy: 'email_code', code: otp });
       }
 
-      console.log('[Clerk] attemptFactor result — status:', res.status, res);
-
       if (res.status === 'complete') {
         await setSignInActive({ session: res.createdSessionId });
         const syncRes = await apiClient.post('/auth/sync');
@@ -352,7 +343,6 @@ export const AuthProvider = ({ children }) => {
           user: syncRes.data.user
         };
       }
-      console.error('[Clerk] Login verification failed:', res.status, res);
       throw new Error(`Verification failed with status: ${res.status}`);
     } else if (purpose === 'forgot_password') {
       // Forgot password OTP is handled by the backend for sandbox users (already
@@ -365,7 +355,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const resendOtp = async (identifier, purpose) => {
-    const isSandbox = typeof identifier === 'string' && (identifier.toLowerCase().trim().endsWith('@resolve.now') || identifier.toLowerCase().trim() === 'sachiii8827@gmail.com');
+    const isSandbox = isSandboxAccount(identifier);
 
     if (isSandbox) {
       const payload = {
@@ -390,7 +380,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const forgotPassword = async (email) => {
-    const isSandbox = typeof email === 'string' && (email.toLowerCase().trim().endsWith('@resolve.now') || email.toLowerCase().trim() === 'sachiii8827@gmail.com');
+    const isSandbox = isSandboxAccount(email);
 
     if (isSandbox) {
       const payload = { email: email.toLowerCase().trim() };
@@ -410,7 +400,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const resetPassword = async (email, password, resetCode) => {
-    const isSandbox = typeof email === 'string' && (email.toLowerCase().trim().endsWith('@resolve.now') || email.toLowerCase().trim() === 'sachiii8827@gmail.com');
+    const isSandbox = isSandboxAccount(email);
 
     if (isSandbox) {
       const payload = {
@@ -532,6 +522,7 @@ export const AuthProvider = ({ children }) => {
         register,
         login,
         loginWithGoogle,
+        loginWithMicrosoft,
         verifyOtp,
         resendOtp,
         forgotPassword,

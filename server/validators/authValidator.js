@@ -18,6 +18,10 @@ const validateRegister = [
     .withMessage('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
   body('role')
     .optional()
+    // A requested role is accepted here but is NOT trusted for authorization: the
+    // service layer forces all public self-registrations to 'student', and Clerk users
+    // derive their role from server-only publicMetadata. Privileged roles (admin /
+    // super admin) are assigned by administrators, never granted via self-registration.
     .isIn(['student', 'faculty', 'staff', 'admin', 'super admin']).withMessage('Invalid role specified'),
   validate
 ];

@@ -15,7 +15,7 @@ const createError = (message, status) => {
 };
 
 const checkOtpCooldown = async (identifier, purpose) => {
-  const filterCol = identifier.includes('@') ? 'email' : 'phone';
+  const filterCol = 'email';
   const lastOtp = await notificationRepository.findOtpVerification(identifier, filterCol, purpose).catch(() => null);
 
   if (lastOtp) {
@@ -98,14 +98,29 @@ const authService = {
       throw createError('Verification code has expired (5 minute limit).', 400);
     }
 
-    // Verify code
-    if (verification.code !== otp) {
+    // Verify code.
+    // Normalize both sides to strings and trim whitespace so a numeric OTP from the
+    // client (e.g. 123456) still matches the string stored in the DB ("123456"),
+    // and stray spaces/newlines never cause a false mismatch.
+    const submittedCode = String(otp ?? '').trim();
+    const storedCode = String(verification.code ?? '').trim();
+
+    if (!submittedCode) {
+      throw createError('Verification code is required.', 400);
+    }
+
+    if (storedCode !== submittedCode) {
       const newAttempts = (verification.attempts || 0) + 1;
       if (newAttempts >= 3) {
         await notificationRepository.deleteOtpVerificationById(verification.id);
         throw createError('Too many incorrect attempts. This OTP has been invalidated. Please request a new OTP.', 400);
       } else {
-        await notificationRepository.updateOtpAttempts(verification.id, newAttempts);
+        // Persist the incremented attempt count. If this write fails we still reject
+        // the code, but we surface the remaining attempts based on the value we tried
+        // to store so the counter stays consistent for the user.
+        await notificationRepository.updateOtpAttempts(verification.id, newAttempts).catch((err) => {
+          console.error('[OTP] Failed to persist attempt counter:', err.message);
+        });
         throw createError(`Incorrect verification code. Attempts remaining: ${3 - newAttempts}`, 400);
       }
     }

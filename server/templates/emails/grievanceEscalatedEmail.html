@@ -1,0 +1,16 @@
+<p style="margin: 0 0 16px 0;">Hello,</p>
+<p style="margin: 0 0 24px 0;">Grievance <strong style="color: #DC2626; font-family: monospace;">#{{ticketId}}</strong> has been <strong>escalated</strong> and requires priority attention. This may be due to SLA thresholds or an elevated frustration index.</p>
+
+<div class="card card-alert" style="border-left: 4px solid #DC2626; background-color: #FEF2F2; border-top: 1px solid #FEE2E2; border-right: 1px solid #FEE2E2; border-bottom: 1px solid #FEE2E2; border-radius: 8px; padding: 20px; margin: 24px 0;">
+  <h3 style="margin: 0 0 12px 0; color: #991B1B; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #FEE2E2; padding-bottom: 8px; font-weight: 700;">Escalation Parameters</h3>
+  <p style="margin: 8px 0; font-size: 14px;"><strong>Ticket ID:</strong> <span style="font-family: monospace; font-weight: 700; color: #DC2626;">#{{ticketId}}</span></p>
+  <p style="margin: 8px 0; font-size: 14px;"><strong>Subject:</strong> {{title}}</p>
+  <p style="margin: 8px 0; font-size: 14px;"><strong>Department:</strong> {{category}}</p>
+  <p style="margin: 8px 0; font-size: 14px;"><strong>Frustration Index:</strong> <span style="color: #DC2626; font-weight: 700;">{{frustrationIndex}}/10</span></p>
+</div>
+
+<p style="margin: 0 0 24px 0;">Please review this grievance in the escalations queue and take remedial action to stay within compliance targets.</p>
+
+<div style="text-align: center; margin: 28px 0;">
+  <a href="{{actionUrl}}" class="btn btn-escalated" style="background-color: #DC2626;">Open Escalations Queue</a>
+</div>

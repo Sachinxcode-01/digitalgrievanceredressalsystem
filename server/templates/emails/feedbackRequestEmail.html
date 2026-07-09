@@ -1,0 +1,27 @@
+<p style="margin: 0 0 16px 0;">Hello{{recipientName}},</p>
+<p style="margin: 0 0 24px 0;">Your grievance <strong style="color: #2563EB; font-family: monospace;">#{{ticketId}}</strong> has been resolved and closed. We'd love to know how we did.</p>
+
+<div class="card" style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 20px; margin: 24px 0;">
+  <h3 style="margin: 0 0 12px 0; color: #0F172A; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #E2E8F0; padding-bottom: 8px; font-weight: 700;">Resolved Grievance</h3>
+  <p style="margin: 8px 0; font-size: 14px;"><strong>Ticket ID:</strong> <span style="font-family: monospace; font-weight: 700; color: #2563EB;">#{{ticketId}}</span></p>
+  <p style="margin: 8px 0; font-size: 14px;"><strong>Subject:</strong> {{title}}</p>
+</div>
+
+<p style="margin: 0 0 12px 0;">How satisfied are you with the resolution? Tap a rating to share quick feedback:</p>
+
+<!-- Star rating shortcut row (deep-links back into the portal feedback form) -->
+<div style="text-align: center; margin: 8px 0 24px 0;">
+  <a href="{{feedbackUrl}}&rating=1" style="text-decoration: none; font-size: 26px; color: #F59E0B; padding: 0 3px;">&#9733;</a>
+  <a href="{{feedbackUrl}}&rating=2" style="text-decoration: none; font-size: 26px; color: #F59E0B; padding: 0 3px;">&#9733;</a>
+  <a href="{{feedbackUrl}}&rating=3" style="text-decoration: none; font-size: 26px; color: #F59E0B; padding: 0 3px;">&#9733;</a>
+  <a href="{{feedbackUrl}}&rating=4" style="text-decoration: none; font-size: 26px; color: #F59E0B; padding: 0 3px;">&#9733;</a>
+  <a href="{{feedbackUrl}}&rating=5" style="text-decoration: none; font-size: 26px; color: #F59E0B; padding: 0 3px;">&#9733;</a>
+</div>
+
+<p style="margin: 0 0 24px 0; font-size: 14px; color: #64748B;">It only takes a few seconds and helps us improve service quality for everyone.</p>
+
+<div style="text-align: center; margin: 28px 0;">
+  <a href="{{feedbackUrl}}" class="btn btn-user" style="background-color: #2563EB;">Share Your Feedback</a>
+</div>
+
+<p style="margin: 0; font-size: 13px; color: #94A3B8;">If the buttons above don't work, copy and paste this link into your browser:<br><span style="color: #2563EB; word-break: break-all;">{{feedbackUrl}}</span></p>

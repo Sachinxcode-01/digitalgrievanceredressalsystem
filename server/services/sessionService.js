@@ -28,6 +28,13 @@ const createSession = async (user, ip, userAgent, rememberMe = false) => {
     expires_at: expiresAt.toISOString()
   });
 
+  // The session row is required to mint a token. If the insert returned nothing
+  // (e.g. an RLS policy blocked it), fail loudly with a clear message instead of
+  // crashing later on `sessionData.id`.
+  if (!sessionData || !sessionData.id) {
+    throw new Error('Failed to persist authentication session. Please try again.');
+  }
+
   const deviceFingerprint = crypto.createHash('md5').update(`${os}-${browser}-${device}`).digest('hex');
   
   let isNewDevice = false;

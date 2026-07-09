@@ -175,7 +175,17 @@ const userRepository = {
       .eq('id', id)
       .select()
       .single();
-    if (error) throw error;
+    if (error) {
+      // PGRST116 = "Cannot coerce the result to a single JSON object" (0 rows matched,
+      // e.g. the id doesn't exist or an RLS policy blocked the write). Surface a clear,
+      // actionable message instead of the cryptic PostgREST error.
+      if (error.code === 'PGRST116') {
+        const e = new Error('User record not found or the update was blocked.');
+        e.status = 404;
+        throw e;
+      }
+      throw error;
+    }
     return data;
   },
 
@@ -208,7 +218,14 @@ const userRepository = {
       .eq('user_id', userId)
       .select()
       .single();
-    if (error) throw error;
+    if (error) {
+      if (error.code === 'PGRST116') {
+        const e = new Error('User profile not found or the update was blocked.');
+        e.status = 404;
+        throw e;
+      }
+      throw error;
+    }
     return data;
   },
 

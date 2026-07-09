@@ -145,6 +145,19 @@ const notificationService = {
     return checkPreferenceAndQueue(userId, 'status_updates', data.subject, htmlContent, 'Resolution Complete');
   },
 
+  async sendFeedbackRequestEmail(userId, ticketId, title, recipientName = '') {
+    const feedbackUrl = `${process.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/dashboard?ticket=${ticketId}&feedback=1`;
+    const htmlContent = emailService.compileEmail('feedbackRequestEmail.html', {
+      ticketId,
+      title,
+      recipientName: recipientName ? ` ${recipientName}` : '',
+      feedbackUrl
+    }, 'We Value Your Feedback', 'user');
+    const subject = `How did we do? Feedback for grievance #${ticketId}`;
+    await createInApp(userId, 'Feedback Requested', `Please rate the resolution of ticket #${ticketId}.`, 'info');
+    return checkPreferenceAndQueue(userId, 'status_updates', subject, htmlContent, 'Feedback Request');
+  },
+
   async sendCommentAddedEmail(targetUserId, commentText, ticketId, authorName) {
     let isTargetAdmin = false;
     if (targetUserId) {
@@ -196,16 +209,12 @@ const notificationService = {
     const seniorAdminEmail = process.env.ADMIN_EMAIL;
     if (!seniorAdminEmail) return;
 
-    const htmlContent = emailService.compileEmail('grievanceSubmittedEmail.html', {
-      message: `Ticket <strong>#${ticketId}</strong> has been escalated due to priority SLAs or neural frustration index alerts.`,
-      cardTitle: 'Escalation Parameters',
+    const htmlContent = emailService.compileEmail('grievanceEscalatedEmail.html', {
       ticketId,
       title,
-      extraDetails: `<p style="margin: 5px 0;"><strong>Sector:</strong> ${category}</p><p style="margin: 5px 0;"><strong>Frustration Level:</strong> <span style="color: #f87171; font-weight: bold;">${frustrationIndex}/10</span></p>`,
-      actionText: 'Access the escalations queue immediately.',
-      actionUrl: `${process.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/admin/dashboard?tab=grievances`,
-      btnClass: 'btn-escalated',
-      btnText: 'Access Escalations Queue'
+      category,
+      frustrationIndex,
+      actionUrl: `${process.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/admin/dashboard?tab=grievances`
     }, 'Emergency Escalation Briefing', 'admin');
 
     const adminUser = await userRepository.findByEmail(seniorAdminEmail).catch(() => null);

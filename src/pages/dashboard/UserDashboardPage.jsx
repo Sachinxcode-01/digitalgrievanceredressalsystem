@@ -18,6 +18,9 @@ import { APIProvider } from '@vis.gl/react-google-maps';
 import { PlacePicker } from '@googlemaps/extended-component-library/react';
 import { CommandChat } from '../../components/ai/CommandChat';
 import { useRealtimeConnection } from '../../hooks/useRealtimeConnection';
+import { StatCard } from '../../components/ui/StatCard';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { staggerContainer } from '../../lib/motion';
 
 const SLACountdown = ({ ticket }) => {
   const isTerminal = !ticket || ticket.status === 'Resolved' || ticket.status === 'Closed' || ticket.status === 'Rejected';
@@ -497,12 +500,12 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
   const rejectedGrievances = tickets.filter(t => t.status === 'Rejected').length;
 
   const stats = [
-    { label: 'Total', value: totalGrievances, color: 'border-l-primary-bright text-primary-bright' },
-    { label: 'Open', value: pendingGrievances, color: 'border-l-indigo-400 text-indigo-400' },
-    { label: 'In Progress', value: progressGrievances, color: 'border-l-warning text-warning' },
-    { label: 'Resolved', value: resolvedGrievances, color: 'border-l-success text-success' },
-    { label: 'Closed', value: closedGrievances, color: 'border-l-cyan-400 text-cyan-400' },
-    { label: 'Rejected', value: rejectedGrievances, color: 'border-l-error text-error' },
+    { label: 'Total', value: totalGrievances, icon: Ticket, tone: 'primary' },
+    { label: 'Open', value: pendingGrievances, icon: Clock, tone: 'accent' },
+    { label: 'In Progress', value: progressGrievances, icon: TrendingUp, tone: 'warning' },
+    { label: 'Resolved', value: resolvedGrievances, icon: CheckCircle2, tone: 'success' },
+    { label: 'Closed', value: closedGrievances, icon: ShieldCheck, tone: 'neutral' },
+    { label: 'Rejected', value: rejectedGrievances, icon: X, tone: 'error' },
   ];
 
   // Filters & Search logic
@@ -618,21 +621,22 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        {stats.map((stat, idx) => (
-          <div 
-            key={idx} 
-            className={`bg-surface border border-border/80 border-l-4 rounded-xl p-5 shadow-xs flex flex-col justify-between ${stat.color}`}
-          >
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
-              {stat.label}
-            </span>
-            <span className="text-2xl font-black text-foreground">
-              {stat.value}
-            </span>
-          </div>
+      <motion.div
+        variants={staggerContainer}
+        initial="hidden"
+        animate="show"
+        className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4"
+      >
+        {stats.map((stat) => (
+          <StatCard
+            key={stat.label}
+            label={stat.label}
+            value={stat.value}
+            icon={stat.icon}
+            tone={stat.tone}
+          />
         ))}
-      </div>
+      </motion.div>
 
       {/* Main Sections Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
@@ -692,16 +696,32 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
                 </thead>
                 <tbody className="divide-y divide-border/50">
                   {loading ? (
-                    <tr>
-                      <td colSpan="5" className="px-6 py-12 text-center text-muted-foreground italic">
-                        <Loader2 className="animate-spin text-primary-bright mx-auto mb-2" size={18} />
-                        Synchronizing grievance records...
-                      </td>
-                    </tr>
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <tr key={`sk-${i}`}>
+                        <td className="px-6 py-4"><div className="skeleton h-3 w-20" /></td>
+                        <td className="px-6 py-4"><div className="skeleton h-3 w-40" /></td>
+                        <td className="px-6 py-4"><div className="skeleton h-3 w-24" /></td>
+                        <td className="px-6 py-4"><div className="skeleton h-5 w-16 rounded-full" /></td>
+                        <td className="px-6 py-4"><div className="skeleton h-3 w-16 ml-auto" /></td>
+                      </tr>
+                    ))
                   ) : currentTickets.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="px-6 py-12 text-center text-muted-foreground italic">
-                        No submissions matching filters.
+                      <td colSpan="5" className="p-0">
+                        <EmptyState
+                          icon={Ticket}
+                          title={searchTerm || statusFilter !== 'All' ? 'No matching grievances' : 'No grievances yet'}
+                          message={
+                            searchTerm || statusFilter !== 'All'
+                              ? 'No submissions match your current search or filter. Try clearing them to see everything.'
+                              : 'When you file a grievance it will appear here with live status tracking and SLA countdowns.'
+                          }
+                          action={
+                            <button onClick={() => setShowModal(true)} className="btn-premium px-4 py-2">
+                              <Plus size={14} /> File a grievance
+                            </button>
+                          }
+                        />
                       </td>
                     </tr>
                   ) : (

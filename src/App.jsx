@@ -75,8 +75,24 @@ const AuthenticatedRedirect = () => {
   return <Navigate to="/dashboard" replace />;
 };
 
+/**
+ * Wrapper for auth pages (login/register/verify-otp/forgot/reset/admin).
+ * Waits for auth initialisation to resolve so we neither flash the login form to an
+ * already-authenticated user nor prematurely redirect during the brief Clerk /
+ * local-session bootstrap window. Public pages are intentionally NOT wrapped so they
+ * render instantly without waiting on auth.
+ */
+const AuthRoute = ({ children, redirectTo }) => {
+  const { isAuthenticated, loading } = useAuth();
+  if (loading) return <PageLoader />;
+  if (isAuthenticated) {
+    return redirectTo ? <Navigate to={redirectTo} replace /> : <AuthenticatedRedirect />;
+  }
+  return children;
+};
+
 function AppContent() {
-  const { user, isAuthenticated, loading, logout } = useAuth();
+  const { user, logout } = useAuth();
   const [theme, setTheme] = useState(localStorage.getItem('app-theme') || 'ocean');
 
   useEffect(() => {
@@ -85,8 +101,6 @@ function AppContent() {
   }, [theme]);
 
   if (isMisconfigured) return <SetupError />;
-
-  if (loading) return <PageLoader />;
 
   return (
     <>
@@ -118,12 +132,12 @@ function AppContent() {
               <Route path="/status" element={<StatusPage />} />
               
               {/* Auth Gates */}
-              <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <AuthenticatedRedirect />} />
-              <Route path="/admin" element={!isAuthenticated ? <AdminLoginPage /> : <Navigate to="/admin/dashboard" />} />
-              <Route path="/register" element={!isAuthenticated ? <RegisterPage /> : <AuthenticatedRedirect />} />
-              <Route path="/verify-otp" element={!isAuthenticated ? <VerifyOtpPage /> : <AuthenticatedRedirect />} />
-              <Route path="/forgot-password" element={!isAuthenticated ? <ForgotPasswordPage /> : <AuthenticatedRedirect />} />
-              <Route path="/reset-password" element={!isAuthenticated ? <ResetPasswordPage /> : <AuthenticatedRedirect />} />
+              <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
+              <Route path="/admin" element={<AuthRoute redirectTo="/admin/dashboard"><AdminLoginPage /></AuthRoute>} />
+              <Route path="/register" element={<AuthRoute><RegisterPage /></AuthRoute>} />
+              <Route path="/verify-otp" element={<AuthRoute><VerifyOtpPage /></AuthRoute>} />
+              <Route path="/forgot-password" element={<AuthRoute><ForgotPasswordPage /></AuthRoute>} />
+              <Route path="/reset-password" element={<AuthRoute><ResetPasswordPage /></AuthRoute>} />
 
               {/* Student/Citizen console */}
               <Route 
@@ -357,8 +371,8 @@ function App() {
       publishableKey={publishableKey}
       signInUrl="/login"
       signUpUrl="/register"
-      afterSignInUrl="/dashboard"
-      afterSignUpUrl="/dashboard"
+      signInFallbackRedirectUrl="/dashboard"
+      signUpFallbackRedirectUrl="/dashboard"
     >
       <AuthProvider>
         <AppContent />

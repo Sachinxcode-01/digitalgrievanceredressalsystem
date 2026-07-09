@@ -26,6 +26,9 @@ export const getErrorMessage = (err, defaultMsg = 'An error occurred') => {
     if (combined.includes('lockout') || combined.includes('locked due to consecutive failures') || combined.includes('too many incorrect attempts') || combined.includes('account locked')) {
       return 'This account has been temporarily locked due to multiple failed login attempts. Please try again later.';
     }
+    if (combined.includes('phone_number') && combined.includes('user requirements')) {
+      return 'Registration configuration updated. Please try again.';
+    }
     if (combined.includes('already registered') || combined.includes('user already exists') || combined.includes('already associated') || combined.includes('unique_constraint') || combined.includes('conflict')) {
       return 'An account with this email address or phone number is already registered.';
     }

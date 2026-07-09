@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../utils/errors';
 
 export const LoginPage = () => {
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle, loginWithMicrosoft } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -41,8 +41,17 @@ export const LoginPage = () => {
     try {
       await loginWithGoogle();
     } catch (err) {
-      console.error('Google Sign-in exception:', err);
       toast.error(getErrorMessage(err, 'Google Sign-in failed. Please try again.'));
+      setLoading(false);
+    }
+  };
+
+  const handleMicrosoftLogin = async () => {
+    setLoading(true);
+    try {
+      await loginWithMicrosoft();
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Microsoft Sign-in failed. Please try again.'));
       setLoading(false);
     }
   };
@@ -62,7 +71,7 @@ export const LoginPage = () => {
       const result = await login(identifier, password, loginType, rememberMe);
       
       if (result.requiresOtp) {
-        toast.success(result.message || 'OTP code sent to email/phone.');
+        toast.success(result.message || 'OTP code sent to email.');
         navigate('/verify-otp', { state: { identifier, purpose: 'login', rememberMe, from: fromPath } });
       } else if (result.requiresActivation) {
         toast.success(result.message || 'OTP code sent for activation.');
@@ -143,6 +152,21 @@ export const LoginPage = () => {
                   <path fill="#34A853" d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.69-2.87c-1.03.69-2.34 1.1-4.27 1.1-3.34 0-5.86-1.81-6.76-4.51L1.39 16.7C3.37 20.33 7.35 23 12 23z"/>
                 </svg>
                 {loading ? 'Redirecting to Google...' : 'Continue with Google'}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleMicrosoftLogin}
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-3 py-3 rounded-xl border border-white/10 bg-slate-900/50 hover:bg-slate-900 text-sm font-bold text-slate-300 hover:text-white transition-all cursor-pointer disabled:opacity-50"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 23 23" aria-hidden="true">
+                  <path fill="#F25022" d="M1 1h10v10H1z"/>
+                  <path fill="#7FBA00" d="M12 1h10v10H12z"/>
+                  <path fill="#00A4EF" d="M1 12h10v10H1z"/>
+                  <path fill="#FFB900" d="M12 12h10v10H12z"/>
+                </svg>
+                Continue with Microsoft
               </button>
             </div>
 
@@ -251,36 +275,38 @@ export const LoginPage = () => {
               </Link>
             </div>
 
-            {/* Sandbox simulation bypass options */}
-            <div className="border-t border-border/50 pt-5 space-y-3">
-              <span className="block text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">
-                Developer Sandbox Bypass Credentials
-              </span>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIdentifier('student@resolve.now');
-                    setPassword('Demo@12345');
-                    setLoginType('password');
-                  }}
-                  className="py-2.5 rounded-xl bg-background/50 hover:bg-background border border-border text-[10px] font-bold text-muted-foreground hover:text-foreground transition-all uppercase tracking-wider cursor-pointer"
-                >
-                  Student Creds
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIdentifier('admin@resolve.now');
-                    setPassword('Demo@12345');
-                    setLoginType('password');
-                  }}
-                  className="py-2.5 rounded-xl bg-background/50 hover:bg-background border border-border text-[10px] font-bold text-muted-foreground hover:text-foreground transition-all uppercase tracking-wider cursor-pointer"
-                >
-                  Admin Creds
-                </button>
+            {/* Sandbox simulation bypass options — DEV builds only, never shown in production */}
+            {import.meta.env.DEV && (
+              <div className="border-t border-border/50 pt-5 space-y-3">
+                <span className="block text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">
+                  Developer Sandbox Bypass Credentials
+                </span>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIdentifier('student@resolve.now');
+                      setPassword('Demo@12345');
+                      setLoginType('password');
+                    }}
+                    className="py-2.5 rounded-xl bg-background/50 hover:bg-background border border-border text-[10px] font-bold text-muted-foreground hover:text-foreground transition-all uppercase tracking-wider cursor-pointer"
+                  >
+                    Student Creds
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIdentifier('admin@resolve.now');
+                      setPassword('Demo@12345');
+                      setLoginType('password');
+                    }}
+                    className="py-2.5 rounded-xl bg-background/50 hover:bg-background border border-border text-[10px] font-bold text-muted-foreground hover:text-foreground transition-all uppercase tracking-wider cursor-pointer"
+                  >
+                    Admin Creds
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </motion.div>
       </div>

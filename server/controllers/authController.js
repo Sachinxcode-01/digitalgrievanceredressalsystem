@@ -22,7 +22,6 @@ const register = async (req, res, next) => {
  * POST /api/v1/auth/verify-otp
  */
 const verifyOtp = async (req, res, next) => {
-  console.log('📬 [verifyOtp] Request Body:', req.body);
   const { email, otp, purpose, rememberMe } = req.body;
 
   try {
@@ -236,18 +235,6 @@ const syncUser = async (req, res, next) => {
     const authState = getAuth(req);
     const clerkId   = authState.userId;
 
-    // Log diagnostic data
-    try {
-      const fs = require('fs');
-      const path = require('path');
-      const logPath = path.join(__dirname, '../../sync_diagnostic.log');
-      const timestamp = new Date().toISOString();
-      const logMessage = `[${timestamp}] Sync Request\nHeaders: ${JSON.stringify(req.headers)}\nCookies: ${JSON.stringify(req.cookies)}\nClerk ID: ${clerkId}\nAuth State: ${JSON.stringify(authState)}\n\n`;
-      fs.appendFileSync(logPath, logMessage);
-    } catch (fsErr) {
-      console.error('Failed to write to sync_diagnostic.log:', fsErr.message);
-    }
-
     if (!clerkId) {
       return res.status(401).json({ error: 'Access token required. Authorization denied.' });
     }
@@ -263,7 +250,7 @@ const syncUser = async (req, res, next) => {
     const fullName = clerkUser.unsafeMetadata?.fullName
       || (clerkUser.firstName ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim() : 'Clerk User');
     const mobile   = clerkUser.unsafeMetadata?.mobileNumber
-      || clerkUser.phoneNumbers[0]?.phoneNumber
+      || clerkUser.phoneNumbers?.[0]?.phoneNumber
       || null;
 
     // Atomic upsert: creates or updates the user row without a race condition.

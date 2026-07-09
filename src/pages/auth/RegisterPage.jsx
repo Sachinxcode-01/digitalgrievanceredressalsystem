@@ -180,8 +180,6 @@ export const RegisterPage = () => {
                   <option value="student" className="bg-background text-foreground">Student</option>
                   <option value="faculty" className="bg-background text-foreground">Faculty</option>
                   <option value="staff" className="bg-background text-foreground">Staff</option>
-                  <option value="admin" className="bg-background text-foreground">Admin</option>
-                  <option value="super admin" className="bg-background text-foreground">Super Admin</option>
                 </select>
               </div>
 

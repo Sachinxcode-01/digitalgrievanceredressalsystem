@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { ShieldCheck, ArrowRight, RefreshCw, ArrowLeft, Sun, Moon, Home } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../utils/errors';
+import { isSandboxAccount } from '../../utils/authMode';
 
 export const VerifyOtpPage = () => {
   const { verifyOtp, resendOtp } = useAuth();
@@ -43,10 +44,8 @@ export const VerifyOtpPage = () => {
   useEffect(() => {
     if (!identifier) {
       if (purpose === 'registration' && isSignUpLoaded && signUp?.emailAddress) {
-        console.log('[VerifyOtpPage] Recovered registration identifier from Clerk:', signUp.emailAddress);
         setIdentifier(signUp.emailAddress);
       } else if ((purpose === 'login' || purpose === 'mfa') && isSignInLoaded && signIn?.identifier) {
-        console.log('[VerifyOtpPage] Recovered login identifier from Clerk:', signIn.identifier);
         setIdentifier(signIn.identifier);
       }
     }
@@ -132,9 +131,8 @@ export const VerifyOtpPage = () => {
     isSubmittingRef.current = true;
     setLoading(true);
     try {
-      console.log('[VerifyOtpPage] Submitting OTP verification code:', otpCode);
       if (purpose === 'forgot_password') {
-        const isSandbox = typeof identifier === 'string' && (identifier.toLowerCase().trim().endsWith('@resolve.now') || identifier.toLowerCase().trim() === 'sachiii8827@gmail.com');
+        const isSandbox = isSandboxAccount(identifier);
         if (isSandbox) {
           // Sandbox: backend verifies the OTP and returns a resetCode
           const data = await verifyOtp(identifier, otpCode, purpose, rememberMe);
@@ -156,7 +154,6 @@ export const VerifyOtpPage = () => {
       navigate(targetPath);
     } catch (err) {
       const msg = getErrorMessage(err, 'Verification failed. Try again.');
-      console.error('[VerifyOtpPage] Verification error details:', err);
 
       // Stale Clerk state: signUp/signIn lost after page refresh — redirect to restart
       if (msg.includes('expired') || msg.includes('expired_code') || msg.includes('not found') || msg.includes('session expired') || msg.includes('register again')) {

@@ -13,11 +13,16 @@ const getSmsClient = () => {
     return null;
   }
 
-  const apiUrl = configService.getSetting('sms_api_url', process.env.SMS_GATEWAY_URL || 'http://10.105.47.157:8080/api/v1');
-  const login = configService.getSetting('sms_login', process.env.SMS_GATEWAY_LOGIN || 'sms');
-  const password = configService.getSetting('sms_password', process.env.SMS_GATEWAY_PASSWORD || 'FeemKLig');
+  // Credentials must come from settings/env only — never hardcode gateway hosts or
+  // passwords. If the gateway is not fully configured, SMS is skipped gracefully
+  // (email remains the primary notification channel).
+  const apiUrl = configService.getSetting('sms_api_url', process.env.SMS_GATEWAY_URL || '');
+  const login = configService.getSetting('sms_login', process.env.SMS_GATEWAY_LOGIN || '');
+  const password = configService.getSetting('sms_password', process.env.SMS_GATEWAY_PASSWORD || '');
 
-  if (!apiUrl) return null;
+  if (!apiUrl || !login || !password) {
+    return null;
+  }
 
   const axiosHttpClient = {
     get: (url, headers) => axios.get(url, { headers }).then(res => res.data),

@@ -1,6 +1,13 @@
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-  : [];
+// Build the whitelist from ALLOWED_ORIGINS plus the known deployed frontend URL(s).
+// This keeps the whitelist strict while ensuring the app's own origin works in
+// production without having to duplicate it in ALLOWED_ORIGINS.
+const allowedOrigins = [
+  ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : []),
+  process.env.VITE_FRONTEND_URL,
+  process.env.FRONTEND_URL
+]
+  .map((o) => (o || '').trim())
+  .filter(Boolean);
 
 const corsOptions = {
   origin: (origin, callback) => {
