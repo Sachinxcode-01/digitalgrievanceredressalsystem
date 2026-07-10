@@ -5,8 +5,9 @@ const validate = require('../middleware/validationMiddleware');
  * Validation rules for grievance creation
  */
 const validateCreateGrievance = [
-  body('ticket_id')
-    .notEmpty().withMessage('Ticket ID is required'),
+  // ticket_id is generated server-side and any client value is ignored; accepted here
+  // only for backward compatibility so older clients that still send it don't 400.
+  body('ticket_id').optional(),
   body('title')
     .trim()
     .isLength({ min: 5, max: 150 }).withMessage('Title must be between 5 and 150 characters'),

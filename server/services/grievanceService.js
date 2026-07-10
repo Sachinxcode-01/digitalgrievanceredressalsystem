@@ -3,6 +3,30 @@ const userRepository = require('../repositories/userRepository');
 const emailService = require('./emailService');
 const { logAudit } = require('./auditService');
 
+/**
+ * Generates a collision-resistant ticket reference on the server.
+ * Format: TKT-<YEAR>-<8 chars> (4 time-based + 4 random, base36 uppercase).
+ * Verifies uniqueness against the DB with a few retries; a DB unique constraint
+ * remains the final safety net.
+ */
+async function generateUniqueTicketId() {
+  const year = new Date().getFullYear();
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const timePart = Date.now().toString(36).slice(-4).toUpperCase();
+    const randPart = Math.random().toString(36).slice(2, 6).toUpperCase();
+    const candidate = `TKT-${year}-${timePart}${randPart}`;
+    try {
+      const existing = await grievanceRepository.findByTicketId(candidate);
+      if (!existing) return candidate;
+    } catch {
+      // If the uniqueness lookup fails, use the candidate — collisions here are
+      // astronomically unlikely and a DB unique constraint is the final guard.
+      return candidate;
+    }
+  }
+  return `TKT-${year}-${Date.now().toString(36).toUpperCase()}`;
+}
+
 const grievanceService = {
   async getAllGrievances(user, queryUserId = null) {
     let scopedUserId = null;
@@ -21,6 +45,10 @@ const grievanceService = {
     const finalUserId = user ? user.id : (grievanceData.user_id || 'anonymous');
     const finalEmail = user ? user.email : (grievanceData.email || '');
 
+    // Ticket ID is ALWAYS generated server-side. Any client-supplied ticket_id is
+    // ignored to guarantee uniqueness and a consistent, collision-safe format.
+    const ticketId = await generateUniqueTicketId();
+
     // Category mapping logic
     const category = grievanceData.category || 'General';
     const cat = category.toLowerCase();
@@ -35,6 +63,7 @@ const grievanceService = {
 
     // Auto-assignment look up
     let assignedOfficerId = null;
+    let routedToAdminFallback = false;
     try {
       const depts = await grievanceRepository.getDepartments();
       const deptInfo = depts.find(d => d.name === deptName);
@@ -43,6 +72,20 @@ const grievanceService = {
       }
     } catch (err) {
       console.warn('Department coordinator lookup failed:', err.message);
+    }
+
+    // Fallback: if no department head is configured, route to the administrator so a
+    // ticket is never left unowned.
+    if (!assignedOfficerId && process.env.ADMIN_EMAIL) {
+      try {
+        const adminUser = await userRepository.findByEmail(process.env.ADMIN_EMAIL);
+        if (adminUser && adminUser.id) {
+          assignedOfficerId = adminUser.id;
+          routedToAdminFallback = true;
+        }
+      } catch (err) {
+        console.warn('Admin fallback assignment lookup failed:', err.message);
+      }
     }
 
     // SLA hours mapping
@@ -65,7 +108,7 @@ const grievanceService = {
     const finalAssignee = finalStatus === 'Draft' ? null : assignedOfficerId;
 
     const newGrievance = await grievanceRepository.create({
-      ticket_id: grievanceData.ticket_id,
+      ticket_id: ticketId,
       user_id: finalUserId,
       title: grievanceData.title,
       description: grievanceData.description,
@@ -82,27 +125,33 @@ const grievanceService = {
       sla_due_at: slaDueAt
     });
 
-    // Timeline event
+    // Timeline event — record registration and how the ticket was routed.
+    const routingNote = finalStatus === 'Draft'
+      ? 'Grievance draft saved.'
+      : (finalAssignee
+          ? (routedToAdminFallback
+              ? `Grievance registered and routed to ${deptName}. No department head configured — assigned to administrator.`
+              : `Grievance registered and auto-routed to the ${deptName} coordinator.`)
+          : `Grievance registered under ${deptName}. Ticket Reference: #${ticketId}`);
+
     await grievanceRepository.addTimelineEvent({
       grievance_id: newGrievance.id,
       status: newGrievance.status,
       activity_type: 'created',
       performed_by: finalUserId === 'anonymous' ? null : finalUserId,
-      notes: finalStatus === 'Draft'
-        ? 'Grievance draft saved.'
-        : (finalAssignee 
-            ? `Grievance registered and auto-routed to ${deptName} coordinator.`
-            : `Grievance registered. Ticket Reference: #${grievanceData.ticket_id}`)
+      notes: routingNote
     });
 
-    // If auto-assigned, log assignment event in timeline too
+    // If auto-assigned, log a dedicated assignment event in the timeline too.
     if (finalAssignee) {
       await grievanceRepository.addTimelineEvent({
         grievance_id: newGrievance.id,
         status: 'Assigned',
         activity_type: 'assignment',
         performed_by: null,
-        notes: `Auto-assigned to department: ${deptName}`
+        notes: routedToAdminFallback
+          ? `Auto-assigned to administrator (fallback — no ${deptName} head configured).`
+          : `Auto-assigned to ${deptName} department coordinator.`
       });
     }
 
@@ -112,12 +161,12 @@ const grievanceService = {
       'GRIEVANCE_CREATED',
       ip,
       userAgent,
-      { ticket_id: grievanceData.ticket_id, category: category, urgency: priority, department: deptName, assigned_to: assignedOfficerId }
+      { ticket_id: ticketId, category: category, urgency: priority, department: deptName, assigned_to: assignedOfficerId }
     );
 
-    // Notifications
+    // Notifications (fire-and-forget — email failures must never block submission)
     if (finalEmail) {
-      emailService.sendGrievanceEmail(finalEmail, grievanceData.ticket_id, grievanceData.title, finalUserId === 'anonymous' ? null : finalUserId).catch(err => 
+      emailService.sendGrievanceEmail(finalEmail, ticketId, grievanceData.title, finalUserId === 'anonymous' ? null : finalUserId).catch(err => 
         console.error(`Email confirmation dispatch failed: ${err.message}`)
       );
     }
@@ -126,13 +175,13 @@ const grievanceService = {
       // Fetch coordinator email
       userRepository.findById(assignedOfficerId).then(coordinator => {
         if (coordinator && coordinator.email) {
-          emailService.sendGrievanceAssignedEmail(coordinator.email, grievanceData.ticket_id, grievanceData.title, priority, deptName).catch(err =>
+          emailService.sendGrievanceAssignedEmail(coordinator.email, ticketId, grievanceData.title, priority, deptName).catch(err =>
             console.error(`Coordinator notification dispatch failed: ${err.message}`)
           );
         }
       }).catch(err => console.error('Failed to retrieve coordinator email:', err.message));
     } else {
-      emailService.sendNewGrievanceAlertEmail(grievanceData.ticket_id, grievanceData.title, category, priority).catch(err => 
+      emailService.sendNewGrievanceAlertEmail(ticketId, grievanceData.title, category, priority).catch(err => 
         console.error(`Admin notification dispatch failed: ${err.message}`)
       );
     }

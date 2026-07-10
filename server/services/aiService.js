@@ -24,6 +24,91 @@ const getGenAI = () => {
   return genAIInstance;
 };
 
+// Canonical enums — must stay in sync with grievanceValidator + the frontend dropdowns.
+const VALID_CATEGORIES = [
+  'Financial', 'Academic', 'Maintenance', 'IT Support',
+  'Public Infrastructure', 'Eco-Sustainability', 'Social Welfare'
+];
+const VALID_URGENCY = ['High', 'Medium', 'Low'];
+
+// Default Gemini model. gemini-1.5-flash was deprecated (returns 404 on generateContent),
+// so we default to a current GA model and allow override via the GEMINI_MODEL env var or
+// the `gemini_model` system setting.
+const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+
+/**
+ * Extracts a JSON object from an LLM response even if it's wrapped in markdown
+ * fences or surrounded by prose. Returns null if nothing parseable is found.
+ */
+function extractJson(text) {
+  if (!text || typeof text !== 'string') return null;
+  const cleaned = text.replace(/```json|```/gi, '').trim();
+  const first = cleaned.indexOf('{');
+  const last = cleaned.lastIndexOf('}');
+  if (first === -1 || last === -1 || last < first) return null;
+  try {
+    return JSON.parse(cleaned.slice(first, last + 1));
+  } catch {
+    return null;
+  }
+}
+
+/** Deterministic keyword heuristics used when the AI is unavailable or invalid. */
+function keywordHeuristics(description) {
+  const d = (description || '').toLowerCase();
+  let category = 'IT Support';
+  let urgency = 'Medium';
+  let frustration_index = 4;
+
+  if (/(fee|payment|pay|money|scholarship|refund|fine|invoice|salary)/.test(d)) category = 'Financial';
+  else if (/(class|teacher|professor|grade|course|exam|syllabus|faculty|lecture|attendance)/.test(d)) category = 'Academic';
+  else if (/(road|street|drain|garbage|park|footpath|streetlight|sewage|pavement)/.test(d)) category = 'Public Infrastructure';
+  else if (/(pollution|waste|recycl|environment|green energy|tree|plastic|emission)/.test(d)) category = 'Eco-Sustainability';
+  else if (/(harassment|discrimination|ragging|safety|counsel|welfare|abuse)/.test(d)) category = 'Social Welfare';
+  else if (/(clean|water|broken|wall|door|leak|electric|light|toilet|fan|repair|furniture|building)/.test(d)) category = 'Maintenance';
+  else if (/(wifi|internet|login|password|network|server|portal|software|system|app|website|email)/.test(d)) category = 'IT Support';
+
+  if (/(urgent|emergency|immediately|asap|crash|danger|serious|critical)/.test(d)) { urgency = 'High'; frustration_index = 8; }
+  else if (/(whenever|when you can|no rush|later|suggestion|minor|small)/.test(d)) { urgency = 'Low'; frustration_index = 2; }
+  else if (/(mad|angry|furious|terrible|worst|disgust|unacceptable|ridiculous|fed up)/.test(d)) { frustration_index = 9; }
+
+  return { category, urgency, frustration_index };
+}
+
+/** Builds a concise one-line summary from the description as a fallback. */
+function buildSummary(description) {
+  const clean = (description || '').replace(/\s+/g, ' ').trim();
+  if (!clean) return '';
+  const firstSentence = clean.split(/(?<=[.!?])\s/)[0];
+  return firstSentence.length <= 140 ? firstSentence : `${clean.slice(0, 120).trim()}…`;
+}
+
+/**
+ * Validates and fills an analysis object so callers ALWAYS receive a complete,
+ * schema-valid result — whether it came from the AI or from the heuristic fallback.
+ * Any invalid/missing field is repaired using keyword heuristics.
+ */
+function normalizeAnalysis(raw, description) {
+  const r = raw || {};
+  const heur = keywordHeuristics(description);
+
+  const rawCategory = typeof r.category === 'string' ? r.category.trim() : '';
+  const category = VALID_CATEGORIES.find(c => c.toLowerCase() === rawCategory.toLowerCase()) || heur.category;
+
+  const rawUrgency = typeof r.urgency === 'string' ? r.urgency.trim() : '';
+  const urgency = VALID_URGENCY.find(u => u.toLowerCase() === rawUrgency.toLowerCase()) || heur.urgency;
+
+  let frustration_index = parseInt(r.frustration_index, 10);
+  if (!Number.isFinite(frustration_index)) frustration_index = heur.frustration_index;
+  frustration_index = Math.min(10, Math.max(1, frustration_index));
+
+  const detected_language = (typeof r.detected_language === 'string' && r.detected_language.trim()) || 'English';
+  const english_translation = typeof r.english_translation === 'string' ? r.english_translation.trim() : '';
+  const summary = (typeof r.summary === 'string' && r.summary.trim()) || buildSummary(description);
+
+  return { category, urgency, frustration_index, detected_language, english_translation, summary };
+}
+
 const aiService = {
   /**
    * Analyzes the grievance description and provides smart triage suggestions.
@@ -35,7 +120,7 @@ const aiService = {
     }
 
     const genAI = getGenAI();
-    let neuralResult = null;
+    let parsed = null;
 
     if (genAI) {
       const categorizationEnabled = configService.getSetting('enable_ai_categorization', true);
@@ -44,74 +129,37 @@ const aiService = {
 
       if (categorizationEnabled || sentimentEnabled || urgencyEnabled) {
         try {
-          const modelName = configService.getSetting('gemini_model', 'gemini-1.5-flash');
+          const modelName = configService.getSetting('gemini_model', DEFAULT_GEMINI_MODEL);
           const model = genAI.getGenerativeModel({ model: modelName });
-          
+
           const prompt = `
-            You are an institutional grievance analyzer. Analyze this grievance description for sentiment and urgency:
-            "${description}"
+            You are an institutional grievance analyzer. Analyze the grievance below.
+            Description: "${description}"
 
             Rules:
-            1. Categorize as: 'Financial', 'Academic', 'Maintenance', or 'IT Support'. (Set to 'IT Support' if categorization is disabled: ${!categorizationEnabled}).
-            2. Assign Urgency: 'High', 'Medium', or 'Low'. (Set to 'Low' if urgency detection is disabled: ${!urgencyEnabled}).
-            3. Assign a frustration_index: Integer 1-10 (1 = calm/polite, 10 = extremely angry/frustrated/aggressive). (Set to 1 if sentiment analysis is disabled: ${!sentimentEnabled}).
-            4. Detect the language of the description. If it is NOT English, provide an English translation. If it is English, return an empty string.
-            5. Respond ONLY in JSON format exactly like this:
-               {
-                 "category": "...",
-                 "urgency": "...",
-                 "frustration_index": 5,
-                 "english_translation": "..."
-               }
+            1. category: choose EXACTLY one of: ${VALID_CATEGORIES.map(c => `'${c}'`).join(', ')}. (Use 'IT Support' if categorization is disabled: ${!categorizationEnabled}).
+            2. urgency: 'High', 'Medium', or 'Low'. (Use 'Low' if urgency detection is disabled: ${!urgencyEnabled}).
+            3. frustration_index: integer 1-10 (1 = calm/polite, 10 = extremely angry/aggressive). (Use 1 if sentiment analysis is disabled: ${!sentimentEnabled}).
+            4. detected_language: the language name of the description (e.g. "English", "Hindi", "Spanish").
+            5. english_translation: if the text is NOT English, its English translation; if English, an empty string "".
+            6. summary: a concise, neutral one-sentence summary (max 20 words) of the core issue.
+            7. Respond with ONLY minified JSON, no markdown, exactly:
+               {"category":"...","urgency":"...","frustration_index":5,"detected_language":"...","english_translation":"...","summary":"..."}
           `;
 
           const result = await model.generateContent(prompt);
           const response = await result.response;
-          const text = response.text();
-          
-          const cleanJson = text.replace(/```json|```/g, '').trim();
-          neuralResult = JSON.parse(cleanJson);
+          parsed = extractJson(response.text());
         } catch (err) {
-          console.error('Gemini Neural Triage Error:', err);
+          // AI failure must never block submission — we fall through to heuristics.
+          console.error('Gemini Neural Triage Error:', err.message);
         }
       }
     }
 
-    if (neuralResult && neuralResult.category && neuralResult.urgency) {
-      console.log("🧠 Neural AI Analysis Success:", neuralResult);
-      return neuralResult;
-    }
-
-    console.log("🔄 Falling back to Keyword Matching Logic...");
-    const lowerDesc = description.toLowerCase();
-    
-    let category = 'IT Support';
-    let urgency = 'Medium';
-    let frustration_index = 1;
-
-    // Smart category matching logic
-    if (lowerDesc.includes('fee') || lowerDesc.includes('pay') || lowerDesc.includes('money') || lowerDesc.includes('scholarship')) {
-      category = 'Financial';
-    } else if (lowerDesc.includes('class') || lowerDesc.includes('teacher') || lowerDesc.includes('grade') || lowerDesc.includes('course')) {
-      category = 'Academic';
-    } else if (lowerDesc.includes('clean') || lowerDesc.includes('water') || lowerDesc.includes('broken') || lowerDesc.includes('wall') || lowerDesc.includes('door')) {
-      category = 'Maintenance';
-    }
-
-    // Smart urgency matching logic
-    if (lowerDesc.includes('urgent') || lowerDesc.includes('emergency') || lowerDesc.includes('now') || lowerDesc.includes('crash') || lowerDesc.includes('immediate')) {
-      urgency = 'High';
-      frustration_index = 8;
-    } else if (lowerDesc.includes('when you can') || lowerDesc.includes('low') || lowerDesc.includes('later') || lowerDesc.includes('suggestion')) {
-      urgency = 'Low';
-      frustration_index = 1;
-    } else if (lowerDesc.includes('mad') || lowerDesc.includes('angry') || lowerDesc.includes('terrible') || lowerDesc.includes('worst')) {
-      frustration_index = 9;
-    } else {
-      frustration_index = 4;
-    }
-
-    return { category, urgency, frustration_index };
+    // normalizeAnalysis guarantees a complete, schema-valid result whether `parsed`
+    // came from the AI, was partial/invalid, or is null (AI unavailable / no API key).
+    return normalizeAnalysis(parsed, description);
   },
 
   async getChatResponse(userMessage) {
@@ -119,7 +167,7 @@ const aiService = {
     if (!genAI) return null;
 
     try {
-      const modelName = configService.getSetting('gemini_model', 'gemini-1.5-flash');
+      const modelName = configService.getSetting('gemini_model', DEFAULT_GEMINI_MODEL);
       const model = genAI.getGenerativeModel({ model: modelName });
       
       const prompt = `
@@ -147,7 +195,7 @@ const aiService = {
     if (!genAI) return;
 
     try {
-      const modelName = configService.getSetting('gemini_model', 'gemini-1.5-flash');
+      const modelName = configService.getSetting('gemini_model', DEFAULT_GEMINI_MODEL);
       const model = genAI.getGenerativeModel({ model: modelName });
       
       const prompt = `
@@ -181,7 +229,7 @@ const aiService = {
     }
 
     try {
-      const modelName = configService.getSetting('gemini_model', 'gemini-1.5-flash');
+      const modelName = configService.getSetting('gemini_model', DEFAULT_GEMINI_MODEL);
       const model = genAI.getGenerativeModel({ model: modelName });
       
       const prompt = `
@@ -213,7 +261,7 @@ const aiService = {
     if (!genAI) return null;
 
     try {
-      const modelName = configService.getSetting('gemini_model', 'gemini-1.5-flash');
+      const modelName = configService.getSetting('gemini_model', DEFAULT_GEMINI_MODEL);
       const model = genAI.getGenerativeModel({ model: modelName });
       
       const prompt = `
@@ -241,7 +289,7 @@ const aiService = {
     if (!genAI || tickets.length === 0) return 'Not enough data for AI analysis or Gemini is unconfigured.';
 
     try {
-      const modelName = configService.getSetting('gemini_model', 'gemini-1.5-flash');
+      const modelName = configService.getSetting('gemini_model', DEFAULT_GEMINI_MODEL);
       const model = genAI.getGenerativeModel({ model: modelName });
       
       const stats = {
@@ -275,7 +323,7 @@ const aiService = {
     if (!genAI) return null;
 
     try {
-      const modelName = configService.getSetting('gemini_model', 'gemini-1.5-flash');
+      const modelName = configService.getSetting('gemini_model', DEFAULT_GEMINI_MODEL);
       const model = genAI.getGenerativeModel({ model: modelName });
       
       const prompt = `
@@ -318,7 +366,7 @@ const aiService = {
     if (!genAI) return 'AI composition system offline.';
 
     try {
-      const modelName = configService.getSetting('gemini_model', 'gemini-1.5-flash');
+      const modelName = configService.getSetting('gemini_model', DEFAULT_GEMINI_MODEL);
       const model = genAI.getGenerativeModel({ model: modelName });
       
       const prompt = `

@@ -20,6 +20,7 @@ import { CommandChat } from '../../components/ai/CommandChat';
 import { useRealtimeConnection } from '../../hooks/useRealtimeConnection';
 import { StatCard } from '../../components/ui/StatCard';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { SlaBadge } from '../../components/ui/SlaBadge';
 import { staggerContainer } from '../../lib/motion';
 
 const SLACountdown = ({ ticket }) => {
@@ -27,6 +28,7 @@ const SLACountdown = ({ ticket }) => {
 
   const [timeLeft, setTimeLeft] = useState('');
   const [isBreached, setIsBreached] = useState(false);
+  const [isNearDue, setIsNearDue] = useState(false);
 
   useEffect(() => {
     if (isTerminal) {
@@ -50,12 +52,14 @@ const SLACountdown = ({ ticket }) => {
       if (diff <= 0) {
         setTimeLeft('SLA Overdue');
         setIsBreached(true);
+        setIsNearDue(false);
       } else {
         const hrs = Math.floor(diff / (1000 * 60 * 60));
         const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
         const secs = Math.floor((diff % (1000 * 60)) / 1000);
         setTimeLeft(`${hrs}h ${mins}m ${secs}s remaining`);
         setIsBreached(false);
+        setIsNearDue(diff <= 24 * 60 * 60 * 1000); // amber within the final 24 hours
       }
     };
 
@@ -67,13 +71,16 @@ const SLACountdown = ({ ticket }) => {
 
   const displayTime = isTerminal ? (ticket?.status || 'Closed') : timeLeft;
   const displayBreached = isTerminal ? false : isBreached;
+  const displayNearDue = isTerminal ? false : (isNearDue && !isBreached);
+
+  const toneClass = displayBreached
+    ? 'text-error border-error/20 bg-error/5 animate-pulse'
+    : displayNearDue
+      ? 'text-warning border-warning/20 bg-warning/5'
+      : 'text-success border-success/20 bg-success/5';
 
   return (
-    <span className={`px-2 py-0.5 border rounded-md font-mono text-[9px] font-bold uppercase tracking-wider ${
-      displayBreached 
-        ? 'text-error border-error/20 bg-error/5 animate-pulse' 
-        : 'text-success border-success/20 bg-success/5'
-    }`}>
+    <span className={`px-2 py-0.5 border rounded-md font-mono text-[9px] font-bold uppercase tracking-wider ${toneClass}`}>
       {displayTime}
     </span>
   );
@@ -450,8 +457,6 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
   const handleCreateGrievance = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
-    const ticketId = `TKT-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
     try {
       let fileUrl = null;
@@ -459,8 +464,8 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
         fileUrl = await uploadFile(attachment);
       }
 
-      await grievanceService.create({ 
-        ticket_id: ticketId,
+      // Ticket ID is generated server-side (collision-safe) and returned in the response.
+      const created = await grievanceService.create({ 
         user_id: sessionUser.id?.startsWith('demo-') ? null : sessionUser.id,
         email: sessionUser.email || sessionUser.user_metadata?.email,
         title, 
@@ -483,9 +488,9 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
       setLocationName('');
       setCoordinates({ lat: null, lng: null });
       fetchTickets();
-      toast.success('Your grievance has been submitted successfully.');
+      toast.success(`Grievance submitted. Ticket ID: ${created?.ticket_id || 'assigned'}`);
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err.response?.data?.error || err.message || 'Submission failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -691,6 +696,7 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
                     <th className="px-6 py-3.5">Subject</th>
                     <th className="px-6 py-3.5">Category</th>
                     <th className="px-6 py-3.5">Status</th>
+                    <th className="px-6 py-3.5">SLA</th>
                     <th className="px-6 py-3.5 text-right">Updated</th>
                   </tr>
                 </thead>
@@ -702,12 +708,13 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
                         <td className="px-6 py-4"><div className="skeleton h-3 w-40" /></td>
                         <td className="px-6 py-4"><div className="skeleton h-3 w-24" /></td>
                         <td className="px-6 py-4"><div className="skeleton h-5 w-16 rounded-full" /></td>
+                        <td className="px-6 py-4"><div className="skeleton h-5 w-16 rounded-full" /></td>
                         <td className="px-6 py-4"><div className="skeleton h-3 w-16 ml-auto" /></td>
                       </tr>
                     ))
                   ) : currentTickets.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="p-0">
+                      <td colSpan="6" className="p-0">
                         <EmptyState
                           icon={Ticket}
                           title={searchTerm || statusFilter !== 'All' ? 'No matching grievances' : 'No grievances yet'}
@@ -742,6 +749,9 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
                         </td>
                         <td className="px-6 py-3.5">
                           <StatusBadge status={ticket.status} />
+                        </td>
+                        <td className="px-6 py-3.5">
+                          <SlaBadge ticket={ticket} />
                         </td>
                         <td className="px-6 py-3.5 text-right text-muted-foreground whitespace-nowrap">
                           {formatDistanceToNow(new Date(ticket.created_at), { addSuffix: true })}

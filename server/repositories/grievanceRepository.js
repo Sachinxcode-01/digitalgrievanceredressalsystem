@@ -27,6 +27,17 @@ const grievanceRepository = {
     return data;
   },
 
+  async findByTicketId(ticketId) {
+    if (!supabase) return null;
+    const { data, error } = await supabase
+      .from('grievances')
+      .select('id, ticket_id')
+      .eq('ticket_id', ticketId)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+
   async create(grievanceData) {
     if (!supabase) throw new Error('Database unavailable');
     const { data, error } = await supabase
@@ -34,6 +45,9 @@ const grievanceRepository = {
       .insert([grievanceData])
       .select();
     if (error) throw error;
+    if (!data || data.length === 0) {
+      throw new Error('Grievance could not be created (no row returned).');
+    }
     return data[0];
   },
 
@@ -45,8 +59,6 @@ const grievanceRepository = {
       .eq('id', id)
       .select()
       .maybeSingle();
-    console.log("Supabase response (updateGrievance):", data);
-    console.log("Supabase error (updateGrievance):", error);
     if (error) throw error;
     return data;
   },
@@ -58,7 +70,7 @@ const grievanceRepository = {
       .insert([eventData])
       .select();
     if (error) throw error;
-    return data[0];
+    return data && data.length > 0 ? data[0] : null;
   },
 
   async addSystemAlert(alertData) {
@@ -68,7 +80,7 @@ const grievanceRepository = {
       .insert([alertData])
       .select();
     if (error) throw error;
-    return data[0];
+    return data && data.length > 0 ? data[0] : null;
   },
 
   async getTimeline(grievanceId) {
@@ -104,8 +116,6 @@ const grievanceRepository = {
       .eq('id', id)
       .limit(1)
       .maybeSingle();
-    console.log("Supabase response (getDepartmentById):", data);
-    console.log("Supabase error (getDepartmentById):", error);
     if (error) throw error;
     return data;
   },
@@ -117,8 +127,6 @@ const grievanceRepository = {
       .insert([deptData])
       .select()
       .maybeSingle();
-    console.log("Supabase response (createDepartment):", data);
-    console.log("Supabase error (createDepartment):", error);
     if (error) throw error;
     return data;
   },
@@ -131,8 +139,6 @@ const grievanceRepository = {
       .eq('id', id)
       .select()
       .maybeSingle();
-    console.log("Supabase response (updateDepartment):", data);
-    console.log("Supabase error (updateDepartment):", error);
     if (error) throw error;
     return data;
   },
@@ -166,8 +172,6 @@ const grievanceRepository = {
       .eq('id', id)
       .limit(1)
       .maybeSingle();
-    console.log("Supabase response (getSlaRuleById):", data);
-    console.log("Supabase error (getSlaRuleById):", error);
     if (error) throw error;
     return data;
   },
@@ -179,8 +183,6 @@ const grievanceRepository = {
       .insert([ruleData])
       .select()
       .maybeSingle();
-    console.log("Supabase response (createSlaRule):", data);
-    console.log("Supabase error (createSlaRule):", error);
     if (error) throw error;
     return data;
   },
@@ -193,8 +195,6 @@ const grievanceRepository = {
       .eq('id', id)
       .select()
       .maybeSingle();
-    console.log("Supabase response (updateSlaRule):", data);
-    console.log("Supabase error (updateSlaRule):", error);
     if (error) throw error;
     return data;
   },
@@ -228,8 +228,6 @@ const grievanceRepository = {
       .eq('id', id)
       .limit(1)
       .maybeSingle();
-    console.log("Supabase response (getEscalationRuleById):", data);
-    console.log("Supabase error (getEscalationRuleById):", error);
     if (error) throw error;
     return data;
   },
@@ -241,8 +239,6 @@ const grievanceRepository = {
       .insert([ruleData])
       .select()
       .maybeSingle();
-    console.log("Supabase response (createEscalationRule):", data);
-    console.log("Supabase error (createEscalationRule):", error);
     if (error) throw error;
     return data;
   },
@@ -255,8 +251,6 @@ const grievanceRepository = {
       .eq('id', id)
       .select()
       .maybeSingle();
-    console.log("Supabase response (updateEscalationRule):", data);
-    console.log("Supabase error (updateEscalationRule):", error);
     if (error) throw error;
     return data;
   },
