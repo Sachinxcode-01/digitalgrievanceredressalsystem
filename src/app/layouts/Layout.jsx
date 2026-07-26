@@ -154,14 +154,52 @@ export const Layout = ({ children, user, onLogout, theme, setTheme }) => {
             
             <div className="w-[1px] h-5 bg-border/80 mx-1" />
             
-            <div className="flex items-center gap-3">
-              <div className="hidden sm:flex flex-col items-end">
-                <span className="text-xs font-bold text-foreground leading-none">{user?.fullName || 'Operator'}</span>
-                <span className="text-[9px] font-mono font-bold text-muted-foreground uppercase mt-1">{user?.role || 'Authorized'}</span>
+            <div className="relative group">
+              <button 
+                type="button" 
+                className="flex items-center gap-2.5 p-1 rounded-xl hover:bg-muted/30 transition-all text-left"
+              >
+                <div className="w-8 h-8 rounded-lg bg-primary-bright/10 border border-primary-bright/20 flex items-center justify-center text-primary-bright font-black text-xs uppercase select-none shadow-xs overflow-hidden">
+                  {user?.profilePicture ? (
+                    <img src={user.profilePicture} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    (user?.fullName || user?.email || 'A').charAt(0).toUpperCase()
+                  )}
+                </div>
+                <div className="hidden sm:flex flex-col items-start leading-tight pr-1">
+                  <span className="text-xs font-bold text-foreground truncate max-w-[120px]">{user?.fullName || 'Operator'}</span>
+                  <span className="text-[9px] font-mono font-bold text-muted-foreground uppercase">{user?.role || 'Authorized'}</span>
+                </div>
+              </button>
+
+              {/* Profile Dropdown Menu */}
+              <div className="absolute right-0 top-full mt-2 w-52 py-2 bg-surface border border-border/80 rounded-2xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                <div className="px-4 py-2 border-b border-border/50">
+                  <p className="text-xs font-bold text-foreground truncate">{user?.fullName || 'Administrator'}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">{user?.email}</p>
+                </div>
+                <Link to="/profile" className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-foreground hover:bg-muted/50 transition-colors">
+                  <User size={14} className="text-muted-foreground" />
+                  Profile Settings
+                </Link>
+                <Link to="/security" className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-foreground hover:bg-muted/50 transition-colors">
+                  <Settings size={14} className="text-muted-foreground" />
+                  Account Security
+                </Link>
+                <Link to="/sessions" className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-foreground hover:bg-muted/50 transition-colors">
+                  <Shield size={14} className="text-muted-foreground" />
+                  Active Sessions
+                </Link>
+                <div className="my-1 border-t border-border/50" />
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-error hover:bg-error/10 transition-colors text-left"
+                >
+                  <LogOut size={14} />
+                  Sign Out
+                </button>
               </div>
-              <Link to="/profile" className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center border border-border text-foreground font-black text-xs uppercase hover:bg-primary-bright/5 hover:text-primary-bright hover:border-primary-bright/20 transition-all select-none">
-                {(user?.fullName || 'U').charAt(0)}
-              </Link>
             </div>
           </div>
         </header>
