@@ -40,9 +40,25 @@ const grievanceRepository = {
 
   async create(grievanceData) {
     if (!supabase) throw new Error('Database unavailable');
+
+    const allowedColumns = [
+      'ticket_id', 'user_id', 'title', 'description', 'category', 'urgency',
+      'status', 'admin_comment', 'location', 'latitude', 'longitude',
+      'attachment_url', 'department', 'assigned_to', 'resolution_notes',
+      'resolved_at', 'escalated_at', 'escalated_reason', 'sla_due_at',
+      'rating', 'feedback_comments'
+    ];
+
+    const sanitizedPayload = {};
+    for (const key of allowedColumns) {
+      if (grievanceData[key] !== undefined) {
+        sanitizedPayload[key] = grievanceData[key];
+      }
+    }
+
     const { data, error } = await supabase
       .from('grievances')
-      .insert([grievanceData])
+      .insert([sanitizedPayload])
       .select();
     if (error) throw error;
     if (!data || data.length === 0) {
@@ -53,9 +69,25 @@ const grievanceRepository = {
 
   async update(id, updates) {
     if (!supabase) throw new Error('Database unavailable');
+
+    const allowedColumns = [
+      'ticket_id', 'user_id', 'title', 'description', 'category', 'urgency',
+      'status', 'admin_comment', 'location', 'latitude', 'longitude',
+      'attachment_url', 'department', 'assigned_to', 'resolution_notes',
+      'resolved_at', 'escalated_at', 'escalated_reason', 'sla_due_at',
+      'rating', 'feedback_comments'
+    ];
+
+    const sanitizedUpdates = {};
+    for (const key of allowedColumns) {
+      if (updates[key] !== undefined) {
+        sanitizedUpdates[key] = updates[key];
+      }
+    }
+
     const { data, error } = await supabase
       .from('grievances')
-      .update(updates)
+      .update(sanitizedUpdates)
       .eq('id', id)
       .select()
       .maybeSingle();

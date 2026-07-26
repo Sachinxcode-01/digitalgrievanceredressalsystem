@@ -285,24 +285,24 @@ export const LoginPage = () => {
                   <button
                     type="button"
                     onClick={() => {
-                      setIdentifier('student@resolve.now');
-                      setPassword('Demo@12345');
+                      setIdentifier('student@resolvenow.demo');
+                      setPassword('Student@123');
                       setLoginType('password');
                     }}
                     className="py-2.5 rounded-xl bg-background/50 hover:bg-background border border-border text-[10px] font-bold text-muted-foreground hover:text-foreground transition-all uppercase tracking-wider cursor-pointer"
                   >
-                    Student Creds
+                    Student Demo
                   </button>
                   <button
                     type="button"
                     onClick={() => {
-                      setIdentifier('admin@resolve.now');
-                      setPassword('Demo@12345');
+                      setIdentifier('admin@resolvenow.demo');
+                      setPassword('Admin@123');
                       setLoginType('password');
                     }}
                     className="py-2.5 rounded-xl bg-background/50 hover:bg-background border border-border text-[10px] font-bold text-muted-foreground hover:text-foreground transition-all uppercase tracking-wider cursor-pointer"
                   >
-                    Admin Creds
+                    Admin Demo
                   </button>
                 </div>
               </div>

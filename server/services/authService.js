@@ -280,8 +280,9 @@ const authService = {
       };
     }
 
-    // Enforce MFA for Admin/Super Admin
-    if (user.role === 'admin' || user.role === 'super admin') {
+    // Enforce MFA for Admin/Super Admin (bypassed for lab demo accounts ending in .demo or test override)
+    const isDemoAccount = user.email.endsWith('.demo') || process.env.DISABLE_MFA === 'true';
+    if ((user.role === 'admin' || user.role === 'super admin') && !isDemoAccount) {
       const cooldownSec = await checkOtpCooldown(email, 'login');
       if (cooldownSec > 0) {
         throw createError(`Please wait ${cooldownSec} seconds before requesting a new login OTP.`, 429);
