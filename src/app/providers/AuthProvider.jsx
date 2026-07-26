@@ -28,15 +28,20 @@ export const AuthProvider = ({ children }) => {
     let active = true;
 
     const initializeAuth = async () => {
-      // Fast path: user already resolved — nothing to do.
+      // 1. If Clerk SDK hasn't finished loading yet, remain in loading state.
+      if (!isAuthLoaded || !isUserLoaded) {
+        return;
+      }
+
+      // Fast path: user state is already resolved — stop loading.
       if (user) {
         if (active) setLoading(false);
         return;
       }
 
-      // 1. Restore an existing local (sandbox/JWT) session if one is flagged.
+      // 2. Restore an existing local (sandbox/JWT) session if present.
       const hasLocalSession = localStorage.getItem('has_active_session') === 'true';
-      if (hasLocalSession) {
+      if (hasLocalSession && !isSignedIn) {
         try {
           const refreshRes = await apiClient.post('/auth/refresh-token');
           setAccessToken(refreshRes.data.token);
@@ -48,38 +53,50 @@ export const AuthProvider = ({ children }) => {
             setUser({
               id: pData.account.id,
               email: pData.account.email,
-              role: pData.account.role,
+              role: pData.account.role || 'student',
               fullName: pData.profile.fullName
             });
             setLoading(false);
           }
           return;
         } catch {
-          // Local session could not be restored — clear it and fall through to Clerk.
           setAccessToken(null);
         }
       }
 
-      // 2. Otherwise synchronize the Clerk session once it has finished loading.
-      if (isAuthLoaded && isUserLoaded) {
-        if (isSignedIn && clerkUser) {
-          // Only sync a given Clerk user once (avoids duplicate /auth/sync calls).
+      // 3. Synchronize Clerk OAuth/session once loaded.
+      if (isSignedIn && clerkUser) {
+        try {
           if (syncedClerkIdRef.current !== clerkUser.id) {
             syncedClerkIdRef.current = clerkUser.id;
-            try {
-              const res = await apiClient.post('/auth/sync');
-              if (active) setUser(res.data.user);
-            } catch (err) {
-              console.error('Failed to sync Clerk user with backend:', err.message);
-              syncedClerkIdRef.current = null; // allow a retry on the next trigger
-              if (active) setUser(null);
+            const res = await apiClient.post('/auth/sync');
+            if (res.data?.token) {
+              setAccessToken(res.data.token);
+            }
+            if (active) {
+              setUser(res.data.user);
             }
           }
-        } else if (active && user) {
+        } catch (err) {
+          console.error('Failed to sync Clerk user with backend:', err.message);
+          syncedClerkIdRef.current = null;
+          if (active) {
+            setUser({
+              id: clerkUser.id,
+              email: clerkUser.emailAddresses[0]?.emailAddress || '',
+              role: clerkUser.publicMetadata?.role || 'student',
+              fullName: clerkUser.firstName ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim() : 'Clerk User'
+            });
+          }
+        } finally {
+          if (active) setLoading(false);
+        }
+      } else {
+        if (active) {
           setUser(null);
           syncedClerkIdRef.current = null;
+          setLoading(false);
         }
-        if (active) setLoading(false);
       }
     };
 
@@ -240,8 +257,8 @@ export const AuthProvider = ({ children }) => {
 
     await signIn.authenticateWithRedirect({
       strategy: 'oauth_google',
-      redirectUrl: '/dashboard',
-      signUpRedirectUrl: '/dashboard'
+      redirectUrl: '/sso-callback',
+      signUpRedirectUrl: '/sso-callback'
     });
   };
 
@@ -251,8 +268,8 @@ export const AuthProvider = ({ children }) => {
     // Requires the Microsoft OAuth connection to be enabled in the Clerk dashboard.
     await signIn.authenticateWithRedirect({
       strategy: 'oauth_microsoft',
-      redirectUrl: '/dashboard',
-      signUpRedirectUrl: '/dashboard'
+      redirectUrl: '/sso-callback',
+      signUpRedirectUrl: '/sso-callback'
     });
   };
 
@@ -517,7 +534,7 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider
       value={{
         user,
-        isAuthenticated: !!user,
+        isAuthenticated: !!user || (isSignedIn && !!clerkUser),
         loading,
         register,
         login,

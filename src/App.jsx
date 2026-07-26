@@ -82,6 +82,21 @@ const AuthenticatedRedirect = () => {
  * local-session bootstrap window. Public pages are intentionally NOT wrapped so they
  * render instantly without waiting on auth.
  */
+const SsoCallbackPage = () => {
+  const { user, isAuthenticated, loading } = useAuth();
+
+  if (loading) return <PageLoader />;
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user?.role === 'admin' || user?.role === 'super admin') {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+  return <Navigate to="/dashboard" replace />;
+};
+
 const AuthRoute = ({ children, redirectTo }) => {
   const { isAuthenticated, loading } = useAuth();
   if (loading) return <PageLoader />;
@@ -132,6 +147,7 @@ function AppContent() {
               <Route path="/status" element={<StatusPage />} />
               
               {/* Auth Gates */}
+              <Route path="/sso-callback" element={<SsoCallbackPage />} />
               <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
               <Route path="/admin" element={<AuthRoute redirectTo="/admin/dashboard"><AdminLoginPage /></AuthRoute>} />
               <Route path="/register" element={<AuthRoute><RegisterPage /></AuthRoute>} />
