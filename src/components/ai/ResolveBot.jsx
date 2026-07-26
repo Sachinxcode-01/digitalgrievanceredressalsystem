@@ -42,7 +42,8 @@ export const ResolveBot = () => {
 
     try {
       const headers = await getAuthHeaders();
-      const response = await fetch('/api/v1/chat/stream', {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+      const response = await fetch(`${apiBase}/chat/stream`, {
         method: 'POST',
         headers: {
           ...headers,

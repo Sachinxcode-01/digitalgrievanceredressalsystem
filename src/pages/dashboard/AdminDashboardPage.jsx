@@ -129,21 +129,13 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
     if (!broadcastSubject || !broadcastBody) return toast.error("Dossier is incomplete.");
     setIsBroadcasting(true);
     try {
-      const headers = await getAuthHeaders();
-      const res = await fetch('/api/v1/admin/broadcast', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ subject: broadcastSubject, body: broadcastBody })
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      
-      toast.success(`Broadcast transmitted to ${data.recipientsCount} users.`);
+      const res = await apiClient.post('/admin/broadcast', { subject: broadcastSubject, body: broadcastBody });
+      toast.success(`Broadcast transmitted to ${res.data.recipientsCount || 'all'} users.`);
       setBroadcastIntent('');
       setBroadcastSubject('');
       setBroadcastBody('');
     } catch (err) {
-      toast.error("Broadcast delivery failed.");
+      toast.error("Broadcast delivery failed: " + (err.response?.data?.error || err.message));
     } finally {
       setIsBroadcasting(false);
     }
@@ -172,15 +164,9 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
 
   const performAdvancedReasoning = async (prompt) => {
     try {
-      const headers = await getAuthHeaders();
-      const response = await fetch('/api/v1/ai/suggest', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ ticket: { description: prompt } })
-      });
-      const data = await response.json();
+      const res = await apiClient.post('/ai/suggest', { ticket: { description: prompt } });
       return { 
-        content: data.suggestion, 
+        content: res.data.suggestion, 
         reasoning: "Analysis completed. Strategic resolution plan formulated." 
       };
     } catch (err) {
@@ -191,15 +177,9 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
 
   const extractTableFromImage = async (url) => {
     try {
-      const headers = await getAuthHeaders();
-      const response = await fetch('/api/v1/ai/vision', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ imageUrl: url })
-      });
-      const data = await response.json();
+      const res = await apiClient.post('/ai/vision', { imageUrl: url });
       return { 
-        analysis: data.analysis,
+        analysis: res.data.analysis,
         status: "ACTIVE",
         format: "JSON_ARRAY",
         input: [url]

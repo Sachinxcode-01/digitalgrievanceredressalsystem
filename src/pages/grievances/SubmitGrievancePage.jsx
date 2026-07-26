@@ -14,7 +14,8 @@ import { getErrorMessage } from '../../utils/errors';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { PlacePicker } from '@googlemaps/extended-component-library/react';
 
-export const SubmitGrievancePage = ({ user }) => {
+export const SubmitGrievancePage = ({ user, sessionUser }) => {
+  const currentUser = user || sessionUser;
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -158,7 +159,7 @@ export const SubmitGrievancePage = ({ user }) => {
 
     const fileExt = file.name.split('.').pop();
     const fileName = `${Math.random().toString(36).substring(2, 10)}_${Date.now()}.${fileExt}`;
-    const filePath = `user_${user?.id || 'anon'}/${fileName}`;
+    const filePath = `user_${currentUser?.id || 'anon'}/${fileName}`;
 
     try {
       const { error: uploadError } = await supabase.storage

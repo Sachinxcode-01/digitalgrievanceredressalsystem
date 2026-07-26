@@ -73,20 +73,27 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
     }
 
     try {
-      await apiClient.put('/user/profile', {
+      const payload = {
         fullName,
         notificationPreferences: {
           email: notificationsEnabled,
           sms: notificationsEnabled
-        },
-        department,
-        institution
-      });
+        }
+      };
 
-      // Save mobile number to account settings
-      await apiClient.put('/user/account', {
-        mobileNumber: mobileNumber.trim() !== '' ? mobileNumber.trim() : null
-      });
+      const isAdmin = sessionUser?.role === 'admin' || sessionUser?.role === 'super admin';
+      if (isAdmin) {
+        payload.department = department;
+        payload.institution = institution;
+      }
+
+      await apiClient.put('/user/profile', payload);
+
+      if (mobileNumber.trim() !== '') {
+        await apiClient.put('/user/account', {
+          mobileNumber: mobileNumber.trim()
+        });
+      }
       
       setSaved(true);
       toast.success("Profile updated successfully!");
@@ -103,20 +110,15 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
     
     if (!isOTPRequested) {
       setIsUpdatingPassword(true);
-      const res = await fetch('/api/v1/auth/send-otp', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ email, type: 'recovery' })
-      });
-      const data = await res.json();
-      
-      if (data.error) {
-        toast.error("Security verification failed: " + data.error);
-      } else {
+      try {
+        const response = await apiClient.post('/auth/send-otp', { email, type: 'recovery' });
         toast.success("Recovery key sent via email.");
         setIsOTPRequested(true);
+      } catch (err) {
+        toast.error("Security verification failed: " + (err.response?.data?.error || err.message));
+      } finally {
+        setIsUpdatingPassword(false);
       }
-      setIsUpdatingPassword(false);
       return;
     }
 
@@ -131,47 +133,38 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
 
     setIsUpdatingPassword(true);
     
-    const verifyRes = await fetch('/api/v1/auth/verify-otp', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ email, otp: resetToken })
-    });
-    const verifyData = await verifyRes.json();
-    
-    if (verifyData.error) {
-      toast.error("Invalid OTP key: " + verifyData.error);
-      setIsUpdatingPassword(false);
-      return;
-    }
-
-    if (sessionUser?.id?.startsWith('demo-')) {
-      await new Promise(r => setTimeout(r, 800));
-      toast.success("Password simulated update.");
+    try {
+      await apiClient.post('/auth/verify-otp', { email, otp: resetToken });
+      
+      if (sessionUser?.id?.startsWith('demo-')) {
+        toast.success("Password simulated update.");
+      } else {
+        const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+        if (updateError) {
+          toast.error("Failed to update password: " + updateError.message);
+        } else {
+          toast.success("Keyphrase updated successfully!");
+        }
+      }
+    } catch (err) {
+      toast.error("Invalid OTP key: " + (err.response?.data?.error || err.message));
+    } finally {
       setNewPassword('');
       setConfirmPassword('');
       setResetToken('');
       setIsOTPRequested(false);
       setIsUpdatingPassword(false);
-      return;
     }
-
-    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
-    if (updateError) {
-      toast.error("Failed to update password: " + updateError.message);
-    } else {
-      toast.success("Keyphrase updated successfully!");
-    }
-    
-    setNewPassword('');
-    setConfirmPassword('');
-    setResetToken('');
-    setIsOTPRequested(false);
-    setIsUpdatingPassword(false);
   };
 
   const handleAvatarUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please upload a valid image file (JPEG, PNG, WEBP, GIF).");
+      return;
+    }
 
     if (file.size > 2 * 1024 * 1024) {
       toast.error("Avatar file size exceeds 2MB limit.");
@@ -179,19 +172,37 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
     }
 
     setIsUploadingAvatar(true);
-    await new Promise(r => setTimeout(r, 1500));
-    
-    const fakeUrl = URL.createObjectURL(file);
-    setAvatarUrl(fakeUrl);
-    
-    if (!sessionUser?.id?.startsWith('demo-')) {
-       await supabase.auth.updateUser({
-         data: { avatar_url: fakeUrl }
-       });
-    }
 
-    toast.success("Profile avatar updated.");
-    setIsUploadingAvatar(false);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `avatar_${sessionUser?.id || 'anon'}_${Date.now()}.${fileExt}`;
+      const filePath = `user_avatars/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('profiles')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('profiles')
+        .getPublicUrl(filePath);
+
+      const publicUrl = data.publicUrl;
+      setAvatarUrl(publicUrl);
+
+      if (sessionUser && !sessionUser.id?.startsWith('demo-')) {
+        await apiClient.put('/user/profile', {
+          profilePicture: publicUrl
+        });
+      }
+
+      toast.success("Profile avatar updated successfully!");
+    } catch (err) {
+      toast.error("Avatar upload failed: " + err.message);
+    } finally {
+      setIsUploadingAvatar(false);
+    }
   };
 
   const initials = (fullName || email || '?')[0].toUpperCase();

@@ -18,7 +18,8 @@ export const StatusPage = () => {
   const fetchHealth = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/health');
+      const apiBase = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/v1\/?$/, '');
+      const res = await fetch(`${apiBase}/health`);
       if (!res.ok) throw new Error('Failed to retrieve status');
       const data = await res.json();
       setMetrics(data);
