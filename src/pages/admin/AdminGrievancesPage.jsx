@@ -10,7 +10,8 @@ import StatusBadge from '../../components/ui/StatusBadge';
 import UrgencyBadge from '../../components/ui/UrgencyBadge';
 import toast from 'react-hot-toast';
 
-export const AdminGrievancesPage = ({ user }) => {
+export const AdminGrievancesPage = ({ user, sessionUser }) => {
+  const currentUser = user || sessionUser;
   const navigate = useNavigate();
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);

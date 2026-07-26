@@ -179,7 +179,8 @@ const AIAssistantPanel = ({ ticket, onSuggestionApply }) => {
 };
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-export const AdminGrievanceDetailsPage = ({ user }) => {
+export const AdminGrievanceDetailsPage = ({ user, sessionUser }) => {
+  const currentUser = user || sessionUser;
   const { id } = useParams();
   const navigate = useNavigate();
 
