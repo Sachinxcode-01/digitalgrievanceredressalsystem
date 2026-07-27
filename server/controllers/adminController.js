@@ -373,6 +373,12 @@ const createUser = async (req, res, next) => {
       { email, role, status }
     );
 
+    // Non-blocking welcome email dispatch
+    const notificationService = require('../services/notificationService');
+    notificationService.sendWelcomeEmail(newUser.email, fullName, newUser.id).catch(err =>
+      console.error(`[Admin User Creation] Welcome email dispatch failed:`, err.message)
+    );
+
     res.status(201).json({
       message: 'User created successfully.',
       user: {

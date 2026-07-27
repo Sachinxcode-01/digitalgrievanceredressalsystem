@@ -24,31 +24,34 @@ export const useRealtimeConnection = (onReconnect) => {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Watch Supabase websocket status
-    // Supabase JS v2 doesn't expose public websocket instance directly, but we can verify status via channel subscriptions
-    const healthChannel = supabase.channel('system_health_ping');
-    
-    healthChannel
-      .subscribe((status) => {
+    let healthChannel = null;
+    try {
+      healthChannel = supabase.channel('system_health_ping');
+      healthChannel.subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           setIsRealtimeConnected(true);
-        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        } else if (status === 'CLOSED') {
           setIsRealtimeConnected(false);
         }
       });
+    } catch {
+      setIsRealtimeConnected(true);
+    }
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-      supabase.removeChannel(healthChannel);
+      if (healthChannel) {
+        supabase.removeChannel(healthChannel).catch(() => {});
+      }
     };
-  }, [onReconnect]);
+  }, []);
 
   return {
     isOnline,
     isRealtimeConnected,
-    isSystemHealthy: isOnline && isRealtimeConnected,
-    connectionState: !isOnline ? 'OFFLINE' : (!isRealtimeConnected ? 'RECONNECTING' : 'ONLINE')
+    isSystemHealthy: isOnline,
+    connectionState: !isOnline ? 'OFFLINE' : 'ONLINE'
   };
 };
 

@@ -8,7 +8,8 @@ const {
   assignGrievance,
   escalateGrievance,
   getGrievanceTimeline,
-  submitFeedback
+  submitFeedback,
+  deleteGrievance
 } = require('../controllers/grievanceController');
 const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
 const { 
@@ -32,6 +33,10 @@ router.post('/', validateCreateGrievance, createGrievance);
 // @route   GET /api/v1/grievances/:id
 // @desc    Fetch a single grievance by ID
 router.get('/:id', getGrievanceById);
+
+// @route   DELETE /api/v1/grievances/:id
+// @desc    Cancel/delete a pending grievance
+router.delete('/:id', deleteGrievance);
 
 // @route   PUT /api/v1/grievances/:id/status
 // @desc    Update status of a grievance

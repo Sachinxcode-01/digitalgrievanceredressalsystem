@@ -109,6 +109,20 @@ const submitFeedback = async (req, res, next) => {
   }
 };
 
+const deleteGrievance = async (req, res, next) => {
+  try {
+    const result = await grievanceService.deleteGrievance(
+      req.params.id,
+      req.user,
+      req.ip,
+      req.headers['user-agent']
+    );
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getAllGrievances,
   createGrievance,
@@ -117,5 +131,6 @@ module.exports = {
   assignGrievance,
   escalateGrievance,
   getGrievanceTimeline,
-  submitFeedback
+  submitFeedback,
+  deleteGrievance
 };

@@ -69,8 +69,12 @@ const SetupError = () => (
 
 const AuthenticatedRedirect = () => {
   const { user } = useAuth();
-  if (user?.role === 'admin' || user?.role === 'super admin') {
+  const role = user?.role?.toLowerCase();
+  if (role === 'admin' || role === 'super admin') {
     return <Navigate to="/admin/dashboard" replace />;
+  }
+  if (role === 'officer' || role === 'faculty' || role === 'staff') {
+    return <Navigate to="/officer/dashboard" replace />;
   }
   return <Navigate to="/dashboard" replace />;
 };
@@ -91,8 +95,12 @@ const SsoCallbackPage = () => {
     return <Navigate to="/login" replace />;
   }
 
-  if (user?.role === 'admin' || user?.role === 'super admin') {
+  const role = user?.role?.toLowerCase();
+  if (role === 'admin' || role === 'super admin') {
     return <Navigate to="/admin/dashboard" replace />;
+  }
+  if (role === 'officer' || role === 'faculty' || role === 'staff') {
+    return <Navigate to="/officer/dashboard" replace />;
   }
   return <Navigate to="/dashboard" replace />;
 };
@@ -160,7 +168,7 @@ function AppContent() {
                 path="/dashboard" 
                 element={
                   <ProtectedRoute>
-                    <RoleGuard allowedRoles={['student', 'faculty', 'staff', 'admin', 'super admin']} fallback={<Navigate to="/login" />}>
+                    <RoleGuard allowedRoles={['student', 'officer', 'faculty', 'staff', 'admin', 'super admin']} fallback={<Navigate to="/login" />}>
                       <Layout user={user} onLogout={logout} theme={theme} setTheme={setTheme}>
                         <UserDashboard sessionUser={user} userProfile={user} />
                       </Layout>
@@ -174,7 +182,21 @@ function AppContent() {
                 path="/admin/dashboard" 
                 element={
                   <ProtectedRoute>
-                    <RoleGuard allowedRoles={['admin', 'super admin']} fallback={<Navigate to="/dashboard" />}>
+                    <RoleGuard allowedRoles={['admin', 'super admin', 'officer']} fallback={<Navigate to="/dashboard" />}>
+                      <Layout user={user} onLogout={logout} theme={theme} setTheme={setTheme}>
+                        <AdminDashboard sessionUser={user} userProfile={user} onLogout={logout} />
+                      </Layout>
+                    </RoleGuard>
+                  </ProtectedRoute>
+                } 
+              />
+
+              {/* Officer / Departmental Dashboard */}
+              <Route 
+                path="/officer/dashboard" 
+                element={
+                  <ProtectedRoute>
+                    <RoleGuard allowedRoles={['officer', 'faculty', 'staff', 'admin', 'super admin']} fallback={<Navigate to="/dashboard" />}>
                       <Layout user={user} onLogout={logout} theme={theme} setTheme={setTheme}>
                         <AdminDashboard sessionUser={user} userProfile={user} onLogout={logout} />
                       </Layout>

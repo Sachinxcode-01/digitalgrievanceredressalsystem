@@ -134,8 +134,9 @@ router.post('/send-all', async (req, res) => {
   ));
 
   // ── 6. Grievance Created Email ──────────────────────────────────────────
+  const mockSla = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
   results.push(await runTest('Grievance Created Email', () =>
-    emailService.sendGrievanceEmail(to, MOCK_TICKET_ID, MOCK_TICKET_TITLE, null)
+    emailService.sendGrievanceEmail(to, MOCK_TICKET_ID, MOCK_TICKET_TITLE, 'Hostel & Infrastructure', 'High', 'Facilities & Maintenance', mockSla, null)
   ));
 
   // ── 7. Grievance Assigned Email ─────────────────────────────────────────
@@ -242,9 +243,11 @@ router.post('/send', async (req, res) => {
     case 'welcome':
       result = await runTest('Welcome Email', () => emailService.sendWelcomeEmail(to, 'Test User', null));
       break;
-    case 'grievance-created':
-      result = await runTest('Grievance Created', () => emailService.sendGrievanceEmail(to, MOCK_TID, MOCK_TITLE, null));
+    case 'grievance-created': {
+      const mockSla = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
+      result = await runTest('Grievance Created', () => emailService.sendGrievanceEmail(to, MOCK_TID, MOCK_TITLE, 'Hostel & Infrastructure', 'High', 'Facilities & Maintenance', mockSla, null));
       break;
+    }
     case 'grievance-assigned':
       result = await runTest('Grievance Assigned', () => emailService.sendGrievanceAssignedEmail(to, MOCK_TID, MOCK_TITLE, 'High', 'Infrastructure'));
       break;

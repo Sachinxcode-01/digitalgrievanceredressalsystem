@@ -142,10 +142,22 @@ const verifyTransporter = async () => {
  * Strips HTML tags for plain-text fallback.
  */
 const stripHtml = (html) => {
+  if (!html) return '';
   return html
     .replace(/<style[^>]*>([\s\S]*?)<\/style>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<\/tr>/gi, '\n')
+    .replace(/<\/h[1-6]>/gi, '\n\n')
+    .replace(/<\/div>/gi, '\n')
     .replace(/<[^>]+>/g, '')
-    .replace(/\s+/g, ' ')
+    .replace(/&bull;/g, '•')
+    .replace(/&copy;/g, '©')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\n\s*\n\s*\n/g, '\n\n')
     .trim();
 };
 
@@ -544,9 +556,9 @@ const sendNewDeviceLoginEmail = async (userId, device, browser, time, location =
 // ==========================================
 // GRIEVANCE EMAILS
 // ==========================================
-const sendGrievanceEmail = async (email, ticketId, title, userId = null) => {
+const sendGrievanceEmail = async (email, ticketId, title, category = 'General', urgency = 'Medium', department = 'General', slaDueAt = null, userId = null) => {
   const notificationService = require('./notificationService');
-  return notificationService.sendGrievanceEmail(email, ticketId, title, userId);
+  return notificationService.sendGrievanceEmail(email, ticketId, title, category, urgency, department, slaDueAt, userId);
 };
 
 const sendGrievanceAssignedEmail = async (officerEmail, ticketId, title, priority, category) => {
@@ -572,9 +584,9 @@ const sendCommentAddedEmail = async (targetUserId, commentText, ticketId, author
 // ==========================================
 // ADMINISTRATIVE ALERTS
 // ==========================================
-const sendNewGrievanceAlertEmail = async (ticketId, title, category, urgency) => {
+const sendNewGrievanceAlertEmail = async (ticketId, title, category = 'General', urgency = 'Medium', department = 'General', slaDueAt = null) => {
   const notificationService = require('./notificationService');
-  return notificationService.sendNewGrievanceAlertEmail(ticketId, title, category, urgency);
+  return notificationService.sendNewGrievanceAlertEmail(ticketId, title, category, urgency, department, slaDueAt);
 };
 
 const sendEscalatedGrievanceAlertEmail = async (ticketId, title, category, frustrationIndex) => {

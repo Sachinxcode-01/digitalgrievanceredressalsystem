@@ -86,14 +86,18 @@ const notificationService = {
   },
 
   // Grievance Emails
-  async sendGrievanceEmail(email, ticketId, title, userId = null) {
+  async sendGrievanceEmail(email, ticketId, title, category = 'General', urgency = 'Medium', department = 'General', slaDueAt = null, userId = null) {
     const grievanceCreated = require('../templates/notifications/grievanceCreated');
     const data = grievanceCreated.email.user({
       ticketId,
       title,
+      category,
+      urgency,
+      department,
+      slaDueAt,
       frontendUrl: process.env.VITE_FRONTEND_URL || 'http://localhost:5173'
     });
-    const htmlContent = emailService.compileEmail(data.template, data.variables, 'Filing Confirmation', 'user');
+    const htmlContent = emailService.compileEmail(data.template, data.variables, 'Grievance Confirmation', 'user');
     if (userId) {
       await createInApp(userId, 'Grievance Registered', `Ticket #${ticketId} ("${title}") was successfully submitted.`, 'success');
     }
@@ -189,7 +193,7 @@ const notificationService = {
   },
 
   // Administrative Alerts
-  async sendNewGrievanceAlertEmail(ticketId, title, category, urgency) {
+  async sendNewGrievanceAlertEmail(ticketId, title, category = 'General', urgency = 'Medium', department = 'General', slaDueAt = null) {
     const adminEmail = process.env.ADMIN_EMAIL;
     if (!adminEmail) return;
 
@@ -199,6 +203,8 @@ const notificationService = {
       title,
       category,
       urgency,
+      department,
+      slaDueAt,
       frontendUrl: process.env.VITE_FRONTEND_URL || 'http://localhost:5173'
     });
     const htmlContent = emailService.compileEmail(data.template, data.variables, 'Administrative Triage Alert', 'admin');

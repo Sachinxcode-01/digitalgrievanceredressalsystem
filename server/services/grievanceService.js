@@ -166,13 +166,34 @@ const grievanceService = {
 
     // Notifications (fire-and-forget — email failures must never block submission)
     if (finalEmail) {
-      emailService.sendGrievanceEmail(finalEmail, ticketId, grievanceData.title, finalUserId === 'anonymous' ? null : finalUserId).catch(err => 
+      emailService.sendGrievanceEmail(
+        finalEmail, 
+        ticketId, 
+        grievanceData.title, 
+        category, 
+        priority, 
+        deptName, 
+        slaDueAt, 
+        finalUserId === 'anonymous' ? null : finalUserId
+      ).catch(err => 
         console.error(`Email confirmation dispatch failed: ${err.message}`)
       );
     }
     
+    // Always notify Admin of new grievance submission
+    emailService.sendNewGrievanceAlertEmail(
+      ticketId, 
+      grievanceData.title, 
+      category, 
+      priority, 
+      deptName, 
+      slaDueAt
+    ).catch(err => 
+      console.error(`Admin notification dispatch failed: ${err.message}`)
+    );
+
+    // Notify assigned officer/department coordinator if assigned
     if (assignedOfficerId) {
-      // Fetch coordinator email
       userRepository.findById(assignedOfficerId).then(coordinator => {
         if (coordinator && coordinator.email) {
           emailService.sendGrievanceAssignedEmail(coordinator.email, ticketId, grievanceData.title, priority, deptName).catch(err =>
@@ -180,10 +201,6 @@ const grievanceService = {
           );
         }
       }).catch(err => console.error('Failed to retrieve coordinator email:', err.message));
-    } else {
-      emailService.sendNewGrievanceAlertEmail(ticketId, grievanceData.title, category, priority).catch(err => 
-        console.error(`Admin notification dispatch failed: ${err.message}`)
-      );
     }
 
     return newGrievance;
@@ -274,6 +291,28 @@ const grievanceService = {
       metadata: { ticket_id: ticket.ticket_id, status, grievance_id: id }
     });
 
+    // Dispatch non-blocking email notifications for status transitions
+    if (currentStatus !== status) {
+      const notificationService = require('./notificationService');
+      if (status === 'Resolved') {
+        const resolutionTime = new Date().toISOString();
+        notificationService.sendResolutionCompletedEmail(ticket.user_id, ticket.ticket_id, ticket.title, updates.resolution_notes, resolutionTime).catch(err =>
+          console.error(`Resolution email dispatch failed: ${err.message}`)
+        );
+        notificationService.sendFeedbackRequestEmail(ticket.user_id, ticket.ticket_id, ticket.title).catch(err =>
+          console.error(`Feedback request email dispatch failed: ${err.message}`)
+        );
+      } else if (status === 'Escalated') {
+        notificationService.sendEscalatedGrievanceAlertEmail(ticket.ticket_id, ticket.title, ticket.category, ticket.frustration_index || 5).catch(err =>
+          console.error(`Escalation email dispatch failed: ${err.message}`)
+        );
+      } else {
+        notificationService.sendGrievanceStatusUpdatedEmail(ticket.user_id, ticket.ticket_id, ticket.title, currentStatus, status).catch(err =>
+          console.error(`Status update email dispatch failed: ${err.message}`)
+        );
+      }
+    }
+
     return updatedTicket;
   },
 
@@ -301,15 +340,27 @@ const grievanceService = {
       notes: `Assigned to department: ${department || 'General'}${assignedTo ? ` (Officer Assigned)` : ''}`
     });
 
-    // Assignee email
+    // Assignee email lookup (officer ID or department head)
     let assigneeEmail = '';
     if (assignedTo) {
       const assigneeUser = await userRepository.findById(assignedTo).catch(() => null);
       if (assigneeUser) assigneeEmail = assigneeUser.email;
+    } else if (department || ticket.department) {
+      const targetDept = department || ticket.department;
+      try {
+        const depts = await grievanceRepository.getDepartments();
+        const deptInfo = depts.find(d => d.name === targetDept);
+        if (deptInfo && deptInfo.head_user_id) {
+          const headUser = await userRepository.findById(deptInfo.head_user_id).catch(() => null);
+          if (headUser) assigneeEmail = headUser.email;
+        }
+      } catch (err) {
+        console.warn('Department head email lookup failed:', err.message);
+      }
     }
 
     if (assigneeEmail) {
-      emailService.sendGrievanceAssignedEmail(assigneeEmail, ticket.ticket_id, ticket.title, ticket.urgency, department || 'General').catch(console.error);
+      emailService.sendGrievanceAssignedEmail(assigneeEmail, ticket.ticket_id, ticket.title, ticket.urgency, department || ticket.department || 'General').catch(console.error);
     }
 
     // Audit log
@@ -451,6 +502,44 @@ const grievanceService = {
     );
 
     return updatedTicket;
+  },
+
+  async deleteGrievance(id, user, ip, userAgent) {
+    const ticket = await grievanceRepository.findById(id);
+    if (!ticket) {
+      const err = new Error('Grievance not found.');
+      err.status = 404;
+      throw err;
+    }
+
+    const isAdmin = user.role === 'admin' || user.role === 'super admin';
+    const isOwner = ticket.user_id === user.id || (user.email && user.email.toLowerCase() === ticket.email?.toLowerCase());
+
+    if (!isAdmin && !isOwner) {
+      const err = new Error('Access Denied: Scoped ownership violation');
+      err.status = 403;
+      throw err;
+    }
+
+    // Deletion / Cancellation restriction for non-admins
+    const cancellableStatuses = ['Submitted', 'Draft', 'New', 'Pending'];
+    if (!isAdmin && !cancellableStatuses.includes(ticket.status)) {
+      const err = new Error(`Cannot cancel a grievance that is already '${ticket.status}'. Only pending grievances can be canceled.`);
+      err.status = 400;
+      throw err;
+    }
+
+    await grievanceRepository.delete(id);
+
+    await logAudit(
+      user.id,
+      'GRIEVANCE_DELETED',
+      ip,
+      userAgent,
+      { ticket_id: ticket.ticket_id, title: ticket.title, status: ticket.status }
+    );
+
+    return { message: `Grievance ticket #${ticket.ticket_id} has been canceled and deleted successfully.`, id };
   }
 };
 

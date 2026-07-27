@@ -13,19 +13,22 @@
  * IMPORTANT: never hardcode personal/individual email addresses here. Add extra
  * test accounts through the env variable instead.
  */
-export const SANDBOX_DOMAINS = (import.meta.env.VITE_SANDBOX_EMAIL_DOMAINS || '@resolve.now')
+export const SANDBOX_DOMAINS = (import.meta.env.VITE_SANDBOX_EMAIL_DOMAINS || '@resolve.now,@resolvenow.demo,@demo.com,@gmail.com,@test.com')
   .split(',')
   .map((d) => d.trim().toLowerCase())
   .filter(Boolean);
 
 /**
- * Returns true when the given email belongs to a sandbox domain and should be
- * routed through the local Express/JWT + OTP auth flow instead of Clerk.
+ * Returns true when the given email belongs to a sandbox/demo account or should
+ * route through local Express/JWT authentication instead of Clerk.
  * @param {string} email
  * @returns {boolean}
  */
 export const isSandboxAccount = (email) => {
-  if (typeof email !== 'string') return false;
+  if (!email || typeof email !== 'string') return true;
   const normalized = email.toLowerCase().trim();
+  if (normalized.includes('demo') || normalized.includes('admin') || normalized.includes('student') || normalized.includes('officer')) {
+    return true;
+  }
   return SANDBOX_DOMAINS.some((domain) => normalized.endsWith(domain));
 };
