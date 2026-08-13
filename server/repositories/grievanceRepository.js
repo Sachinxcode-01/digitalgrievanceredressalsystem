@@ -242,12 +242,22 @@ const grievanceRepository = {
 
   async getTimeline(grievanceId) {
     if (!supabase) return [];
+    try {
+      const { data, error } = await supabase
+        .from('grievance_timeline')
+        .select(`
+          *,
+          profiles:user_profiles (full_name)
+        `)
+        .eq('grievance_id', grievanceId)
+        .order('created_at', { ascending: true });
+      if (!error && data) return data;
+    } catch {
+      // Fallback query if join alias is not foreign key linked in schema cache
+    }
     const { data, error } = await supabase
       .from('grievance_timeline')
-      .select(`
-        *,
-        profiles:user_profiles (full_name)
-      `)
+      .select('*')
       .eq('grievance_id', grievanceId)
       .order('created_at', { ascending: true });
     if (error) throw error;

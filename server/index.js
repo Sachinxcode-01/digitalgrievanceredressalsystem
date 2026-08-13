@@ -138,6 +138,8 @@ const adminRoutes       = require('./routes/adminRoutes');
 const userRoutes        = require('./routes/userRoutes');
 const sessionRoutes     = require('./routes/sessionRoutes');
 const emailTestRoutes   = require('./routes/emailTestRoutes');
+const publicRoutes      = require('./routes/publicRoutes');
+const uploadRoutes      = require('./routes/uploadRoutes');
 
 // 5. Versioned API Routing
 app.use('/api/v1/grievances', grievanceRoutes);
@@ -146,8 +148,11 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/chat', chatRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/user', userRoutes);
+app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/sessions', sessionRoutes);
 app.use('/api/v1/test-email', emailTestRoutes);
+app.use('/api/v1/public', publicRoutes);
+app.use('/api/v1/uploads', uploadRoutes);
 
 
 // --- Production/Deployment: Serve frontend ---
