@@ -127,16 +127,11 @@ export const LandingPage = () => {
             </div>
           </div>
 
-          {/* Hero Titles */}
+          {/* Hero Titles - Clean Centered Title Without 'R' Box */}
           <div className="space-y-3">
-            <div className="flex items-center justify-center gap-3">
-              <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center text-white font-black text-2xl md:text-3xl shadow-xl shadow-indigo-500/30 border border-indigo-400/40">
-                R
-              </div>
-              <h1 className="text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-heading font-black text-white tracking-tight leading-none uppercase bg-gradient-to-r from-white via-slate-100 to-indigo-200 bg-clip-text text-transparent">
-                ResolveNow
-              </h1>
-            </div>
+            <h1 className="text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-heading font-black text-white tracking-tight leading-none uppercase bg-gradient-to-r from-white via-slate-100 to-indigo-200 bg-clip-text text-transparent">
+              ResolveNow
+            </h1>
 
             <h2 className="text-xl sm:text-3xl md:text-4xl font-heading font-extrabold text-slate-200 tracking-tight max-w-4xl mx-auto">
               AI-Powered Digital Grievance Redressal System
@@ -250,7 +245,7 @@ export const LandingPage = () => {
         </AnimatedSection>
 
         {/* ========================================================================= */}
-        {/* SECTION 4: HOW IT WORKS (8-Step Animated Timeline) */}
+        {/* SECTION 4: HOW IT WORKS (8-Step Clean Aligned Cards) */}
         {/* ========================================================================= */}
         <AnimatedSection id="how-it-works" className="w-full max-w-5xl space-y-8">
           <ResponsiveTextBlock
@@ -260,24 +255,27 @@ export const LandingPage = () => {
 
           <LandingGrid cols={2}>
             {[
-              { step: 'Step 1', title: 'User Submits Grievance', desc: 'Fills narrative details, attaches supporting evidence files, and optionally pins location coordinates.' },
-              { step: 'Step 2', title: 'Gemini AI Triage Analysis', desc: 'AI evaluates category, sentiment frustration score, urgency priority, and optional English translation.' },
-              { step: 'Step 3', title: 'Smart Auto-Routing', desc: 'Dispatches complaint directly to the responsible department head or officer terminal.' },
-              { step: 'Step 4', title: 'SLA Due Date Calculation', desc: 'Calculates 24h-48h resolution timer with countdown alerts.' },
-              { step: 'Step 5', title: 'Automated Email Dispatch', desc: 'Sends SMTP confirmation with cryptographic tracking ticket ID to the user.' },
-              { step: 'Step 6', title: 'Real-Time Public Tracking', desc: 'User verifies resolution milestones on the status portal without logging in.' },
-              { step: 'Step 7', title: 'Officer Resolution Sign-Off', desc: 'Officer investigates, attaches resolution notes, and updates ticket status.' },
-              { step: 'Step 8', title: 'User Feedback Rating', desc: 'User rates resolution quality on a 5-star scale to complete the audit trail.' },
+              { num: '01', title: 'User Submits Grievance', desc: 'Fills narrative details, attaches supporting evidence files, and optionally pins location coordinates.' },
+              { num: '02', title: 'Gemini AI Triage Analysis', desc: 'AI evaluates category, sentiment frustration score, urgency priority, and optional English translation.' },
+              { num: '03', title: 'Smart Auto-Routing', desc: 'Dispatches complaint directly to the responsible department head or officer terminal.' },
+              { num: '04', title: 'SLA Due Date Calculation', desc: 'Calculates 24h-48h resolution timer with countdown alerts.' },
+              { num: '05', title: 'Automated Email Dispatch', desc: 'Sends SMTP confirmation with cryptographic tracking ticket ID to the user.' },
+              { num: '06', title: 'Real-Time Public Tracking', desc: 'User verifies resolution milestones on the status portal without logging in.' },
+              { num: '07', title: 'Officer Resolution Sign-Off', desc: 'Officer investigates, attaches resolution notes, and updates ticket status.' },
+              { num: '08', title: 'User Feedback Rating', desc: 'User rates resolution quality on a 5-star scale to complete the audit trail.' },
             ].map((st, i) => (
-              <GlassPanel key={i} className="p-5 flex gap-4 items-start" intensity="medium">
-                <span className="px-2.5 py-1 rounded-lg bg-indigo-500/20 text-indigo-400 font-mono font-black text-xs border border-indigo-500/30 shrink-0">
-                  {st.step}
-                </span>
-                <div className="space-y-1 text-left">
-                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">{st.title}</h4>
-                  <p className="text-[11px] text-slate-400 leading-relaxed">{st.desc}</p>
+              <div 
+                key={i} 
+                className="p-5 rounded-2xl bg-slate-950/80 border border-white/10 text-left space-y-2 hover:border-indigo-500/30 transition-all duration-300 shadow-xl"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-mono font-bold text-xs shrink-0">
+                    {st.num}
+                  </div>
+                  <h4 className="text-sm font-bold text-white tracking-wide">{st.title}</h4>
                 </div>
-              </GlassPanel>
+                <p className="text-xs text-slate-400 leading-relaxed pl-11">{st.desc}</p>
+              </div>
             ))}
           </LandingGrid>
         </AnimatedSection>
