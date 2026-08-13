@@ -31,6 +31,8 @@ export const Layout = ({ children, user, onLogout, theme, setTheme }) => {
         { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
         { path: '/grievances/submit', icon: PlusCircle, label: 'Submit Grievance' },
         { path: '/grievances', icon: Ticket, label: 'My Grievances' },
+        { path: '/public-status', icon: Activity, label: 'Track Status' },
+        { path: '/reports', icon: FileBarChart, label: 'Reports' },
         { path: '/profile', icon: User, label: 'Profile' },
         { path: '/security', icon: Settings, label: 'Settings' },
       ];
@@ -66,8 +68,13 @@ export const Layout = ({ children, user, onLogout, theme, setTheme }) => {
         {/* Navigation Items */}
         <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar">
           {navItems.map((item) => {
-            const isActive = location.pathname === item.path.split('?')[0] && 
-                             (item.path.includes('?') ? location.search === item.path.substring(item.path.indexOf('?')) : location.search === '');
+            const currentPath = location.pathname;
+            const itemBasePath = item.path.split('?')[0];
+            const isActive = currentPath === itemBasePath ||
+              (item.path === '/grievances' && currentPath === '/my-grievances') ||
+              (item.path === '/grievances/submit' && currentPath === '/submit-grievance') ||
+              (item.path === '/security' && currentPath === '/settings') ||
+              (item.path === '/public-status' && currentPath === '/track');
 
             return (
               <Link

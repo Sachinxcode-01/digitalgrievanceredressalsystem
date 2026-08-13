@@ -201,6 +201,19 @@ export const grievanceService = {
       localStorage.setItem('resolvenow_local_grievances', JSON.stringify(localData));
       throw err;
     }
+  },
+
+  /**
+   * Submit satisfaction feedback rating and comments for a resolved grievance.
+   */
+  async submitFeedback(id, rating, comments) {
+    try {
+      const response = await apiClient.post(`/grievances/${id}/feedback`, { rating, feedback_comments: comments });
+      return response.data;
+    } catch (err) {
+      console.warn('Backend feedback submit fallback:', err.message);
+      return this.updateStatus(id, 'Closed', comments);
+    }
   }
 };
 

@@ -148,7 +148,7 @@ export const GrievanceDetailsPage = ({ user }) => {
     e.preventDefault();
     setIsSubmittingFeedback(true);
     try {
-      await grievanceService.updateStatus(ticket.id, 'Closed', ticket.resolution_notes);
+      await grievanceService.submitFeedback(ticket.id, feedbackRating, feedbackComments);
       toast.success('Thank you! Your feedback rating has been submitted.');
       fetchTicketDetails();
     } catch (err) {

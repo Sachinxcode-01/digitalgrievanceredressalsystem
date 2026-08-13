@@ -44,6 +44,7 @@ const AdminOfficersPage = React.lazy(() => import('./pages/admin/AdminOfficersPa
 const SubmitGrievancePage = React.lazy(() => import('./pages/grievances/SubmitGrievancePage').then(m => ({ default: m.SubmitGrievancePage })));
 const MyGrievancesPage = React.lazy(() => import('./pages/grievances/MyGrievancesPage').then(m => ({ default: m.MyGrievancesPage })));
 const GrievanceDetailsPage = React.lazy(() => import('./pages/grievances/GrievanceDetailsPage').then(m => ({ default: m.GrievanceDetailsPage })));
+const StudentReportsPage = React.lazy(() => import('./pages/reports/StudentReportsPage').then(m => ({ default: m.StudentReportsPage })));
 
 // --- Loading Fallback Spinner ---
 const PageLoader = () => (
@@ -330,14 +331,38 @@ function AppContent() {
                 } 
               />
 
-              {/* ── Grievance Workflow — Citizen ── */}
+              {/* ── Grievance Workflow — Citizen / Student ── */}
+              <Route
+                path="/submit-grievance"
+                element={
+                  <ProtectedRoute>
+                    <RoleGuard allowedRoles={['student', 'officer', 'faculty', 'staff', 'admin', 'super admin']} fallback={<Navigate to="/login" />}>
+                      <Layout user={user} onLogout={logout} theme={theme} setTheme={setTheme}>
+                        <SubmitGrievancePage sessionUser={user} />
+                      </Layout>
+                    </RoleGuard>
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="/grievances/submit"
                 element={
                   <ProtectedRoute>
-                    <RoleGuard allowedRoles={['student', 'faculty', 'staff', 'admin', 'super admin']} fallback={<Navigate to="/login" />}>
+                    <RoleGuard allowedRoles={['student', 'officer', 'faculty', 'staff', 'admin', 'super admin']} fallback={<Navigate to="/login" />}>
                       <Layout user={user} onLogout={logout} theme={theme} setTheme={setTheme}>
                         <SubmitGrievancePage sessionUser={user} />
+                      </Layout>
+                    </RoleGuard>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/my-grievances"
+                element={
+                  <ProtectedRoute>
+                    <RoleGuard allowedRoles={['student', 'officer', 'faculty', 'staff', 'admin', 'super admin']} fallback={<Navigate to="/login" />}>
+                      <Layout user={user} onLogout={logout} theme={theme} setTheme={setTheme}>
+                        <MyGrievancesPage sessionUser={user} />
                       </Layout>
                     </RoleGuard>
                   </ProtectedRoute>
@@ -347,7 +372,7 @@ function AppContent() {
                 path="/grievances"
                 element={
                   <ProtectedRoute>
-                    <RoleGuard allowedRoles={['student', 'faculty', 'staff', 'admin', 'super admin']} fallback={<Navigate to="/login" />}>
+                    <RoleGuard allowedRoles={['student', 'officer', 'faculty', 'staff', 'admin', 'super admin']} fallback={<Navigate to="/login" />}>
                       <Layout user={user} onLogout={logout} theme={theme} setTheme={setTheme}>
                         <MyGrievancesPage sessionUser={user} />
                       </Layout>
@@ -356,10 +381,32 @@ function AppContent() {
                 }
               />
               <Route
+                path="/reports"
+                element={
+                  <ProtectedRoute>
+                    <RoleGuard allowedRoles={['student', 'officer', 'faculty', 'staff', 'admin', 'super admin']} fallback={<Navigate to="/login" />}>
+                      <Layout user={user} onLogout={logout} theme={theme} setTheme={setTheme}>
+                        <StudentReportsPage sessionUser={user} />
+                      </Layout>
+                    </RoleGuard>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <Layout user={user} onLogout={logout} theme={theme} setTheme={setTheme}>
+                      <AccountSecurityPage />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/grievances/:id"
                 element={
                   <ProtectedRoute>
-                    <RoleGuard allowedRoles={['student', 'faculty', 'staff', 'admin', 'super admin']} fallback={<Navigate to="/login" />}>
+                    <RoleGuard allowedRoles={['student', 'officer', 'faculty', 'staff', 'admin', 'super admin']} fallback={<Navigate to="/login" />}>
                       <Layout user={user} onLogout={logout} theme={theme} setTheme={setTheme}>
                         <GrievanceDetailsPage sessionUser={user} />
                       </Layout>
