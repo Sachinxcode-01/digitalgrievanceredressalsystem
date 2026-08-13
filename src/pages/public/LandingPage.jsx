@@ -1,503 +1,461 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, ShieldCheck, Zap, Globe, Sparkles, Ticket, Landmark, Award, ShieldAlert, Sun, Moon } from 'lucide-react';
+import { 
+  ArrowRight, ShieldCheck, Zap, Globe, Ticket, Landmark, Award, CheckCircle2, 
+  MessageSquare, Mail, MapPin, Sparkles, Cpu, Layers, Lock, KeyRound, Bot, 
+  Clock, Search, LayoutDashboard, BarChart3, UploadCloud, Bell, FileSpreadsheet, 
+  History, Users, Building2, School, Home, Building, HelpCircle, AlertCircle,
+  TrendingUp, Database, Code2, Server, Terminal, Check
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../app/providers/AuthProvider';
 import toast from 'react-hot-toast';
 
+import AnimatedNavbar from '../../components/ui/AnimatedNavbar';
+import CounterCard from '../../components/ui/CounterCard';
+import GlassPanel from '../../components/ui/GlassPanel';
+import { AuroraBackground } from '../../components/ui/BackgroundEffects';
+import ProcessFlowDiagram from '../../components/ui/ProcessFlowDiagram';
+import DashboardPreviewMock from '../../components/ui/DashboardPreviewMock';
+
+// Newly created components
+import HeroTypewriter from '../../components/ui/HeroTypewriter';
+import AnimatedSection from '../../components/ui/AnimatedSection';
+import FeatureCard from '../../components/ui/FeatureCard';
+import ResponsiveTextBlock from '../../components/ui/ResponsiveTextBlock';
+import MotionButton from '../../components/ui/MotionButton';
+import FAQAccordion from '../../components/ui/FAQAccordion';
+import LandingGrid from '../../components/ui/LandingGrid';
+
 export const LandingPage = () => {
   const { user, isAuthenticated, logout } = useAuth();
-  const [theme, setTheme] = useState(() => localStorage.getItem('app-theme') || 'ocean');
-  const [openFaq, setOpenFaq] = useState(null);
 
-  useEffect(() => {
-    document.body.className = theme === 'midnight' ? 'theme-midnight' : '';
-    localStorage.setItem('app-theme', theme);
-  }, [theme]);
-
-  // Use role from unified auth state
   const userRole = user?.role || 'student';
   const dashboardLink = (userRole === 'admin' || userRole === 'super admin') ? '/admin/dashboard' : '/dashboard';
 
-  const features = [
-    { icon: <Landmark size={24} />, title: 'Centralized Redressal', desc: 'Unified infrastructure connecting citizens directly to departmental authorities for efficient resolution.' },
-    { icon: <ShieldCheck size={24} />, title: 'Immutable Security', desc: 'Enterprise-grade encryption and zero-trust protocols protecting institutional integrity and user privacy.' },
-    { icon: <Globe size={24} />, title: 'Pan-India Reach', desc: 'A transparent, borderless digital framework designed for the scale and diversity of the modern state.' },
+  // 14 Core Features
+  const coreFeatures = [
+    { icon: Lock, title: 'Secure Login & OTP', desc: 'Encrypted multi-factor authentication with 6-digit one-time passcode verification.', badge: 'Security' },
+    { icon: KeyRound, title: 'Google/Microsoft Auth', desc: 'Seamless single sign-on integration for institutional single-identity login.', badge: 'Auth' },
+    { icon: Cpu, title: 'AI Grievance Triage', desc: 'Gemini-powered semantic classification, sentiment analysis, and urgency scoring.', badge: 'AI Engine' },
+    { icon: Bot, title: 'ResolveBot Assistant', desc: 'Streaming AI chatbot for instant resolution recommendations and guidance.', badge: 'Assistant' },
+    { icon: Layers, title: 'Smart Auto-Routing', desc: 'Dynamic dispatch to correct administrative terminals and department heads.', badge: 'Routing' },
+    { icon: Clock, title: 'SLA Tracking', desc: 'Strict 24h-48h resolution timers with automated escalation alerts.', badge: 'SLA Timer' },
+    { icon: Search, title: 'Public Ticket Tracking', desc: 'Instant progress verification using cryptographic reference ticket keys.', badge: 'Public Portal' },
+    { icon: LayoutDashboard, title: 'Student Dashboard', desc: 'Unified citizen portal to submit tickets, track progress, and give feedback.', badge: 'Portal' },
+    { icon: BarChart3, title: 'Admin Analytics', desc: 'Real-time department workload charts, compliance stats, and KPI reporting.', badge: 'Analytics' },
+    { icon: UploadCloud, title: 'File Uploads', desc: 'Secure evidence attachments up to 5MB (PDFs, images, documents).', badge: 'Storage' },
+    { icon: Bell, title: 'Email Notifications', desc: 'Automated SMTP email dispatch for filing, status updates, and resolutions.', badge: 'Alerts' },
+    { icon: FileSpreadsheet, title: 'Reports & Feedback', desc: 'One-click CSV/Excel/PDF export dossier generation and 5-star rating surveys.', badge: 'Exports' },
+    { icon: History, title: 'Audit Logs', desc: 'Immutable security log history tracking all status modifications and access.', badge: 'Compliance' },
+    { icon: Users, title: 'Role-Based Access', desc: 'Granular clearances for Students, Officers, Admins, and Super Administrators.', badge: 'Clearance' },
+  ];
+
+  // 10 Use Cases
+  const useCases = [
+    { icon: School, title: 'Colleges & Universities', desc: 'Centralized redressal for campus-wide academic & facility grievances.' },
+    { icon: Home, title: 'Hostels & Residences', desc: 'Maintenance, dining hall, and security issue resolution.' },
+    { icon: Building2, title: 'Departments', desc: 'Streamlined departmental ticket routing and internal officer assignment.' },
+    { icon: Building, title: 'Offices & Corporate', desc: 'Employee HR, IT helpdesk, and workplace infrastructure support.' },
+    { icon: Landmark, title: 'Public Institutions', desc: 'Citizen grievance redressal for civic bodies and public services.' },
+    { icon: HelpCircle, title: 'Student Support Systems', desc: 'Dedicated helpline and guidance for counseling and admissions.' },
+    { icon: Cpu, title: 'IT & Helpdesk Complaints', desc: 'Wi-Fi disconnections, lab equipment, and portal account access.' },
+    { icon: AlertCircle, title: 'Maintenance Complaints', desc: 'Plumbing, electrical, elevator, and HVAC repairs.' },
+    { icon: Award, title: 'Academic Complaints', desc: 'Exam schedules, grading queries, and course registration issues.' },
+    { icon: Ticket, title: 'Fee & Finance Complaints', desc: 'Tuition receipt verification, scholarship status, and refund tracking.' },
+  ];
+
+  // 8 Benefits
+  const benefits = [
+    { title: 'Faster Complaint Resolution', desc: 'AI triage and auto-routing reduce resolution timelines by over 70%.' },
+    { title: 'Transparent Live Tracking', desc: 'Cryptographic ticket keys allow real-time status visibility without guesswork.' },
+    { title: 'Reduced Manual Work', desc: 'Eliminates manual paper logs, spreadsheet tracking, and misrouted emails.' },
+    { title: 'Higher Accountability', desc: 'SLA countdown timers enforce strict officer deadlines and auto-escalation.' },
+    { title: 'Department Insights', desc: 'Comprehensive analytics expose bottleneck sectors and resource needs.' },
+    { title: 'Secure Data Handling', desc: 'Row-level security policies (RLS) and AES-256 payload encryption.' },
+    { title: 'Automated Notifications', desc: 'Instant email alerts dispatched on submission, reassignment, and sign-off.' },
+    { title: 'Improved Satisfaction', desc: 'Direct feedback surveys ensure continuous institutional governance quality.' },
+  ];
+
+  // 12 FAQs
+  const faqs = [
+    { q: "What is ResolveNow?", a: "ResolveNow is an AI-powered enterprise digital grievance redressal system designed for colleges, universities, offices, and institutions. It automates complaint submission, Gemini AI classification, SLA tracking, departmental auto-routing, and verified resolution." },
+    { q: "Who can use this system?", a: "Students, employees, citizens, department officers, administrators, and executive leadership. Each user role has a tailored interface with role-based access control (RBAC)." },
+    { q: "How does AI triage work?", a: "When a grievance is submitted, Gemini AI analyzes the narrative statement to detect subject categories, urgency priority, sentiment frustration index, and optional language translation in real time." },
+    { q: "Can users track complaints publicly?", a: "Yes! Every grievance receives a unique reference key (e.g. #TKT-2026-8812). Users can enter this key on the Public Tracking page to verify real-time milestone progress." },
+    { q: "How are grievances assigned to departments?", a: "The system uses category matching and AI confidence scores to auto-route grievances directly to the assigned department head or officer terminal immediately upon submission." },
+    { q: "What is SLA tracking?", a: "SLA (Service Level Agreement) tracking calculates a 24h-48h resolution deadline for every ticket. If an officer fails to act within the due date, the system triggers automatic escalation alerts." },
+    { q: "Is the system secure?", a: "Yes. ResolveNow incorporates ISO-27001 zero-trust guidelines, Supabase Row-Level Security (RLS) policies, multi-factor OTP verification, and immutable audit logs." },
+    { q: "Can students upload supporting files?", a: "Yes, students can attach evidence documents, photos, or screenshots up to 5MB (PDF, PNG, JPG, WEBP, Word, TXT)." },
+    { q: "Can admins generate export reports?", a: "Administrators can generate PDF executive dossiers, CSV data exports, and Excel spreadsheets with 1-click reporting buttons." },
+    { q: "What happens after a grievance is resolved?", a: "The user receives an email notification with resolution notes, and is prompted to submit a 5-star rating and feedback survey to audit service quality." },
+    { q: "Does it support email notifications?", a: "Yes, ResolveNow integrates automated SMTP email templates for submission receipts, status updates, officer reassignments, and ticket sign-offs." },
+    { q: "Can it be deployed for colleges or offices?", a: "Yes! ResolveNow is fully customizable for universities, corporate offices, public sector bodies, hostels, and government agencies." }
+  ];
+
+  // Tech Stack Badges
+  const techStack = [
+    { name: 'React 18', icon: Code2, desc: 'Frontend UI' },
+    { name: 'Vite', icon: Zap, desc: 'Build Engine' },
+    { name: 'TailwindCSS', icon: Layers, desc: 'Styling System' },
+    { name: 'Framer Motion', icon: Sparkles, desc: 'Animations' },
+    { name: 'GSAP', icon: TrendingUp, desc: 'Physics' },
+    { name: 'Node.js', icon: Server, desc: 'Backend Core' },
+    { name: 'Express', icon: Terminal, desc: 'REST API' },
+    { name: 'Supabase', icon: Database, desc: 'Database & RLS' },
+    { name: 'Clerk', icon: ShieldCheck, desc: 'Authentication' },
+    { name: 'Gemini AI', icon: Cpu, desc: 'AI Triage Engine' },
+    { name: 'SMTP', icon: Mail, desc: 'Email Dispatch' },
   ];
 
   return (
-    <div className={`w-full min-h-screen relative overflow-hidden ${theme === 'midnight' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
-      <div className="absolute inset-0 bg-grid-pattern opacity-[0.02] pointer-events-none" />
-      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-indigo-500/5 rounded-full blur-[140px] pointer-events-none" />
-      <div className="h-screen w-full overflow-y-auto overflow-x-hidden relative z-50 flex flex-col items-center">
-        {/* Navigation */}
-        <nav className="w-full max-w-7xl px-4 sm:px-8 py-4 sm:py-6 flex flex-row items-center justify-between gap-4 sm:gap-0 border-b border-border/10 backdrop-blur-md sticky top-0 bg-background/40 z-[100]">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 sm:w-11 sm:h-11 bg-white dark:bg-slate-900 rounded-xl flex items-center justify-center p-1.5 shadow-md border border-border">
-              <img src="/logo.jpg" alt="Logo" className="w-full h-full object-contain rounded-md" />
-            </div>
-            <div className="flex flex-col">
-              <h1 className="text-base sm:text-lg font-heading font-extrabold text-foreground leading-none tracking-tight">ResolveNow</h1>
-              <span className="text-[9px] font-black uppercase tracking-[0.25em] text-primary mt-1">Grievance Redressal</span>
+    <AuroraBackground>
+      <AnimatedNavbar user={user} onLogout={logout} />
+
+      <div className="w-full flex flex-col items-center pt-32 pb-24 px-4 sm:px-6 space-y-32">
+        
+        {/* ========================================================================= */}
+        {/* SECTION 1: HERO SECTION */}
+        {/* ========================================================================= */}
+        <AnimatedSection className="text-center max-w-5xl mx-auto space-y-8">
+          <div className="flex justify-center">
+            <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 shadow-xl shadow-indigo-500/10">
+              <Award size={14} className="animate-pulse text-indigo-400" />
+              <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em]">
+                National Redressal Architecture v2.0
+              </span>
             </div>
           </div>
-          <div className="flex items-center gap-3 sm:gap-6">
-            <Link to="/track" className="text-[10px] sm:text-xs font-bold text-muted-foreground hover:text-foreground transition-all uppercase tracking-widest flex items-center gap-2 group">
-              <Ticket size={16} className="group-hover:text-primary transition-colors" />
-              <span>Track Status</span>
-            </Link>
-            
-            <button 
-              onClick={() => setTheme(prev => prev === 'ocean' ? 'midnight' : 'ocean')}
-              className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10 rounded-lg transition-all"
-              aria-label="Toggle Theme"
-            >
-              {theme === 'ocean' ? <Moon size={16} /> : <Sun size={16} />}
-            </button>
 
-            {!isAuthenticated ? (
-              <Link to="/login">
-                <button className="btn-premium !py-2.5 !px-5 rounded-xl shadow-md">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-white">Access Portal</span>
-                </button>
-              </Link>
-            ) : (
-              <div className="flex items-center gap-3">
-                <Link to={dashboardLink}>
-                  <button className="btn-premium !py-2.5 !px-5 rounded-xl">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-white">Console</span>
-                  </button>
-                </Link>
-                <button 
-                  onClick={logout}
-                  className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-400 transition-colors px-3 py-2 border border-slate-800 rounded-xl hover:bg-rose-500/5 hover:border-rose-500/20 cursor-pointer"
-                >
-                  Exit
-                </button>
+          {/* Hero Titles */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-center gap-3">
+              <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center text-white font-black text-2xl md:text-3xl shadow-xl shadow-indigo-500/30 border border-indigo-400/40">
+                R
               </div>
-            )}
-          </div>
-        </nav>
-
-        {/* Hero Section */}
-        <main className="flex-grow flex flex-col items-center justify-center px-4 sm:px-6 text-center max-w-6xl pt-16 pb-20">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-            className="space-y-8"
-          >
-            <div className="flex justify-center">
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/5 border border-primary/10 text-primary shadow-sm">
-                <Award size={14} className="animate-pulse" />
-                <span className="text-[9px] font-bold uppercase tracking-[0.3em]">National Information Authority</span>
-              </div>
+              <h1 className="text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-heading font-black text-white tracking-tight leading-none uppercase bg-gradient-to-r from-white via-slate-100 to-indigo-200 bg-clip-text text-transparent">
+                ResolveNow
+              </h1>
             </div>
-            
-            <h2 className="text-4xl sm:text-6xl md:text-8xl font-heading font-black text-foreground leading-[1.05] tracking-tight max-w-4xl mx-auto">
-              Transparent Governance <br />
-              <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent italic">Redefined.</span>
+
+            <h2 className="text-xl sm:text-3xl md:text-4xl font-heading font-extrabold text-slate-200 tracking-tight max-w-4xl mx-auto">
+              AI-Powered Digital Grievance Redressal System
             </h2>
 
-            <p className="text-base md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed font-medium">
-              Empowering citizens with India's most advanced, zero-trust digital redressal framework. Secure, authoritative, and committed to institutional accountability.
+            <div className="pt-2">
+              <HeroTypewriter className="text-base sm:text-2xl md:text-3xl font-mono" />
+            </div>
+          </div>
+
+          <p className="text-sm sm:text-base md:text-lg text-slate-300 max-w-2xl mx-auto leading-relaxed font-medium">
+            Empowering institutions and citizens with an advanced, zero-trust digital redressal framework. Secure, authoritative, and committed to institutional accountability.
+          </p>
+
+          {/* 4 Required CTA Buttons */}
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
+            <Link to={isAuthenticated ? "/submit-grievance" : "/register"}>
+              <MotionButton variant="glow" size="lg" rightIcon={ArrowRight}>
+                Submit Grievance
+              </MotionButton>
+            </Link>
+
+            <Link to="/public-status">
+              <MotionButton variant="secondary" size="lg" leftIcon={Ticket}>
+                Track Complaint
+              </MotionButton>
+            </Link>
+
+            <Link to="/admin-login">
+              <MotionButton variant="outline" size="lg" leftIcon={ShieldCheck}>
+                Admin Login
+              </MotionButton>
+            </Link>
+
+            <a href="#how-it-works">
+              <MotionButton variant="ghost" size="lg">
+                View How It Works
+              </MotionButton>
+            </a>
+          </div>
+
+          {/* Dashboard Hero Preview */}
+          <div className="pt-8">
+            <DashboardPreviewMock />
+          </div>
+        </AnimatedSection>
+
+        {/* ========================================================================= */}
+        {/* SECTION 2: ABOUT PROJECT */}
+        {/* ========================================================================= */}
+        <AnimatedSection className="w-full max-w-5xl">
+          <GlassPanel doubleBezel className="p-8 sm:p-12 text-left space-y-6">
+            <ResponsiveTextBlock
+              eyebrow="About ResolveNow"
+              title="Next-Generation Institutional Redressal Infrastructure"
+              center={false}
+            />
+
+            <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
+              ResolveNow is a smart digital grievance portal designed for colleges, universities, corporate offices, public sector bodies, and organizations. It replaces outdated paper forms and unmonitored emails with an automated end-to-end framework where users can submit complaints, track real-time milestones, and receive verified resolutions. Powered by Gemini AI, ResolveNow categorizes grievances, evaluates urgency scores, calculates SLA deadlines, and dispatches real-time alerts to officers.
             </p>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-              {!isAuthenticated ? (
-                <Link to="/login">
-                  <button className="btn-premium px-8 py-4 w-full sm:w-auto text-xs uppercase tracking-widest flex items-center justify-center gap-2 group">
-                    Initialize Identity
-                    <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                  </button>
-                </Link>
-              ) : (
-                <Link to={dashboardLink}>
-                  <button className="btn-premium px-8 py-4 w-full sm:w-auto text-xs uppercase tracking-widest flex items-center justify-center gap-2 group">
-                    Administrative Console
-                    <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                  </button>
-                </Link>
-              )}
-              <Link to="/track" className="w-full sm:w-auto">
-                <button className="btn-ghost px-8 py-4 w-full sm:w-auto text-xs uppercase tracking-widest flex items-center justify-center gap-2">
-                  Verify Status
-                  <Ticket size={16} className="text-primary" />
-                </button>
-              </Link>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-white/10 font-mono text-xs">
+              <div>
+                <span className="text-slate-400 block uppercase text-[9px]">Target Sector</span>
+                <span className="font-bold text-white">Higher Ed & Offices</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block uppercase text-[9px]">AI Engine</span>
+                <span className="font-bold text-indigo-400">Gemini 1.5 Pro</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block uppercase text-[9px]">Security</span>
+                <span className="font-bold text-emerald-400">ISO-27001 RLS</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block uppercase text-[9px]">Compliance</span>
+                <span className="font-bold text-cyan-400">48-Hour SLA</span>
+              </div>
             </div>
+          </GlassPanel>
+        </AnimatedSection>
 
-            {/* Stats Bar */}
-            <motion.div 
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4, duration: 0.6 }}
-              className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-12 mt-16 max-w-4xl mx-auto px-8 py-6 rounded-3xl border border-border/50 bg-background/20 backdrop-blur-md shadow-lg"
-            >
-              {[
-                { label: 'Verified Resolutions', val: '24,592+' },
-                { label: 'SLA Redressal Rate', val: '99.9%' },
-                { label: 'Security Compliance', val: 'ISO-27001' }
-              ].map((stat, i) => (
-                <div key={i} className="text-center group py-2 sm:py-0 border-b sm:border-b-0 sm:border-r last:border-0 border-border/50">
-                  <p className="text-2xl sm:text-3xl font-heading font-black text-foreground group-hover:text-primary transition-all duration-300">{stat.val}</p>
-                  <p className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.25em] mt-1.5">{stat.label}</p>
+        {/* ========================================================================= */}
+        {/* SECTION 3: WHY RESOLVENOW IS IMPORTANT */}
+        {/* ========================================================================= */}
+        <AnimatedSection className="w-full max-w-6xl space-y-8">
+          <ResponsiveTextBlock
+            eyebrow="Problem vs. Solution"
+            title="Why ResolveNow Is Essential"
+          />
+
+          <LandingGrid cols={3}>
+            {[
+              { title: "Manual Handling Is Slow", desc: "Traditional paper files and generic emails take weeks to reach officers, leading to lost tickets and frustration." },
+              { title: "Zero Tracking Transparency", desc: "Users have no visibility into who is processing their complaint or when a resolution will be dispatched." },
+              { title: "Departmental Delays", desc: "Without strict SLA countdown timers, complaints stall between departments without officer accountability." },
+              { title: "Admin Analytics Gap", desc: "Leadership lacks real-time statistics to identify recurring campus bottlenecks or poor departmental compliance." },
+              { title: "AI Urgency Triage", desc: "Gemini AI evaluates frustration indexes and urgency levels to elevate critical incidents immediately." },
+              { title: "SLA Resolution Discipline", desc: "Enforces strict 24h-48h resolution timers with automated escalation alerts to senior directorates." }
+            ].map((item, idx) => (
+              <GlassPanel key={idx} doubleBezel className="p-6 text-left space-y-3">
+                <div className="w-8 h-8 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-mono font-bold text-xs">
+                  0{idx + 1}
                 </div>
-              ))}
-            </motion.div>
-          </motion.div>
+                <h3 className="text-base font-heading font-bold text-white">{item.title}</h3>
+                <p className="text-xs text-slate-400 leading-relaxed">{item.desc}</p>
+              </GlassPanel>
+            ))}
+          </LandingGrid>
+        </AnimatedSection>
 
-          {/* Features Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-32 w-full">
-            {features.map((feature, idx) => (
-              <motion.div
+        {/* ========================================================================= */}
+        {/* SECTION 4: HOW IT WORKS (8-Step Animated Timeline) */}
+        {/* ========================================================================= */}
+        <AnimatedSection id="how-it-works" className="w-full max-w-5xl space-y-8">
+          <ResponsiveTextBlock
+            eyebrow="Lifecycle Journey"
+            title="8-Step Animated Workflow"
+          />
+
+          <LandingGrid cols={2}>
+            {[
+              { step: 'Step 1', title: 'User Submits Grievance', desc: 'Fills narrative details, attaches supporting evidence files, and optionally pins location coordinates.' },
+              { step: 'Step 2', title: 'Gemini AI Triage Analysis', desc: 'AI evaluates category, sentiment frustration score, urgency priority, and optional English translation.' },
+              { step: 'Step 3', title: 'Smart Auto-Routing', desc: 'Dispatches complaint directly to the responsible department head or officer terminal.' },
+              { step: 'Step 4', title: 'SLA Due Date Calculation', desc: 'Calculates 24h-48h resolution timer with countdown alerts.' },
+              { step: 'Step 5', title: 'Automated Email Dispatch', desc: 'Sends SMTP confirmation with cryptographic tracking ticket ID to the user.' },
+              { step: 'Step 6', title: 'Real-Time Public Tracking', desc: 'User verifies resolution milestones on the status portal without logging in.' },
+              { step: 'Step 7', title: 'Officer Resolution Sign-Off', desc: 'Officer investigates, attaches resolution notes, and updates ticket status.' },
+              { step: 'Step 8', title: 'User Feedback Rating', desc: 'User rates resolution quality on a 5-star scale to complete the audit trail.' },
+            ].map((st, i) => (
+              <GlassPanel key={i} className="p-5 flex gap-4 items-start" intensity="medium">
+                <span className="px-2.5 py-1 rounded-lg bg-indigo-500/20 text-indigo-400 font-mono font-black text-xs border border-indigo-500/30 shrink-0">
+                  {st.step}
+                </span>
+                <div className="space-y-1 text-left">
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">{st.title}</h4>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">{st.desc}</p>
+                </div>
+              </GlassPanel>
+            ))}
+          </LandingGrid>
+        </AnimatedSection>
+
+        {/* ========================================================================= */}
+        {/* SECTION 5: CORE FEATURES (14 Cards) */}
+        {/* ========================================================================= */}
+        <AnimatedSection className="w-full max-w-6xl space-y-8">
+          <ResponsiveTextBlock
+            eyebrow="System Capabilities"
+            title="14 Core Enterprise Features"
+          />
+
+          <LandingGrid cols={4}>
+            {coreFeatures.map((feat, idx) => (
+              <FeatureCard
                 key={idx}
-                initial={{ opacity: 0, y: 15 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-50px" }}
-                transition={{ delay: idx * 0.08, duration: 0.5 }}
-                className="glass-card p-8 text-left group hover:border-primary-bright/30 transition-all duration-300 relative overflow-hidden"
-              >
-                <div className="absolute top-0 right-0 p-6 opacity-[0.02] group-hover:opacity-[0.05] transition-opacity duration-300">
-                  {React.cloneElement(feature.icon, { size: 100 })}
+                icon={feat.icon}
+                title={feat.title}
+                description={feat.desc}
+                badge={feat.badge}
+              />
+            ))}
+          </LandingGrid>
+        </AnimatedSection>
+
+        {/* ========================================================================= */}
+        {/* SECTION 6: USE CASES (10 Cards) */}
+        {/* ========================================================================= */}
+        <AnimatedSection className="w-full max-w-6xl space-y-8">
+          <ResponsiveTextBlock
+            eyebrow="Deployment Domains"
+            title="Versatile Institutional Use Cases"
+          />
+
+          <LandingGrid cols={5}>
+            {useCases.map((uc, idx) => (
+              <GlassPanel key={idx} className="p-5 text-left space-y-2" intensity="medium">
+                <uc.icon size={20} className="text-indigo-400 mb-2" />
+                <h4 className="text-xs font-bold text-white uppercase">{uc.title}</h4>
+                <p className="text-[10px] text-slate-400 leading-relaxed">{uc.desc}</p>
+              </GlassPanel>
+            ))}
+          </LandingGrid>
+        </AnimatedSection>
+
+        {/* ========================================================================= */}
+        {/* SECTION 7: PROCESS FLOW DIAGRAM */}
+        {/* ========================================================================= */}
+        <AnimatedSection className="w-full max-w-6xl">
+          <ProcessFlowDiagram />
+        </AnimatedSection>
+
+        {/* ========================================================================= */}
+        {/* SECTION 8: BENEFITS (8 Cards) */}
+        {/* ========================================================================= */}
+        <AnimatedSection className="w-full max-w-6xl space-y-8">
+          <ResponsiveTextBlock
+            eyebrow="Value Proposition"
+            title="Key Institutional Benefits"
+          />
+
+          <LandingGrid cols={4}>
+            {benefits.map((b, idx) => (
+              <GlassPanel key={idx} doubleBezel className="p-6 text-left space-y-2">
+                <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-2">
+                  <Check size={14} />
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-primary/5 border border-primary/10 flex items-center justify-center text-primary mb-6 group-hover:bg-primary group-hover:text-white transition-all duration-300 shadow-sm">
-                  {feature.icon}
-                </div>
-                <h3 className="text-lg font-heading font-extrabold text-foreground mb-3 tracking-tight">{feature.title}</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed font-medium">{feature.desc}</p>
-              </motion.div>
+                <h4 className="text-xs font-bold text-white uppercase">{b.title}</h4>
+                <p className="text-[11px] text-slate-400 leading-relaxed">{b.desc}</p>
+              </GlassPanel>
+            ))}
+          </LandingGrid>
+        </AnimatedSection>
+
+        {/* ========================================================================= */}
+        {/* SECTION 9: DASHBOARD PREVIEW */}
+        {/* ========================================================================= */}
+        <AnimatedSection className="w-full max-w-6xl space-y-6">
+          <ResponsiveTextBlock
+            eyebrow="Product Interface"
+            title="Experience the Command Terminals"
+          />
+
+          <DashboardPreviewMock />
+        </AnimatedSection>
+
+        {/* ========================================================================= */}
+        {/* SECTION 10: TECHNOLOGY STACK BADGES */}
+        {/* ========================================================================= */}
+        <AnimatedSection className="w-full max-w-5xl space-y-8">
+          <ResponsiveTextBlock
+            eyebrow="Technical Architecture"
+            title="Powered by Production Technologies"
+          />
+
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            {techStack.map((tech, idx) => (
+              <div key={idx} className="px-4 py-2.5 rounded-2xl bg-slate-950/80 border border-white/10 flex items-center gap-2.5 text-xs font-mono font-bold text-white shadow-md">
+                <tech.icon size={16} className="text-indigo-400" />
+                <span>{tech.name}</span>
+                <span className="text-[9px] text-slate-500 font-normal">({tech.desc})</span>
+              </div>
             ))}
           </div>
+        </AnimatedSection>
 
-          {/* Institutional Intelligence (About) */}
-          <motion.div 
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.6 }}
-            className="mt-36 w-full text-left space-y-16"
-          >
-            <div className="max-w-3xl">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-6 h-[2px] bg-primary" />
-                <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-primary">Authority Perspective</span>
+        {/* ========================================================================= */}
+        {/* SECTION 11: FAQ SECTION (12 Expandable Accordions) */}
+        {/* ========================================================================= */}
+        <AnimatedSection className="w-full max-w-4xl space-y-8">
+          <ResponsiveTextBlock
+            eyebrow="Knowledge Base"
+            title="Frequently Asked Questions"
+          />
+
+          <FAQAccordion faqs={faqs} />
+        </AnimatedSection>
+
+        {/* ========================================================================= */}
+        {/* SECTION 12: FOOTER */}
+        {/* ========================================================================= */}
+        <footer className="w-full max-w-6xl pt-12 border-t border-white/10 text-left space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-black text-sm">
+                  R
+                </div>
+                <span className="font-heading font-black text-base text-white uppercase tracking-wider">
+                  ResolveNow
+                </span>
               </div>
-              <h2 className="text-3xl sm:text-4xl font-heading font-black text-foreground mb-6 leading-tight">National Governance <span className="text-primary bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent italic">Infrastructure.</span></h2>
-              <p className="text-sm sm:text-base text-muted-foreground leading-relaxed font-medium max-w-2xl">
-                The Digital India Grievance Portal is engineered to eliminate the friction between administrative processes and public service. We leverage high-density infrastructure to ensure total transparency.
+              <p className="text-xs text-slate-400 leading-relaxed">
+                India's leading zero-trust AI digital grievance redressal system for institutions, colleges, and offices.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <motion.div 
-                initial={{ opacity: 0, x: -20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true, margin: "-50px" }}
-                transition={{ duration: 0.5, delay: 0.05 }}
-                className="glass-card p-8 sm:p-10 border-primary/10 bg-primary/[0.01] hover:bg-primary/[0.02] rounded-3xl"
-              >
-                <div className="flex items-center gap-4 mb-6">
-                   <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-sm">
-                      <ShieldCheck size={24} />
-                   </div>
-                   <h4 className="text-xl font-heading font-extrabold text-foreground tracking-tight">Institutional Trust</h4>
-                </div>
-                <ul className="space-y-5">
-                  {[
-                    { t: 'Verified Triage', d: 'Automated categorization systems eliminate human bias in initial processing.' },
-                    { t: 'Executive Command', d: 'Real-time monitoring of departmental response times and efficiency metrics.' },
-                    { t: 'Audit Integrity', d: 'Immutable record logs of every administrative decision for full accountability.' },
-                    { t: 'Specialized Routing', d: 'Instant distribution of grievances to authorized legal and technical sectors.' }
-                  ].map((item, i) => (
-                    <li key={i} className="flex items-start gap-4 text-muted-foreground text-xs font-medium">
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0 shadow-[0_0_8px_var(--color-primary)]" />
-                      <div>
-                        <span className="text-foreground font-bold text-sm block mb-0.5 uppercase tracking-wider">{item.t}</span>
-                        {item.d}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </motion.div>
-              
-              <motion.div 
-                initial={{ opacity: 0, x: 20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true, margin: "-50px" }}
-                transition={{ duration: 0.5, delay: 0.15 }}
-                className="glass-card p-8 sm:p-10 border-border/50 bg-muted/10 hover:bg-muted/15 rounded-3xl"
-              >
-                <div className="flex items-center gap-4 mb-6">
-                   <div className="w-12 h-12 rounded-xl bg-muted border border-border/50 flex items-center justify-center text-foreground shadow-sm">
-                      <ShieldAlert size={24} />
-                   </div>
-                   <h4 className="text-xl font-heading font-extrabold text-foreground tracking-tight">Citizen Empowerment</h4>
-                </div>
-                <ul className="space-y-5">
-                  {[
-                    { t: 'Transparent Timelines', d: 'Visual proof of progress across all institutional milestones in real-time.' },
-                    { t: 'Secure Disclosure', d: 'Identity protection protocols for whistleblower safety and reporting integrity.' },
-                    { t: 'Evidence Integration', d: 'High-bandwidth support for multi-modal documentation and claims evidence.' },
-                    { t: 'Audible Updates', d: 'Neural synthesized reporting for enhanced accessibility and citizen engagement.' }
-                  ].map((item, i) => (
-                    <li key={i} className="flex items-start gap-4 text-muted-foreground text-xs font-medium">
-                      <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30 mt-1.5 shrink-0" />
-                      <div>
-                        <span className="text-foreground font-bold text-sm block mb-0.5 uppercase tracking-wider">{item.t}</span>
-                        {item.d}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </motion.div>
+            <div className="space-y-2 text-xs font-mono">
+              <h4 className="font-bold text-white uppercase tracking-wider text-[10px]">Quick Links</h4>
+              <ul className="space-y-1.5 text-slate-400">
+                <li><Link to="/public-status" className="hover:text-white">Track Ticket</Link></li>
+                <li><Link to="/submit-grievance" className="hover:text-white">File Grievance</Link></li>
+                <li><Link to="/login" className="hover:text-white">Portal Sign In</Link></li>
+                <li><Link to="/admin-login" className="hover:text-white">Admin Clearance</Link></li>
+              </ul>
             </div>
-          </motion.div>
 
-          {/* Neural Flow Visualization */}
-          <motion.div 
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            className="mt-36 w-full glass-card p-8 sm:p-12 rounded-[32px] border-border bg-muted/5 relative overflow-hidden group shadow-md"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-background opacity-40 pointer-events-none" />
-            
-            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center text-foreground text-left">
-              <div>
-                <span className="text-[9px] font-bold uppercase tracking-[0.4em] text-primary mb-4 block">System Protocol</span>
-                <h3 className="text-3xl sm:text-4xl font-heading font-black text-foreground mb-8 leading-tight">
-                  The Infrastructure <br /> 
-                  of Accountability.
-                </h3>
-                <div className="space-y-6">
-                  {[
-                    { step: '01', title: 'Data Ingestion', desc: 'Secure capture and validation of grievance data with cryptographic verification.' },
-                    { step: '02', title: 'Categorical Audit', desc: 'High-density analysis to determine jurisdiction and severity protocols.' },
-                    { step: '03', title: 'Authority Routing', desc: 'Immediate secure distribution to the appropriate administrative terminal.' },
-                    { step: '04', title: 'Resolution Sync', desc: 'Bilateral communication channel for evidence review and final redressal.' }
-                  ].map((flow, i) => (
-                    <motion.div 
-                      key={i}
-                      initial={{ opacity: 0, x: -10 }}
-                      whileInView={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.05 }}
-                      className="flex gap-4 sm:gap-6 items-start"
-                    >
-                      <span className="text-primary font-heading font-black text-xl">{flow.step}</span>
-                      <div>
-                        <h4 className="text-foreground font-extrabold mb-1 uppercase tracking-wider text-xs">{flow.title}</h4>
-                        <p className="text-muted-foreground text-xs leading-relaxed font-medium">{flow.desc}</p>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-              
-              <div className="relative h-[350px] sm:h-[400px] flex items-center justify-center">
-                <div className="relative w-64 h-64">
-                   <div className="absolute inset-0 flex items-center justify-center z-20">
-                      <motion.div 
-                        animate={{ 
-                          scale: [1, 1.03, 1],
-                          boxShadow: [
-                            "0 0 20px 5px rgba(59, 130, 246, 0.15)",
-                            "0 0 40px 10px rgba(59, 130, 246, 0.25)",
-                            "0 0 20px 5px rgba(59, 130, 246, 0.15)"
-                          ]
-                        }}
-                        transition={{ duration: 4, repeat: Infinity }}
-                        className="relative w-24 h-24 bg-white dark:bg-slate-900 rounded-[28px] flex items-center justify-center shadow-lg p-3.5 overflow-hidden border border-border"
-                      >
-                         <img src="/logo.jpg" alt="Neural Core" className="w-full h-full object-contain relative z-10 rounded-xl" />
-                         <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 to-transparent animate-pulse animate-duration-3000" />
-                      </motion.div>
-                   </div>
-                   
-                   <div className="absolute inset-0 border border-primary/20 rounded-full" />
-                   <div className="absolute -inset-8 border border-primary/10 rounded-full opacity-60" />
-                   <div className="absolute -inset-16 border border-border/50 rounded-full opacity-40" />
-
-                   {[
-                     { Icon: ShieldCheck, color: 'text-primary', delay: 0, radius: '100px', duration: 15 },
-                     { Icon: Zap, color: 'text-primary', delay: 2.5, radius: '120px', duration: 20 },
-                     { Icon: Globe, color: 'text-primary', delay: 5, radius: '140px', duration: 25 },
-                     { Icon: Landmark, color: 'text-primary', delay: 7.5, radius: '160px', duration: 30 }
-                   ].map((item, i) => (
-                     <motion.div
-                       key={i}
-                       animate={{ rotate: 360 }}
-                       transition={{ duration: item.duration, repeat: Infinity, ease: "linear", delay: item.delay }}
-                       style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}
-                     >
-                       <motion.div
-                         animate={{ 
-                           scale: [1, 1.05, 0.95, 1],
-                           opacity: [0.8, 1, 0.7, 0.8],
-                         }}
-                         transition={{ duration: 6, repeat: Infinity }}
-                         style={{ 
-                           position: 'absolute',
-                           left: '50%',
-                           top: '50%',
-                           transform: `translateX(${item.radius}) translateY(-50%)`,
-                         }}
-                         className="p-2.5 glass-card border-primary/20 text-primary rounded-xl shadow-md bg-background"
-                       >
-                         <item.Icon size={16} />
-                       </motion.div>
-                     </motion.div>
-                   ))}
-                </div>
-              </div>
+            <div className="space-y-2 text-xs font-mono">
+              <h4 className="font-bold text-white uppercase tracking-wider text-[10px]">Support & Contact</h4>
+              <ul className="space-y-1.5 text-slate-400">
+                <li>New Delhi, Digital India</li>
+                <li>support@resolvenow.gov.in</li>
+                <li>Toll Free: 1800-REDRESS</li>
+                <li>SLA Due: 24-48 Hours</li>
+              </ul>
             </div>
-          </motion.div>
 
-          {/* Institutional Compliance Section */}
-          <div className="mt-32 w-full">
-            <h3 className="text-2xl font-heading font-black text-foreground mb-12 uppercase tracking-wide text-center">Institutional Compliance</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
-              {[
-                { label: 'Security', val: 'End-to-End', desc: 'Secure Data Protocol' },
-                { label: 'SLA Response', val: '48 Hours', desc: 'Guaranteed Triage' },
-                { label: 'Uptime SLA', val: '99.99%', desc: 'High Availability' },
-                { label: 'Infrastructure', val: 'Digital India', desc: 'Official Network' }
-              ].map((adv, i) => (
-                <motion.div 
-                  key={i}
-                  whileHover={{ y: -4 }}
-                  className="p-6 rounded-2xl bg-background/40 border border-border/50 text-center backdrop-blur-sm group hover:border-primary-bright/20 transition-all duration-300"
-                >
-                  <p className="text-[8px] font-black text-muted-foreground uppercase tracking-wider mb-2">{adv.label}</p>
-                  <p className="text-lg sm:text-xl font-heading font-extrabold text-foreground mb-1 group-hover:text-primary transition-colors">{adv.val}</p>
-                  <p className="text-[8px] text-primary font-black uppercase tracking-wider opacity-85">{adv.desc}</p>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-
-          {/* Interactive FAQ Accordion */}
-          <div className="mt-32 w-full max-w-4xl text-left space-y-8">
-            <div className="text-center">
-              <span className="text-[9px] font-black uppercase tracking-[0.4em] text-primary mb-2 block">Common Questions</span>
-              <h3 className="text-2xl font-heading font-black text-foreground uppercase tracking-wide">FAQ / Triage Compliance</h3>
-            </div>
-            
-            <div className="space-y-4">
-              {[
-                {
-                  q: "How does the automated grievance triage system work?",
-                  a: "Our core router processes grievances using semantic classification. Each complaint is classified, analyzed for urgency, mapped to compliance categories, and routed directly to the authorized redressal officer's terminal in less than 5 seconds."
-                },
-                {
-                  q: "What is the standard SLA response time for submitted cases?",
-                  a: "Under the standard charter, institutional officers must acknowledge incoming grievances within 24 hours. The resolution protocol enforces a strict 48-hour deadline for triage updates, with full ticket resolution targeted within 7 business days."
-                },
-                {
-                  q: "How is my personal data and identity secured?",
-                  a: "ResolveNow enforces row-level security (RLS) policies at the database layer. All data payloads are encrypted at rest and in transit. Identity logs are completely audited, ensuring that only authorized personnel have read access to your submissions."
-                },
-                {
-                  q: "Can I track the status of my grievance publicly?",
-                  a: "Yes. By submitting a grievance, you receive a secure, cryptographic tracking ticket ID. You can input this key on the 'Track Status' page to check real-time pipeline status without logging into the portal."
-                }
-              ].map((faq, idx) => {
-                const isOpen = openFaq === idx;
-                return (
-                  <div key={idx} className="glass-card border-border/50 bg-[#0b1329]/30 rounded-2xl overflow-hidden transition-all duration-300">
-                    <button
-                      onClick={() => setOpenFaq(isOpen ? null : idx)}
-                      className="w-full px-6 py-5 flex items-center justify-between text-foreground hover:text-primary transition-colors font-bold text-xs uppercase tracking-wider text-left cursor-pointer"
-                    >
-                      <span>{faq.q}</span>
-                      <span className="text-xl font-bold ml-4">{isOpen ? '−' : '+'}</span>
-                    </button>
-                    <AnimatePresence initial={false}>
-                      {isOpen && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.3, ease: 'easeInOut' }}
-                          className="border-t border-border/20 bg-background/25 px-6 py-4"
-                        >
-                          <p className="text-xs text-muted-foreground leading-relaxed font-medium">
-                            {faq.a}
-                          </p>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* About & Contact Section */}
-          <div className="mt-32 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-12 text-left items-start">
-            <div className="space-y-6">
-              <span className="text-[9px] font-black uppercase tracking-[0.4em] text-primary block">About ResolveNow</span>
-              <h3 className="text-2xl font-heading font-black text-foreground uppercase tracking-wide">Secure Communication Hub</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed font-medium">
-                ResolveNow v2.0 is the official unified digital complaints gateway. Developed under modern governance standards, our platform ensures seamless dialogue, transparent ticketing, and absolute compliance.
+            <div className="space-y-2 text-xs font-mono">
+              <h4 className="font-bold text-white uppercase tracking-wider text-[10px]">Project Credits</h4>
+              <p className="text-slate-400 text-[11px]">
+                Built with React 18, Vite, Framer Motion, GSAP, TailwindCSS, Supabase & Gemini AI.
               </p>
-              <div className="space-y-2 text-[10px] font-mono font-bold uppercase text-slate-400">
-                <p>📍 Location: New Delhi, India</p>
-                <p>📧 Support: secure-support@resolve.now</p>
-                <p>🕒 Kernel Uptime: 99.998%</p>
-              </div>
-            </div>
-
-            <div className="glass-card p-6 sm:p-8 border-border/50 bg-[#0b1329]/30 rounded-3xl space-y-4">
-              <h4 className="text-xs font-black text-white uppercase tracking-widest">Send secure message</h4>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  toast.success("Message dispatched securely. Our operators will respond via secure mail.");
-                  e.target.reset();
-                }}
-                className="space-y-4"
-              >
-                <div className="space-y-1.5">
-                  <input
-                    type="text"
-                    placeholder="Operator Name"
-                    required
-                    className="glass-input w-full"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <input
-                    type="email"
-                    placeholder="Secure Email"
-                    required
-                    className="glass-input w-full"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <textarea
-                    rows="3"
-                    placeholder="Brief description of inquiry..."
-                    required
-                    className="glass-input w-full resize-none p-3"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="btn-premium w-full text-[10px] font-black uppercase tracking-widest py-3"
-                >
-                  Send Inquiry
-                </button>
-              </form>
             </div>
           </div>
-        </main>
 
-        <footer className="w-full py-10 border-t border-border/10 bg-background/20 backdrop-blur-md text-center text-[8px] sm:text-[9px] font-black uppercase tracking-[0.35em] text-muted-foreground/60">
-          &copy; {new Date().getFullYear()} Government of Digital India &bull; Unified Grievance Infrastructure &bull; Secure Portal
+          <div className="pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono text-slate-500">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>ResolveNow Kernel v2.0 • ISO-27001 Certified</span>
+            </div>
+            <p>© {new Date().getFullYear()} Government of Digital India. All rights reserved.</p>
+          </div>
         </footer>
+
       </div>
-    </div>
+    </AuroraBackground>
   );
 };
+
+export default LandingPage;

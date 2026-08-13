@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../app/providers/AuthProvider';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, Sparkles, Sun, Moon, Home } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, Sparkles, Home, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../utils/errors';
 
+import { AuroraBackground } from '../../components/ui/BackgroundEffects';
+import MotionCard from '../../components/ui/MotionCard';
+import AnimatedButton from '../../components/ui/AnimatedButton';
+
 export const LoginPage = () => {
-  const { login, simpleLogin, loginWithGoogle, loginWithMicrosoft } = useAuth();
+  const { login, simpleLogin, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -28,17 +32,10 @@ export const LoginPage = () => {
 
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
-  const [loginType, setLoginType] = useState('password'); // 'password' or 'otp'
+  const [loginType, setLoginType] = useState('password');
   const [rememberMe, setRememberMe] = useState(false);
-  
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
-  const [theme, setTheme] = useState(() => localStorage.getItem('app-theme') || 'ocean');
-
-  useEffect(() => {
-    document.body.className = theme === 'midnight' ? 'theme-midnight' : '';
-    localStorage.setItem('app-theme', theme);
-  }, [theme]);
 
   const handleQuickLogin = async (role) => {
     setLoading(true);
@@ -63,16 +60,6 @@ export const LoginPage = () => {
     }
   };
 
-  const handleMicrosoftLogin = async () => {
-    setLoading(true);
-    try {
-      await loginWithMicrosoft();
-    } catch (err) {
-      toast.error(getErrorMessage(err, 'Microsoft Sign-in failed. Please try again.'));
-      setLoading(false);
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!identifier.trim()) {
@@ -89,7 +76,6 @@ export const LoginPage = () => {
       navigate(getRedirectPath(result.user));
     } catch (err) {
       console.error('Login process exception:', err);
-      // Fallback simple login on error so exam presentation never breaks
       const lower = identifier.toLowerCase();
       const detectedRole = lower.includes('admin') ? 'admin' : (lower.includes('officer') ? 'officer' : 'student');
       const fallbackRes = await simpleLogin(detectedRole, identifier);
@@ -101,98 +87,85 @@ export const LoginPage = () => {
   };
 
   return (
-    <div className={`h-screen w-full overflow-y-auto relative ${theme === 'midnight' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
-      <div className="absolute inset-0 bg-grid-pattern opacity-[0.02] pointer-events-none" />
-      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-indigo-500/5 rounded-full blur-[140px] pointer-events-none" />
-      <div className="relative z-10 w-full min-h-full flex items-center justify-center p-4 sm:p-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="w-full max-w-md z-10"
-          >
-          {/* Logo/Branding */}
+    <AuroraBackground>
+      <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.4 }}
+          className="w-full max-w-md"
+        >
+          {/* Header Branding */}
           <div className="text-center mb-6 relative">
-            <div className="absolute top-0 left-0">
-              <Link 
-                to="/"
-                className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/10 transition-colors flex items-center justify-center"
-                aria-label="Back to Home"
-              >
-                <Home size={16} />
-              </Link>
-            </div>
-
-            <div className="absolute top-0 right-0">
-              <button 
-                onClick={() => setTheme(prev => prev === 'ocean' ? 'midnight' : 'ocean')}
-                className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/10 transition-colors"
-                type="button"
-                aria-label="Toggle Theme"
-              >
-                {theme === 'ocean' ? <Moon size={16} /> : <Sun size={16} />}
-              </button>
-            </div>
+            <Link
+              to="/"
+              className="absolute left-0 top-0 p-2 text-slate-400 hover:text-white rounded-xl bg-slate-900/60 border border-white/10 transition-colors"
+            >
+              <Home size={16} />
+            </Link>
 
             <Link to="/" className="inline-flex items-center gap-2 group mb-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary to-secondary flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform duration-300">
-                <Sparkles className="w-5 h-5 text-white" />
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-105 transition-transform duration-300">
+                <ShieldCheck className="w-5 h-5 text-white" />
               </div>
-              <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/80 tracking-tight">
+              <span className="text-2xl font-heading font-black text-white tracking-tight uppercase">
                 ResolveNow
               </span>
             </Link>
-            <h2 className="text-2xl font-heading font-black text-foreground">Sign in to your account</h2>
-            <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mt-1">Institutional Redressal & Support Gateway</p>
+            <h2 className="text-2xl font-heading font-black text-white">Sign in to your account</h2>
+            <p className="text-xs text-indigo-400 font-mono font-bold uppercase tracking-widest mt-1">
+              Institutional Redressal & Support Gateway
+            </p>
           </div>
 
-          {/* Quick Demo Role Login Section for Exam Presentation */}
-          <div className="mb-4 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 border border-indigo-500/30 rounded-2xl p-4 text-center shadow-md">
-            <div className="flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-indigo-400 mb-2.5">
+          {/* Quick Demo Role Selectors */}
+          <div className="mb-4 bg-slate-900/80 border border-indigo-500/30 rounded-2xl p-4 text-center shadow-xl backdrop-blur-xl">
+            <div className="flex items-center justify-center gap-1.5 text-[10px] font-mono font-bold uppercase tracking-widest text-indigo-400 mb-2.5">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Exam Demo — Quick 1-Click Role Login</span>
+              <span>Quick 1-Click Role Login</span>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
+              <AnimatedButton
+                variant="secondary"
+                size="xs"
                 onClick={() => handleQuickLogin('student')}
-                disabled={loading}
-                className="py-2.5 px-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs shadow transition-all hover:scale-105 active:scale-95 disabled:opacity-50 flex flex-col items-center gap-1 cursor-pointer"
+                isLoading={loading}
+                className="flex-col !py-2.5"
               >
-                <span className="text-base">🎓</span>
+                <span className="text-base mb-0.5">🎓</span>
                 <span>Student</span>
-              </button>
-              <button
-                type="button"
+              </AnimatedButton>
+              <AnimatedButton
+                variant="secondary"
+                size="xs"
                 onClick={() => handleQuickLogin('admin')}
-                disabled={loading}
-                className="py-2.5 px-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold text-xs shadow transition-all hover:scale-105 active:scale-95 disabled:opacity-50 flex flex-col items-center gap-1 cursor-pointer"
+                isLoading={loading}
+                className="flex-col !py-2.5"
               >
-                <span className="text-base">🛡️</span>
+                <span className="text-base mb-0.5">🛡️</span>
                 <span>Admin</span>
-              </button>
-              <button
-                type="button"
+              </AnimatedButton>
+              <AnimatedButton
+                variant="secondary"
+                size="xs"
                 onClick={() => handleQuickLogin('officer')}
-                disabled={loading}
-                className="py-2.5 px-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs shadow transition-all hover:scale-105 active:scale-95 disabled:opacity-50 flex flex-col items-center gap-1 cursor-pointer"
+                isLoading={loading}
+                className="flex-col !py-2.5"
               >
-                <span className="text-base">👮</span>
+                <span className="text-base mb-0.5">👮</span>
                 <span>Officer</span>
-              </button>
+              </AnimatedButton>
             </div>
           </div>
 
-          {/* Login Form Card */}
-          <div className="glass-card p-6 sm:p-8 border-border/50 text-left space-y-5">
-            
-            <div className="space-y-2.5">
+          {/* Login Motion Card */}
+          <MotionCard className="p-6 sm:p-8" tilt={false}>
+            <div className="space-y-4">
               <button
                 type="button"
                 onClick={handleGoogleLogin}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-3 py-2.5 rounded-xl border border-white/10 bg-slate-900/50 hover:bg-slate-900 text-xs font-bold text-slate-300 hover:text-white transition-all cursor-pointer disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-3 py-2.5 rounded-xl border border-white/10 bg-slate-950/60 hover:bg-slate-950 text-xs font-bold text-slate-300 hover:text-white transition-all cursor-pointer disabled:opacity-50"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24">
                   <path fill="#EA4335" d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.68 1.54 14.98 1 12 1 7.35 1 3.37 3.67 1.39 7.56l3.85 2.99c.9-2.7 3.42-4.51 6.76-4.51z"/>
@@ -200,118 +173,121 @@ export const LoginPage = () => {
                   <path fill="#FBBC05" d="M5.24 10.55c-.23-.69-.36-1.43-.36-2.2 0-.77.13-1.51.36-2.2L1.39 3.16C.5 4.93 0 6.91 0 9c0 2.09.5 4.07 1.39 5.84l3.85-2.99c-.23-.69-.36-1.43-.36-2.2z"/>
                   <path fill="#34A853" d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.69-2.87c-1.03.69-2.34 1.1-4.27 1.1-3.34 0-5.86-1.81-6.76-4.51L1.39 16.7C3.37 20.33 7.35 23 12 23z"/>
                 </svg>
-                {loading ? 'Redirecting to Google...' : 'Continue with Google'}
+                <span>Continue with Google</span>
               </button>
-            </div>
 
-            <div className="flex items-center gap-4">
-              <div className="h-[1px] bg-white/10 flex-grow" />
-              <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">or enter credentials</span>
-              <div className="h-[1px] bg-white/10 flex-grow" />
-            </div>
-
-            {/* Auth Toggles */}
-            <div className="flex bg-background/50 p-1 rounded-xl border border-border/50">
-              <button
-                type="button"
-                onClick={() => setLoginType('password')}
-                className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all duration-300 cursor-pointer ${loginType === 'password' ? 'bg-primary text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
-              >
-                Password
-              </button>
-              <button
-                type="button"
-                onClick={() => setLoginType('otp')}
-                className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all duration-300 cursor-pointer ${loginType === 'otp' ? 'bg-primary text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
-              >
-                One-Time Key
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Email Address</label>
-                <div className="relative group">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                  <input
-                    type="email"
-                    value={identifier}
-                    onChange={(e) => setIdentifier(e.target.value)}
-                    placeholder="student@resolvenow.demo"
-                    className="glass-input w-full pl-10"
-                    required
-                  />
-                </div>
+              <div className="flex items-center gap-4 py-1">
+                <div className="h-[1px] bg-white/10 flex-grow" />
+                <span className="text-[9px] text-slate-500 font-mono font-bold uppercase tracking-widest">or credentials</span>
+                <div className="h-[1px] bg-white/10 flex-grow" />
               </div>
 
-              {loginType === 'password' && (
+              {/* Password vs OTP switch */}
+              <div className="flex bg-slate-950/60 p-1 rounded-xl border border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setLoginType('password')}
+                  className={`flex-1 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider transition-all ${
+                    loginType === 'password' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Password
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLoginType('otp')}
+                  className={`flex-1 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider transition-all ${
+                    loginType === 'otp' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  One-Time Key
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-4 pt-2">
                 <div className="space-y-1.5">
-                  <div className="flex justify-between items-center ml-1">
-                    <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest">Password</label>
-                    <Link to="/forgot-password" className="text-xs text-primary hover:text-secondary transition-colors font-semibold">
-                      Forgot Password?
-                    </Link>
-                  </div>
-                  <div className="relative group">
-                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                  <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                     <input
-                      type={showPass ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="glass-input w-full pl-10 pr-10"
-                      required={loginType === 'password'}
+                      type="email"
+                      value={identifier}
+                      onChange={(e) => setIdentifier(e.target.value)}
+                      placeholder="student@resolvenow.demo"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950/80 border border-white/10 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+                      required
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowPass(!showPass)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
-                    >
-                      {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
                   </div>
                 </div>
-              )}
 
-              {/* Remember Me Option */}
-              <div className="flex items-center justify-between ml-1 pt-1">
-                <label className="flex items-center gap-2.5 text-xs text-slate-400 font-medium cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="w-4 h-4 rounded border-white/10 bg-slate-950 text-primary focus:ring-primary focus:ring-offset-slate-950 cursor-pointer"
-                  />
-                  <span>Keep me logged in (30 days)</span>
-                </label>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="btn-premium w-full mt-2 text-xs uppercase tracking-widest font-bold"
-              >
-                {loading ? (
-                  <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                ) : (
-                  <>
-                    {loginType === 'password' ? 'Sign In' : 'Request Security Key'}
-                    <ArrowRight className="w-4 h-4" />
-                  </>
+                {loginType === 'password' && (
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest">
+                        Password
+                      </label>
+                      <Link to="/forgot-password" className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold">
+                        Forgot Password?
+                      </Link>
+                    </div>
+                    <div className="relative">
+                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                      <input
+                        type={showPass ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-950/80 border border-white/10 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+                        required={loginType === 'password'}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPass(!showPass)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                      >
+                        {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
                 )}
-              </button>
-            </form>
 
-            <div className="text-center text-xs text-muted-foreground">
-              Don't have an account?{' '}
-              <Link to="/register" className="text-primary hover:text-secondary font-bold transition-colors">
-                Sign Up
-              </Link>
+                <div className="flex items-center justify-between pt-1">
+                  <label className="flex items-center gap-2 text-xs text-slate-400 font-medium cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="w-4 h-4 rounded border-white/10 bg-slate-950 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span>Keep me logged in (30 days)</span>
+                  </label>
+                </div>
+
+                <AnimatedButton
+                  type="submit"
+                  variant="glow"
+                  size="md"
+                  isLoading={loading}
+                  rightIcon={ArrowRight}
+                  className="w-full mt-3"
+                >
+                  {loginType === 'password' ? 'Sign In' : 'Request Security Key'}
+                </AnimatedButton>
+              </form>
+
+              <div className="text-center text-xs text-slate-400 pt-2">
+                Don't have an account?{' '}
+                <Link to="/register" className="text-indigo-400 hover:text-indigo-300 font-bold">
+                  Sign Up
+                </Link>
+              </div>
             </div>
-          </div>
+          </MotionCard>
         </motion.div>
       </div>
-    </div>
+    </AuroraBackground>
   );
 };
 

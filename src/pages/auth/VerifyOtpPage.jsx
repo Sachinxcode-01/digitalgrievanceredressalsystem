@@ -3,10 +3,14 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../app/providers/AuthProvider';
 import { useSignUp, useSignIn } from '@clerk/clerk-react';
 import { motion } from 'framer-motion';
-import { ShieldCheck, ArrowRight, RefreshCw, ArrowLeft, Sun, Moon, Home } from 'lucide-react';
+import { ShieldCheck, ArrowRight, RefreshCw, ArrowLeft, Home } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../utils/errors';
 import { isSandboxAccount } from '../../utils/authMode';
+
+import { AuroraBackground } from '../../components/ui/BackgroundEffects';
+import MotionCard from '../../components/ui/MotionCard';
+import AnimatedButton from '../../components/ui/AnimatedButton';
 
 export const VerifyOtpPage = () => {
   const { verifyOtp, resendOtp } = useAuth();
@@ -15,7 +19,6 @@ export const VerifyOtpPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Retrieve state passed from registration or login
   const purpose = location.state?.purpose || 'registration';
   const rememberMe = location.state?.rememberMe || false;
   const fromPath = location.state?.from || null;
@@ -23,14 +26,8 @@ export const VerifyOtpPage = () => {
   const [identifier, setIdentifier] = useState(() => location.state?.identifier || '');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
-  const [cooldown, setCooldown] = useState(30); // 30s resend timer
-  const [theme, setTheme] = useState(() => localStorage.getItem('app-theme') || 'ocean');
+  const [cooldown, setCooldown] = useState(30);
 
-  useEffect(() => {
-    document.body.className = theme === 'midnight' ? 'theme-midnight' : '';
-    localStorage.setItem('app-theme', theme);
-  }, [theme]);
-  
   const inputRefs = [
     useRef(null),
     useRef(null),
@@ -40,7 +37,6 @@ export const VerifyOtpPage = () => {
     useRef(null)
   ];
 
-  // Recover identifier from Clerk SDK if lost on page refresh
   useEffect(() => {
     if (!identifier) {
       if (purpose === 'registration' && isSignUpLoaded && signUp?.emailAddress) {
@@ -52,7 +48,6 @@ export const VerifyOtpPage = () => {
   }, [identifier, purpose, isSignUpLoaded, signUp, isSignInLoaded, signIn]);
 
   useEffect(() => {
-    // If Clerk has loaded and we still don't have an identifier, redirect
     if (isSignUpLoaded && isSignInLoaded && !identifier) {
       toast.error('Session expired. Please restart your flow.');
       if (purpose === 'forgot_password') {
@@ -74,20 +69,18 @@ export const VerifyOtpPage = () => {
   }, [cooldown]);
 
   const handleOtpChange = (index, value) => {
-    if (isNaN(value)) return; // Only allow numbers
+    if (isNaN(value)) return;
 
     const newOtp = [...otp];
-    newOtp[index] = value.substring(value.length - 1); // Keep last char
+    newOtp[index] = value.substring(value.length - 1);
     setOtp(newOtp);
 
-    // Auto focus next field
     if (value && index < 5) {
       inputRefs[index + 1].current.focus();
     }
   };
 
   const handleKeyDown = (index, e) => {
-    // Backspace handles focus shift leftwards
     if (e.key === 'Backspace' && !otp[index] && index > 0) {
       inputRefs[index - 1].current.focus();
     }
@@ -97,7 +90,7 @@ export const VerifyOtpPage = () => {
 
   const handlePaste = (e) => {
     e.preventDefault();
-    const pasteData = e.clipboardData.getData('text').trim().replace(/\D/g, ''); // Extract only digits
+    const pasteData = e.clipboardData.getData('text').trim().replace(/\D/g, '');
     if (pasteData.length === 6) {
       const newOtp = pasteData.split('');
       setOtp(newOtp);
@@ -109,11 +102,10 @@ export const VerifyOtpPage = () => {
 
   const handleResend = async () => {
     if (cooldown > 0) return;
-    
     try {
       await resendOtp(identifier, purpose);
       toast.success('A fresh OTP has been sent.');
-      setCooldown(30); // reset timer
+      setCooldown(30);
     } catch (err) {
       toast.error(getErrorMessage(err, 'Failed to dispatch code.'));
     }
@@ -121,7 +113,7 @@ export const VerifyOtpPage = () => {
 
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
-    if (loading || isSubmittingRef.current) return; // Prevent double submission/race conditions
+    if (loading || isSubmittingRef.current) return;
     const otpCode = otp.join('');
     
     if (otpCode.length !== 6) {
@@ -134,13 +126,10 @@ export const VerifyOtpPage = () => {
       if (purpose === 'forgot_password') {
         const isSandbox = isSandboxAccount(identifier);
         if (isSandbox) {
-          // Sandbox: backend verifies the OTP and returns a resetCode
           const data = await verifyOtp(identifier, otpCode, purpose, rememberMe);
           toast.success(data.message || 'Identity confirmed.');
           navigate('/reset-password', { state: { email: identifier, resetCode: data.resetCode } });
         } else {
-          // Clerk: the OTP code IS the reset code — pass it directly to ResetPasswordPage
-          // which calls resetPassword(email, newPassword, code) → signIn.attemptFirstFactor
           toast.success('Code accepted. Please set your new password.');
           navigate('/reset-password', { state: { email: identifier, resetCode: otpCode } });
         }
@@ -155,7 +144,6 @@ export const VerifyOtpPage = () => {
     } catch (err) {
       const msg = getErrorMessage(err, 'Verification failed. Try again.');
 
-      // Stale Clerk state: signUp/signIn lost after page refresh — redirect to restart
       if (msg.includes('expired') || msg.includes('expired_code') || msg.includes('not found') || msg.includes('session expired') || msg.includes('register again')) {
         toast.error('Verification session expired. Please start again.');
         navigate(purpose === 'registration' ? '/register' : '/login');
@@ -168,7 +156,6 @@ export const VerifyOtpPage = () => {
       }
 
       toast.error(msg);
-      // Clear inputs on error
       setOtp(['', '', '', '', '', '']);
       if (inputRefs[0] && inputRefs[0].current) {
         inputRefs[0].current.focus();
@@ -179,7 +166,6 @@ export const VerifyOtpPage = () => {
     }
   };
 
-  // Trigger submission automatically when all fields are completed and not already submitting
   useEffect(() => {
     if (otp.every(val => val !== '') && !loading && !isSubmittingRef.current) {
       handleSubmit();
@@ -187,51 +173,34 @@ export const VerifyOtpPage = () => {
   }, [otp]);
 
   return (
-    <div className={`h-screen w-full overflow-y-auto relative ${theme === 'midnight' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
-      <div className="absolute inset-0 bg-grid-pattern opacity-[0.02] pointer-events-none" />
-      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-indigo-500/5 rounded-full blur-[140px] pointer-events-none" />
-      <div className="relative z-10 w-full min-h-full flex items-center justify-center p-4 sm:p-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="w-full max-w-md z-10"
-          >
-          <div className="text-center mb-8 relative">
-            {/* Back to Home Link */}
-            <div className="absolute top-0 left-0">
-              <Link 
-                to="/"
-                className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/10 transition-colors flex items-center justify-center"
-                aria-label="Back to Home"
-              >
-                <Home size={16} />
-              </Link>
-            </div>
+    <AuroraBackground>
+      <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.4 }}
+          className="w-full max-w-md"
+        >
+          {/* Header */}
+          <div className="text-center mb-6 relative">
+            <Link
+              to="/"
+              className="absolute left-0 top-0 p-2 text-slate-400 hover:text-white rounded-xl bg-slate-900/60 border border-white/10 transition-colors"
+            >
+              <Home size={16} />
+            </Link>
 
-            {/* Theme Selector */}
-            <div className="absolute top-0 right-0">
-              <button 
-                onClick={() => setTheme(prev => prev === 'ocean' ? 'midnight' : 'ocean')}
-                className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/10 transition-colors"
-                type="button"
-                aria-label="Toggle Theme"
-              >
-                {theme === 'ocean' ? <Moon size={16} /> : <Sun size={16} />}
-              </button>
-            </div>
-
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-primary to-secondary flex items-center justify-center shadow-lg mx-auto mb-4">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-indigo-500/30 mx-auto mb-4">
               <ShieldCheck className="w-6 h-6 text-white" />
             </div>
-            <h2 className="text-2xl font-heading font-black text-foreground">Verify your identity</h2>
-            <p className="text-xs text-muted-foreground font-medium mt-2 leading-relaxed">
-              Enter the 6-digit key dispatched to <br />
-              <span className="font-mono text-primary font-bold mt-1 block text-xs">{identifier}</span>
+            <h2 className="text-2xl font-heading font-black text-white">Verify your identity</h2>
+            <p className="text-xs text-slate-400 font-medium mt-2 leading-relaxed">
+              Enter the 6-digit security code sent to <br />
+              <span className="font-mono text-indigo-400 font-bold mt-1 block text-xs">{identifier}</span>
             </p>
           </div>
 
-          <div className="glass-card p-8 border-border/50 text-left space-y-6">
+          <MotionCard className="p-6 sm:p-8" tilt={false}>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="flex justify-between gap-2" onPaste={handlePaste}>
                 {otp.map((value, index) => (
@@ -243,51 +212,48 @@ export const VerifyOtpPage = () => {
                     value={value}
                     onChange={(e) => handleOtpChange(index, e.target.value)}
                     onKeyDown={(e) => handleKeyDown(index, e)}
-                    className="glass-input w-12 h-14 text-center text-xl font-bold font-mono focus:ring-primary/20 focus:border-primary"
+                    className="w-12 h-14 text-center text-xl font-bold font-mono bg-slate-950/90 border border-white/15 rounded-xl text-white focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
                   />
                 ))}
               </div>
 
-              <button
+              <AnimatedButton
                 type="submit"
-                disabled={loading}
-                className="btn-premium w-full text-xs uppercase tracking-widest font-bold"
+                variant="glow"
+                size="md"
+                isLoading={loading}
+                rightIcon={ArrowRight}
+                className="w-full"
               >
-                {loading ? (
-                  <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                ) : (
-                  <>
-                    Verify Code
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
+                Verify & Proceed
+              </AnimatedButton>
             </form>
 
-            {/* Cooldown controls */}
-            <div className="mt-6 flex flex-col gap-3 items-center justify-between text-xs border-t border-border/50 pt-4">
+            <div className="mt-6 flex flex-col gap-3 items-center justify-between text-xs border-t border-white/10 pt-4">
               <div className="flex items-center gap-1.5">
-                <span className="text-muted-foreground">Didn't receive the key?</span>
+                <span className="text-slate-400">Didn't receive code?</span>
                 <button
                   type="button"
                   onClick={handleResend}
                   disabled={cooldown > 0}
-                  className={`flex items-center gap-1 font-bold transition-colors uppercase tracking-wider text-[10px] ${cooldown > 0 ? 'text-muted-foreground/50 cursor-not-allowed' : 'text-primary hover:text-secondary cursor-pointer'}`}
+                  className={`flex items-center gap-1 font-bold font-mono transition-colors uppercase tracking-wider text-[10px] ${
+                    cooldown > 0 ? 'text-slate-600 cursor-not-allowed' : 'text-indigo-400 hover:text-indigo-300 cursor-pointer'
+                  }`}
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
                   {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend OTP'}
                 </button>
               </div>
-              
-              <Link to="/login" className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground font-bold transition-colors uppercase tracking-wider text-[10px]">
+
+              <Link to="/login" className="flex items-center gap-1.5 text-slate-400 hover:text-white font-mono font-bold transition-colors uppercase tracking-wider text-[10px]">
                 <ArrowLeft className="w-3.5 h-3.5" />
                 Back to Login
               </Link>
             </div>
-          </div>
+          </MotionCard>
         </motion.div>
       </div>
-    </div>
+    </AuroraBackground>
   );
 };
 

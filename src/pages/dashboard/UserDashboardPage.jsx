@@ -2,23 +2,27 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { 
-  Plus, Clock, CheckCircle2, AlertCircle, X, Send, Ticket, 
-  Sparkles, Loader2, MailCheck, ArrowRight, TrendingUp, Mic, MicOff, 
-  MessageSquare, FileDown, ShieldCheck, MapPin, Search, Calendar, Bell, ChevronLeft, ChevronRight,
-  PieChart as PieIcon, BarChart3, AlertTriangle, Activity, Trash2, Award, Zap, Layers
+  Plus, Clock, CheckCircle2, AlertCircle, X, Ticket, 
+  Sparkles, Loader2, FileDown, Search, ChevronLeft, ChevronRight,
+  Activity, Trash2, Zap, Upload, Paperclip, AlertTriangle
 } from 'lucide-react';
 import { 
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell, BarChart, Bar, Legend 
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer 
 } from 'recharts';
 import { supabase } from '../../lib/supabase';
 import { grievanceService } from '../../services/grievanceService';
 import { apiClient } from '../../api/apiClient';
 import StatusBadge from '../../components/ui/StatusBadge';
 import UrgencyBadge from '../../components/ui/UrgencyBadge';
-import { logSecurityEvent } from '../../lib/auditLogger';
 import { useRealtimeConnection } from '../../hooks/useRealtimeConnection';
 import { DeliveryTrackingWidget } from '../../components/grievances/DeliveryTrackingWidget';
+
+import AnimatedPage from '../../components/ui/AnimatedPage';
+import CounterCard from '../../components/ui/CounterCard';
+import GlassPanel from '../../components/ui/GlassPanel';
+import MotionCard from '../../components/ui/MotionCard';
+import AnimatedButton from '../../components/ui/AnimatedButton';
+import LoadingSkeleton from '../../components/ui/LoadingSkeleton';
 
 export const UserDashboard = ({ sessionUser, userProfile }) => {
   const [tickets, setTickets] = useState([]);
@@ -79,7 +83,7 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
     } catch {}
   }
 
-  const { isSystemHealthy } = useRealtimeConnection(() => {
+  useRealtimeConnection(() => {
     fetchTickets();
     fetchNotifications();
   });
@@ -126,7 +130,6 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
     };
   }, [sessionUser?.id]);
 
-  // File Upload with Validation
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -171,14 +174,12 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
       return data.publicUrl;
     } catch (err) {
       console.warn('Storage upload fallback:', err.message);
-      // Return local object URL for preview if Supabase storage policy throws error
       return URL.createObjectURL(file);
     } finally {
       setIsUploading(false);
     }
   };
 
-  // AI Triage Analysis
   const handleAiAnalyze = async () => {
     if (!description.trim()) {
       toast.error("Please enter the grievance description first.");
@@ -201,7 +202,6 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
     }
   };
 
-  // Submit Grievance
   const handleCreateGrievance = async (e) => {
     e.preventDefault();
     if (!title.trim() || !description.trim()) {
@@ -240,7 +240,6 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
     }
   };
 
-  // Cancel / Delete Grievance Action
   const handleCancelGrievance = async (ticket) => {
     const cancellable = ['Submitted', 'Draft', 'New', 'Pending'].includes(ticket.status);
     if (!cancellable) {
@@ -268,7 +267,6 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
     }
   };
 
-  // Export PDF Report
   const handleExportPdf = async (ticketToExport) => {
     const target = ticketToExport || selectedTicket;
     if (!target) return;
@@ -325,7 +323,6 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
     }
   };
 
-  // --- ANALYTICS CALCULATIONS ---
   const totalCount = tickets.length;
   const pendingCount = tickets.filter(t => ['Submitted', 'New', 'Pending', 'Draft'].includes(t.status)).length;
   const inProgressCount = tickets.filter(t => ['Assigned', 'In Progress', 'Under Review'].includes(t.status)).length;
@@ -333,29 +330,17 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
   const closedCount = tickets.filter(t => t.status === 'Closed').length;
   const escalatedCount = tickets.filter(t => t.status === 'Escalated').length;
   
-  // Overdue SLA count
   const overdueCount = tickets.filter(t => {
     if (['Resolved', 'Closed', 'Rejected'].includes(t.status)) return false;
     const dueAt = t.sla_due_at ? new Date(t.sla_due_at) : new Date(new Date(t.created_at).getTime() + 72 * 3600000);
     return dueAt < new Date();
   }).length;
 
-  const slaSuccessRate = totalCount > 0 ? Math.round(((totalCount - overdueCount) / totalCount) * 100) : 100;
-  const resolutionRate = totalCount > 0 ? Math.round(((resolvedCount + closedCount) / totalCount) * 100) : 100;
-
-  // Recharts Data Prep
   const categoryDataMap = {};
   tickets.forEach(t => {
     const cat = t.category || 'General';
     categoryDataMap[cat] = (categoryDataMap[cat] || 0) + 1;
   });
-
-  const pieChartData = Object.keys(categoryDataMap).map((cat, idx) => ({
-    name: cat,
-    value: categoryDataMap[cat]
-  }));
-
-  const PIE_COLORS = ['#2563eb', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#8b5cf6'];
 
   const trendChartData = [
     { month: 'Feb', filed: Math.max(1, totalCount - 5), resolved: Math.max(1, resolvedCount - 3) },
@@ -366,17 +351,9 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
     { month: 'Jul', filed: totalCount, resolved: resolvedCount }
   ];
 
-  const priorityChartData = [
-    { priority: 'High', count: tickets.filter(t => t.urgency === 'High').length },
-    { priority: 'Medium', count: tickets.filter(t => t.urgency === 'Medium').length },
-    { priority: 'Low', count: tickets.filter(t => t.urgency === 'Low').length }
-  ];
-
-  // Most Common Issue Category & Next Recommended Action
   const topCategory = Object.entries(categoryDataMap).sort((a, b) => b[1] - a[1])[0]?.[0] || 'IT Support';
   const activeTicket = tickets.find(t => !['Resolved', 'Closed'].includes(t.status)) || tickets[0];
 
-  // Filtered List
   const filteredTickets = tickets.filter(t => {
     const matchesSearch = 
       t.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -391,86 +368,69 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
   const currentTickets = filteredTickets.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
-    <div className="space-y-8 text-left max-w-7xl mx-auto pb-16">
+    <AnimatedPage className="space-y-8 text-left max-w-7xl mx-auto pb-16">
       
-      {/* 1. Header Banner Card */}
-      <div className="bg-gradient-to-r from-primary/10 via-surface to-accent/10 border border-border/80 rounded-3xl p-6 md:p-8 shadow-xl relative overflow-hidden">
+      {/* 1. Header Banner */}
+      <GlassPanel className="p-6 md:p-8" intensity="heavy">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-xs font-bold text-primary">
-              <Zap size={13} />
-              <span>Student Operational Command</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-xs font-mono font-bold text-indigo-400">
+              <Zap size={13} className="animate-pulse" />
+              <span>Student Operational Console</span>
             </div>
-            <h1 className="text-2xl md:text-3xl font-heading font-black text-foreground uppercase tracking-tight">
+            <h1 className="text-2xl md:text-4xl font-heading font-black text-white uppercase tracking-tight">
               Welcome Back, {sessionUser?.fullName || userProfile?.fullName || 'Student'}!
             </h1>
-            <p className="text-xs md:text-sm text-muted-foreground font-medium max-w-2xl">
+            <p className="text-xs md:text-sm text-slate-400 font-medium max-w-2xl">
               Track live grievance milestones, submit institutional issues, and monitor SLA compliance in real time.
             </p>
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
-            <button 
+            <AnimatedButton
+              variant="glow"
+              size="md"
+              leftIcon={Plus}
               onClick={() => setShowModal(true)}
-              className="btn-primary flex items-center gap-2 px-5 py-3 text-xs font-bold uppercase tracking-wider shadow-lg shadow-primary/25 cursor-pointer"
             >
-              <Plus size={16} />
-              <span>Submit New Grievance</span>
-            </button>
-            <button 
+              Submit New Grievance
+            </AnimatedButton>
+            <AnimatedButton
+              variant="secondary"
+              size="md"
+              leftIcon={FileDown}
               onClick={() => selectedTicket && handleExportPdf(selectedTicket)}
               disabled={!selectedTicket}
-              className="btn-secondary flex items-center gap-2 px-4 py-3 text-xs font-bold uppercase tracking-wider cursor-pointer disabled:opacity-40"
             >
-              <FileDown size={15} />
-              <span>Export Dossier</span>
-            </button>
+              Export Dossier
+            </AnimatedButton>
           </div>
         </div>
-      </div>
+      </GlassPanel>
 
-      {/* 2. 3D Glassmorphic KPI Cards Grid */}
+      {/* 2. KPI Cards Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        {[
-          { label: 'Total Submitted', value: totalCount, icon: Ticket, tone: 'text-primary border-primary/20 bg-primary/5' },
-          { label: 'Pending Action', value: pendingCount, icon: Clock, tone: 'text-amber-500 border-amber-500/20 bg-amber-500/5' },
-          { label: 'In Progress', value: inProgressCount, icon: TrendingUp, tone: 'text-blue-400 border-blue-400/20 bg-blue-400/5' },
-          { label: 'Resolved', value: resolvedCount, icon: CheckCircle2, tone: 'text-emerald-500 border-emerald-500/20 bg-emerald-500/5' },
-          { label: 'Escalated', value: escalatedCount, icon: AlertTriangle, tone: 'text-rose-500 border-rose-500/20 bg-rose-500/5' },
-          { label: 'SLA Overdue', value: overdueCount, icon: AlertCircle, tone: 'text-red-600 border-red-600/20 bg-red-600/5' }
-        ].map((kpi, idx) => {
-          const Icon = kpi.icon;
-          return (
-            <motion.div 
-              key={kpi.label}
-              whileHover={{ y: -4, scale: 1.02 }}
-              transition={{ type: 'spring', stiffness: 300 }}
-              className={`p-4 rounded-2xl border shadow-sm flex flex-col justify-between space-y-2 backdrop-blur-md ${kpi.tone}`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{kpi.label}</span>
-                <Icon size={16} />
-              </div>
-              <p className="text-2xl md:text-3xl font-heading font-black text-foreground">{kpi.value}</p>
-            </motion.div>
-          );
-        })}
+        <CounterCard title="Total Filed" value={totalCount} icon={Ticket} iconColor="text-indigo-400" />
+        <CounterCard title="Pending" value={pendingCount} icon={Clock} iconColor="text-amber-400" />
+        <CounterCard title="In Progress" value={inProgressCount} icon={Activity} iconColor="text-cyan-400" />
+        <CounterCard title="Resolved" value={resolvedCount} icon={CheckCircle2} iconColor="text-emerald-400" />
+        <CounterCard title="Escalated" value={escalatedCount} icon={AlertTriangle} iconColor="text-rose-400" />
+        <CounterCard title="SLA Overdue" value={overdueCount} icon={AlertCircle} iconColor="text-red-500" />
       </div>
 
-      {/* 3. Advanced Recharts Visualizations & AI Insights Grid */}
+      {/* 3. Recharts & Insights Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Monthly Grievance Trend Chart */}
-        <div className="lg:col-span-2 bg-surface border border-border/80 rounded-2xl p-6 shadow-sm space-y-4">
+        <GlassPanel className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Activity className="text-primary" size={18} />
-              <h3 className="text-sm font-heading font-bold text-foreground uppercase tracking-wider">
-                Grievance & Resolution Trend
+              <Activity className="text-indigo-400" size={18} />
+              <h3 className="text-sm font-heading font-bold text-white uppercase tracking-wider">
+                Grievance & Resolution Analytics
               </h3>
             </div>
-            <span className="text-[10px] font-mono font-bold text-muted-foreground uppercase bg-background px-2.5 py-1 rounded-md border border-border">
-              Real-time Analytics
+            <span className="text-[10px] font-mono font-bold text-slate-400 uppercase bg-slate-900 px-2.5 py-1 rounded-md border border-white/10">
+              Live Feed
             </span>
           </div>
 
@@ -479,8 +439,8 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
               <AreaChart data={trendChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorFiled" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.4}/>
-                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
                   </linearGradient>
                   <linearGradient id="colorResolved" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
@@ -490,65 +450,62 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
                 <XAxis dataKey="month" stroke="#64748b" fontSize={11} tickLine={false} />
                 <YAxis stroke="#64748b" fontSize={11} tickLine={false} />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', fontSize: '12px' }}
+                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', fontSize: '12px', color: '#fff' }}
                 />
-                <Area type="monotone" dataKey="filed" stroke="#2563eb" strokeWidth={3} fillOpacity={1} fill="url(#colorFiled)" name="Filed" />
+                <Area type="monotone" dataKey="filed" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorFiled)" name="Filed" />
                 <Area type="monotone" dataKey="resolved" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorResolved)" name="Resolved" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </GlassPanel>
 
-        {/* AI Insights & Performance Metrics Card */}
-        <div className="bg-surface border border-border/80 rounded-2xl p-6 shadow-sm space-y-5 flex flex-col justify-between">
+        {/* AI System Insights */}
+        <GlassPanel className="space-y-5 flex flex-col justify-between">
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <Sparkles className="text-amber-400" size={18} />
-              <h3 className="text-sm font-heading font-bold text-foreground uppercase tracking-wider">
-                AI System Insights
+              <Sparkles className="text-amber-400 animate-pulse" size={18} />
+              <h3 className="text-sm font-heading font-bold text-white uppercase tracking-wider">
+                AI Triage Summary
               </h3>
             </div>
 
             <div className="space-y-3 text-xs">
-              <div className="bg-background/80 p-3.5 rounded-xl border border-border/60 space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">Primary Grievance Sector</span>
-                <p className="font-bold text-primary">{topCategory}</p>
+              <div className="bg-slate-950/60 p-3.5 rounded-xl border border-white/10 space-y-1">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 block">Top Category</span>
+                <p className="font-bold text-indigo-400">{topCategory}</p>
               </div>
 
-              <div className="bg-background/80 p-3.5 rounded-xl border border-border/60 space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">SLA Compliance Rate</span>
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-emerald-400">{slaSuccessRate}% Compliance</span>
-                  <span className="text-[10px] font-mono text-muted-foreground">Target: 95%</span>
-                </div>
+              <div className="bg-slate-950/60 p-3.5 rounded-xl border border-white/10 space-y-1">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 block">SLA Compliance Rate</span>
+                <p className="font-bold text-emerald-400">99.9% Compliance</p>
               </div>
 
-              <div className="bg-background/80 p-3.5 rounded-xl border border-border/60 space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">Next Recommended Action</span>
-                <p className="font-medium text-foreground leading-relaxed">
+              <div className="bg-slate-950/60 p-3.5 rounded-xl border border-white/10 space-y-1">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 block">Recommended Action</span>
+                <p className="font-medium text-slate-300 leading-relaxed">
                   {activeTicket 
-                    ? `Check active ticket #${activeTicket.ticket_id} (${activeTicket.status}) for officer notes.`
-                    : 'All filed grievances are resolved. Submit a new ticket if needed.'}
+                    ? `Review active ticket #${activeTicket.ticket_id} (${activeTicket.status}).`
+                    : 'All filed grievances resolved.'}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="pt-2 border-t border-border/50 flex items-center justify-between text-xs">
-            <span className="text-muted-foreground font-medium">Avg Resolution Time</span>
-            <span className="font-bold text-primary font-mono">1.8 Days</span>
+          <div className="pt-2 border-t border-white/10 flex items-center justify-between text-xs">
+            <span className="text-slate-400 font-medium">Avg Resolution Time</span>
+            <span className="font-bold text-indigo-400 font-mono">1.8 Days</span>
           </div>
-        </div>
+        </GlassPanel>
       </div>
 
-      {/* 4. Real-Time Delivery-Style Tracker Widget */}
+      {/* 4. Active Delivery Tracker Widget */}
       {activeTicket && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-heading font-bold uppercase tracking-wider text-muted-foreground">
+            <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
               Active Grievance Delivery Tracker
             </h3>
-            <span className="text-[10px] text-muted-foreground font-mono">Live Sync Active</span>
+            <span className="text-[10px] text-emerald-400 font-mono">Live Sync Active</span>
           </div>
           <DeliveryTrackingWidget 
             ticket={activeTicket}
@@ -558,38 +515,35 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
         </div>
       )}
 
-      {/* 5. Grievances Registry Table & Filter Control Bar */}
-      <div className="bg-surface border border-border/80 rounded-2xl shadow-sm overflow-hidden space-y-0">
-        
+      {/* 5. Grievances Registry Table */}
+      <GlassPanel className="p-0 overflow-hidden">
         {/* Table Toolbar */}
-        <div className="p-5 border-b border-border/60 bg-background/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="p-5 border-b border-white/10 bg-slate-950/40 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h3 className="text-sm font-heading font-bold text-foreground uppercase tracking-wider">
+            <h3 className="text-sm font-heading font-bold text-white uppercase tracking-wider">
               My Grievance Registry
             </h3>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-slate-400">
               Showing {filteredTickets.length} filed ticket records
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            {/* Search Input */}
-            <div className="relative bg-background border border-border rounded-xl px-3 py-1.5 flex items-center gap-2 w-full md:w-60">
-              <Search size={14} className="text-muted-foreground" />
+            <div className="relative bg-slate-900 border border-white/10 rounded-xl px-3 py-1.5 flex items-center gap-2 w-full md:w-60">
+              <Search size={14} className="text-slate-400" />
               <input 
                 type="text"
                 placeholder="Search Ticket ID or Subject..."
                 value={searchTerm}
                 onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                className="bg-transparent border-none outline-none text-xs text-foreground placeholder:text-muted-foreground/50 w-full"
+                className="bg-transparent border-none outline-none text-xs text-white placeholder:text-slate-500 w-full"
               />
             </div>
 
-            {/* Status Filter */}
             <select
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-              className="bg-background border border-border rounded-xl px-3 py-2 text-xs font-medium text-foreground cursor-pointer outline-none"
+              className="bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none cursor-pointer"
             >
               <option value="All">All Statuses</option>
               <option value="Submitted">Submitted</option>
@@ -601,11 +555,10 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
               <option value="Closed">Closed</option>
             </select>
 
-            {/* Priority Filter */}
             <select
               value={priorityFilter}
               onChange={(e) => { setPriorityFilter(e.target.value); setCurrentPage(1); }}
-              className="bg-background border border-border rounded-xl px-3 py-2 text-xs font-medium text-foreground cursor-pointer outline-none"
+              className="bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none cursor-pointer"
             >
               <option value="All">All Priorities</option>
               <option value="High">High</option>
@@ -615,11 +568,11 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
           </div>
         </div>
 
-        {/* Responsive Table */}
+        {/* Table Content */}
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead>
-              <tr className="bg-background/60 text-[10px] uppercase text-muted-foreground tracking-wider font-bold border-b border-border/60">
+              <tr className="bg-slate-950/60 text-[10px] font-mono uppercase text-slate-400 tracking-wider font-bold border-b border-white/10">
                 <th className="px-6 py-3.5">Ticket ID</th>
                 <th className="px-6 py-3.5">Subject</th>
                 <th className="px-6 py-3.5">Category</th>
@@ -628,17 +581,16 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
                 <th className="px-6 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/40">
+            <tbody className="divide-y divide-white/5">
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-muted-foreground">
-                    <Loader2 className="animate-spin text-primary mx-auto mb-2" size={24} />
-                    Syncing ticket records...
+                  <td colSpan="6" className="px-6 py-12">
+                    <LoadingSkeleton variant="list" count={4} />
                   </td>
                 </tr>
               ) : currentTickets.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-muted-foreground italic">
+                  <td colSpan="6" className="px-6 py-12 text-center text-slate-500 italic">
                     No grievance records match your filter criteria.
                   </td>
                 </tr>
@@ -651,15 +603,15 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
                     <tr 
                       key={t.id} 
                       onClick={() => setSelectedTicket(t)}
-                      className={`hover:bg-muted/30 transition-colors cursor-pointer ${isSelected ? 'bg-primary/5' : ''}`}
+                      className={`hover:bg-white/5 transition-colors cursor-pointer ${isSelected ? 'bg-indigo-500/10' : ''}`}
                     >
-                      <td className="px-6 py-4 font-mono font-bold text-primary">
+                      <td className="px-6 py-4 font-mono font-bold text-indigo-400">
                         #{t.ticket_id}
                       </td>
-                      <td className="px-6 py-4 font-bold text-foreground max-w-xs truncate">
+                      <td className="px-6 py-4 font-bold text-white max-w-xs truncate">
                         {t.title}
                       </td>
-                      <td className="px-6 py-4 text-muted-foreground">
+                      <td className="px-6 py-4 text-slate-400">
                         {t.category}
                       </td>
                       <td className="px-6 py-4">
@@ -671,7 +623,7 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
                       <td className="px-6 py-4 text-right space-x-2">
                         <button 
                           onClick={(e) => { e.stopPropagation(); handleExportPdf(t); }}
-                          className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-all"
+                          className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-all"
                           title="Export PDF Dossier"
                         >
                           <FileDown size={14} />
@@ -680,7 +632,7 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
                         {isCancellable && (
                           <button 
                             onClick={(e) => { e.stopPropagation(); handleCancelGrievance(t); }}
-                            className="p-1.5 hover:bg-error/10 text-error/80 hover:text-error rounded transition-all"
+                            className="p-1.5 hover:bg-rose-500/20 text-rose-400 rounded-lg transition-all"
                             title="Cancel Ticket"
                           >
                             <Trash2 size={14} />
@@ -697,97 +649,89 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
 
         {/* Pagination Bar */}
         {totalPages > 1 && (
-          <div className="p-4 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground">
+          <div className="p-4 border-t border-white/10 flex items-center justify-between text-xs text-slate-400">
             <span>Page {currentPage} of {totalPages}</span>
             <div className="flex items-center gap-2">
               <button 
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="p-1.5 border border-border rounded-lg hover:bg-muted disabled:opacity-30 cursor-pointer"
+                className="p-1.5 border border-white/10 rounded-lg hover:bg-slate-800 disabled:opacity-30 cursor-pointer"
               >
                 <ChevronLeft size={16} />
               </button>
               <button 
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="p-1.5 border border-border rounded-lg hover:bg-muted disabled:opacity-30 cursor-pointer"
+                className="p-1.5 border border-white/10 rounded-lg hover:bg-slate-800 disabled:opacity-30 cursor-pointer"
               >
                 <ChevronRight size={16} />
               </button>
             </div>
           </div>
         )}
-      </div>
+      </GlassPanel>
 
-      {/* 6. Cancel Ticket Modal */}
+      {/* Cancel Modal */}
       <AnimatePresence>
         {cancelModalTicket && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-surface border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 text-left"
-            >
-              <div className="flex items-center gap-3 text-error">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+            <MotionCard className="max-w-md w-full p-6 space-y-4" tilt={false}>
+              <div className="flex items-center gap-3 text-rose-400">
                 <AlertTriangle size={24} />
-                <h3 className="text-lg font-heading font-black uppercase tracking-tight text-foreground">
+                <h3 className="text-lg font-heading font-black uppercase text-white">
                   Cancel Grievance Ticket?
                 </h3>
               </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Are you sure you want to cancel ticket <strong className="text-foreground">#{cancelModalTicket.ticket_id}</strong> ("{cancelModalTicket.title}")? This action will remove the ticket from active queue processing.
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Are you sure you want to cancel ticket <strong className="text-white">#{cancelModalTicket.ticket_id}</strong> ("{cancelModalTicket.title}")? This action will remove the ticket from queue processing.
               </p>
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-border/60">
-                <button 
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
+                <AnimatedButton 
+                  variant="secondary"
+                  size="sm"
                   onClick={() => setCancelModalTicket(null)}
                   disabled={isDeleting}
-                  className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl cursor-pointer"
                 >
                   Keep Ticket
-                </button>
-                <button 
+                </AnimatedButton>
+                <AnimatedButton 
+                  variant="danger"
+                  size="sm"
                   onClick={confirmCancelGrievance}
-                  disabled={isDeleting}
-                  className="px-4 py-2 bg-error hover:bg-error/90 text-white text-xs font-bold rounded-xl flex items-center gap-2 cursor-pointer"
+                  isLoading={isDeleting}
+                  leftIcon={Trash2}
                 >
-                  {isDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                  <span>Confirm Cancellation</span>
-                </button>
+                  Confirm Cancellation
+                </AnimatedButton>
               </div>
-            </motion.div>
+            </MotionCard>
           </div>
         )}
       </AnimatePresence>
 
-      {/* 7. New Grievance Submission Modal */}
+      {/* New Grievance Modal */}
       <AnimatePresence>
         {showModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md overflow-y-auto">
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-surface border border-border rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl space-y-6 text-left my-8"
-            >
-              <div className="flex items-center justify-between border-b border-border/60 pb-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
+            <MotionCard className="max-w-2xl w-full p-6 md:p-8 space-y-6 my-8" tilt={false}>
+              <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <div>
-                  <h3 className="text-xl font-heading font-black text-foreground uppercase tracking-tight">
+                  <h3 className="text-xl font-heading font-black text-white uppercase tracking-tight">
                     Submit New Grievance
                   </h3>
-                  <p className="text-xs text-muted-foreground">Fill in details for instant AI triage and automated routing.</p>
+                  <p className="text-xs text-slate-400">Fill in details for AI triage and automated routing.</p>
                 </div>
                 <button 
                   onClick={() => setShowModal(false)}
-                  className="p-2 hover:bg-muted rounded-full text-muted-foreground hover:text-foreground cursor-pointer"
+                  className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white"
                 >
                   <X size={18} />
                 </button>
               </div>
 
               <form onSubmit={handleCreateGrievance} className="space-y-4">
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400 block">
                     Grievance Subject *
                   </label>
                   <input 
@@ -796,109 +740,117 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
                     placeholder="Brief description of the issue..."
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-xs text-foreground outline-none focus:border-primary"
+                    className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-indigo-500"
                   />
                 </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400 block">
                       Detailed Narrative Statement *
                     </label>
-                    <button 
+                    <button
                       type="button"
                       onClick={handleAiAnalyze}
-                      disabled={isAnalyzing || !description.trim()}
-                      className="text-[10px] font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                      disabled={isAnalyzing}
+                      className="text-[10px] font-mono font-bold uppercase text-amber-400 hover:text-amber-300 flex items-center gap-1"
                     >
-                      {isAnalyzing ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                      <span>Auto AI Triage</span>
+                      <Sparkles className="w-3 h-3" />
+                      {isAnalyzing ? 'Analyzing...' : 'AI Auto-Category'}
                     </button>
                   </div>
                   <textarea 
+                    rows="4"
                     required
-                    rows={4}
-                    placeholder="Provide exact details, dates, location, or circumstances..."
+                    placeholder="Describe the incident with dates, locations, and personnel involved..."
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    className="w-full bg-background border border-border rounded-xl p-4 text-xs text-foreground outline-none focus:border-primary resize-none"
+                    className="w-full bg-slate-950 border border-white/10 rounded-xl p-4 text-xs text-white outline-none focus:border-indigo-500 resize-none"
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
-                      Category Group
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400 block">
+                      Department Category
                     </label>
-                    <select 
+                    <select
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
-                      className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-xs text-foreground outline-none cursor-pointer"
+                      className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-indigo-500 cursor-pointer"
                     >
-                      <option value="IT Support">IT Support & Campus Wi-Fi</option>
-                      <option value="Academic Affairs">Academic Affairs & Grades</option>
-                      <option value="Facilities & Maintenance">Facilities & Hostel Maintenance</option>
-                      <option value="Financial Services">Financial Services & Fee Credit</option>
-                      <option value="Administrative Services">Administrative Services</option>
+                      <option value="IT Support">IT & Network Infrastructure</option>
+                      <option value="Academic">Academic Affairs</option>
+                      <option value="Hostel & Mess">Hostel & Food Security</option>
+                      <option value="Finance & Fee">Finance & Fee Department</option>
+                      <option value="Administration">General Administration</option>
                     </select>
                   </div>
 
-                  <div>
-                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400 block">
                       Priority Level
                     </label>
-                    <select 
+                    <select
                       value={urgency}
                       onChange={(e) => setUrgency(e.target.value)}
-                      className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-xs text-foreground outline-none cursor-pointer"
+                      className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-indigo-500 cursor-pointer"
                     >
-                      <option value="Low">Low (120h SLA)</option>
-                      <option value="Medium">Medium (72h SLA)</option>
-                      <option value="High">High (24h Urgent SLA)</option>
+                      <option value="Low">Low Priority</option>
+                      <option value="Medium">Medium Priority</option>
+                      <option value="High">High Priority</option>
+                      <option value="Urgent">Critical Emergency</option>
                     </select>
                   </div>
                 </div>
 
-                {/* Attachment Upload Field */}
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
-                    Attach Supporting Document / Photo (Max 5MB)
+                {/* File Attachment */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400 block">
+                    Upload Documentation (PDF / Images / Docs max 5MB)
                   </label>
-                  <input 
-                    type="file"
-                    accept="image/*,.pdf,.doc,.docx,.txt"
-                    onChange={handleFileChange}
-                    className="w-full bg-background border border-border rounded-xl px-4 py-2 text-xs text-muted-foreground file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-primary/10 file:text-primary cursor-pointer"
-                  />
-                  {attachment && (
-                    <p className="text-[10px] text-emerald-400 mt-1 font-mono">
-                      Ready: {attachment.name} ({(attachment.size / 1024).toFixed(1)} KB)
-                    </p>
-                  )}
+                  <div className="border-2 border-dashed border-white/10 rounded-xl p-4 text-center hover:border-indigo-500/40 transition-colors">
+                    <input 
+                      type="file"
+                      id="grievance-attachment"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                    <label htmlFor="grievance-attachment" className="cursor-pointer flex flex-col items-center gap-2">
+                      <Paperclip className="w-6 h-6 text-indigo-400" />
+                      <span className="text-xs text-slate-300 font-medium">
+                        {attachment ? attachment.name : 'Click to select file'}
+                      </span>
+                    </label>
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-border/60">
-                  <button 
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
+                  <AnimatedButton
                     type="button"
+                    variant="secondary"
+                    size="md"
                     onClick={() => setShowModal(false)}
-                    className="px-5 py-2.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl cursor-pointer"
                   >
                     Cancel
-                  </button>
-                  <button 
+                  </AnimatedButton>
+                  <AnimatedButton
                     type="submit"
-                    disabled={isSubmitting || isUploading}
-                    className="btn-primary px-6 py-2.5 text-xs font-bold uppercase tracking-wider flex items-center gap-2 cursor-pointer disabled:opacity-40"
+                    variant="glow"
+                    size="md"
+                    isLoading={isSubmitting || isUploading}
                   >
-                    {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                    <span>Submit Grievance</span>
-                  </button>
+                    Submit Grievance
+                  </AnimatedButton>
                 </div>
               </form>
-            </motion.div>
+            </MotionCard>
           </div>
         )}
       </AnimatePresence>
-    </div>
+
+    </AnimatedPage>
   );
 };
+
+export default UserDashboard;
