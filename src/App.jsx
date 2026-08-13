@@ -158,6 +158,8 @@ function AppContent() {
               <Route path="/sso-callback" element={<SsoCallbackPage />} />
               <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
               <Route path="/admin" element={<AuthRoute redirectTo="/admin/dashboard"><AdminLoginPage /></AuthRoute>} />
+              <Route path="/admin-login" element={<AuthRoute redirectTo="/admin/dashboard"><AdminLoginPage /></AuthRoute>} />
+              <Route path="/submit-grievance" element={<Navigate to="/grievances/submit" replace />} />
               <Route path="/register" element={<AuthRoute><RegisterPage /></AuthRoute>} />
               <Route path="/verify-otp" element={<AuthRoute><VerifyOtpPage /></AuthRoute>} />
               <Route path="/forgot-password" element={<AuthRoute><ForgotPasswordPage /></AuthRoute>} />
