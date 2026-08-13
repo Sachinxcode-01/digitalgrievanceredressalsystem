@@ -34,6 +34,21 @@ router.patch('/profile', validateProfileUpdate, updateProfile);
 router.put('/account', validateAccountUpdate, updateAccount);
 router.patch('/account', validateAccountUpdate, updateAccount);
 
+// @route   PATCH /api/v1/user/settings
+// @desc    Update general user settings preferences
+router.patch('/settings', updateProfile);
+router.put('/settings', updateProfile);
+
+// @route   PATCH /api/v1/user/notification-preferences
+// @desc    Update user notification preferences
+router.patch('/notification-preferences', updateProfile);
+router.put('/notification-preferences', updateProfile);
+
+// @route   PATCH /api/v1/user/security
+// @desc    Update user security settings
+router.patch('/security', updateAccount);
+router.put('/security', updateAccount);
+
 // @route   POST /api/v1/user/change-password
 // @desc    Change password and invalidate other device sessions
 router.post('/change-password', validateChangePassword, changePassword);

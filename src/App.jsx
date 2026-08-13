@@ -20,13 +20,14 @@ const LandingPage = React.lazy(() => import('./pages/public/LandingPage').then(m
 const StatusPage = React.lazy(() => import('./pages/public/StatusPage').then(m => ({ default: m.StatusPage })));
 const AdminHealthPage = React.lazy(() => import('./pages/analytics/AdminHealthPage').then(m => ({ default: m.AdminHealthPage })));
 
-// --- New Clerk Auth Pages ---
+// --- New Clerk Auth & Settings Pages ---
 const RegisterPage = React.lazy(() => import('./pages/auth/RegisterPage'));
 const VerifyOtpPage = React.lazy(() => import('./pages/auth/VerifyOtpPage'));
 const ForgotPasswordPage = React.lazy(() => import('./pages/auth/ForgotPasswordPage'));
 const ResetPasswordPage = React.lazy(() => import('./pages/auth/ResetPasswordPage'));
 const SessionsPage = React.lazy(() => import('./pages/settings/SessionsPage'));
 const AccountSecurityPage = React.lazy(() => import('./pages/settings/AccountSecurityPage'));
+const SettingsPage = React.lazy(() => import('./pages/settings/SettingsPage'));
 
 // --- Administrative Views ---
 const AdminUsersPage = React.lazy(() => import('./pages/admin/AdminUsersPage'));
@@ -397,7 +398,7 @@ function AppContent() {
                 element={
                   <ProtectedRoute>
                     <Layout user={user} onLogout={logout} theme={theme} setTheme={setTheme}>
-                      <AccountSecurityPage />
+                      <SettingsPage sessionUser={user} onLogout={logout} theme={theme} setTheme={setTheme} />
                     </Layout>
                   </ProtectedRoute>
                 }
