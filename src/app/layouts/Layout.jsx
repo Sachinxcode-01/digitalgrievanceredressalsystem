@@ -110,6 +110,7 @@ export const Layout = ({ children, user, onLogout, theme, setTheme }) => {
             onClick={() => setIsCollapsed(!isCollapsed)}
             className="hidden md:flex items-center justify-center w-full py-1.5 hover:bg-muted/40 rounded-lg text-muted-foreground transition-colors"
             type="button"
+            aria-label="Toggle sidebar collapse"
           >
             {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
           </button>
