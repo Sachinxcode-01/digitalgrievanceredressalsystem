@@ -18,10 +18,14 @@ export const AuthProvider = ({ children }) => {
   // more than once per session (Clerk re-renders several times while loading).
   const syncedClerkIdRef = useRef(null);
 
-  // Set Clerk token fetch function in Axios client on mount/update
+  // Set Clerk token fetch function in Axios client ONLY when signed in
   useEffect(() => {
-    setClerkGetToken(getToken);
-  }, [getToken]);
+    if (isSignedIn) {
+      setClerkGetToken(getToken);
+    } else {
+      setClerkGetToken(null);
+    }
+  }, [getToken, isSignedIn]);
 
   // Synchronize auth state (Clerk session or local credentials session)
   useEffect(() => {
@@ -225,6 +229,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('has_active_session', 'true');
     localStorage.setItem('demo_user', JSON.stringify(demoUser));
     setUser(demoUser);
+    setLoading(false);
 
     apiClient.post('/auth/login', { email: demoUser.email, password: 'DemoPassword@123', loginType: 'password' })
       .then(res => {
@@ -264,6 +269,7 @@ export const AuthProvider = ({ children }) => {
         if (data.token) {
           setAccessToken(data.token);
           setUser(data.user);
+          setLoading(false);
           localStorage.setItem('has_active_session', 'true');
           localStorage.setItem('demo_user', JSON.stringify(data.user));
           return {

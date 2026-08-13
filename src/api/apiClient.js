@@ -3,9 +3,10 @@ import axios from 'axios';
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 const API_URL = API_BASE ? `${API_BASE}/api/v1` : '/api/v1';
 
-// Create unified Axios client
+// Create unified Axios client with 10s default timeout
 export const apiClient = axios.create({
   baseURL: API_URL,
+  timeout: 10000,
   withCredentials: true, // Crucial for receiving/sending secure HttpOnly cookies
   headers: {
     'Content-Type': 'application/json'
@@ -33,15 +34,19 @@ export const getAccessToken = () => {
   return memoryAccessToken;
 };
 
-// Request Interceptor: Attach bearer token if present
+// Request Interceptor: Attach bearer token if present (with 300ms max timeout for Clerk)
 apiClient.interceptors.request.use(
   async (config) => {
     let token = null;
     if (clerkGetTokenFn) {
       try {
-        token = await clerkGetTokenFn();
+        const tokenPromise = clerkGetTokenFn();
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Clerk token timeout')), 300)
+        );
+        token = await Promise.race([tokenPromise, timeoutPromise]);
       } catch (err) {
-        console.error('Failed to retrieve Clerk token:', err);
+        // Silent catch: if Clerk token takes >300ms or fails, fallback immediately to local token
       }
     }
     if (!token) {
@@ -80,7 +85,7 @@ apiClient.interceptors.response.use(
     // If 401 error and request hasn't been retried yet
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (originalRequest.url === '/auth/refresh-token' || originalRequest.url === '/auth/login' || originalRequest.url === '/auth/sync') {
-        // If the refresh token request itself is failing, we must force logout
+        // If the refresh token request itself is failing, force logout reset
         setAccessToken(null);
         return Promise.reject(error);
       }
@@ -101,31 +106,23 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        // Call refresh endpoint to rotate tokens
-        const response = await axios.post(`${API_URL}/auth/refresh-token`, {}, { withCredentials: true });
-        const { token: newAccessToken } = response.data;
-        
-        setAccessToken(newAccessToken);
-        
-        // Update authorization header of failed request
-        originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
-        
-        processQueue(null, newAccessToken);
-        isRefreshing = false;
-        
+        const res = await apiClient.post('/auth/refresh-token');
+        const newToken = res.data.token;
+        setAccessToken(newToken);
+        processQueue(null, newToken);
+        originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
         return apiClient(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        isRefreshing = false;
         setAccessToken(null);
-        
-        // Custom event to alert AuthProvider that user session has terminated
-        window.dispatchEvent(new Event('auth_session_expired'));
-        
         return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
     }
 
     return Promise.reject(error);
   }
 );
+
+export default apiClient;
