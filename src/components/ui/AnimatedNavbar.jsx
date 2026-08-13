@@ -10,12 +10,15 @@ export const AnimatedNavbar = ({ user }) => {
   const location = useLocation();
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
-    };
-    window.addEventListener('scroll', handleScroll);
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
 
   const navLinks = [
     { name: 'Home', href: '/' },
@@ -26,17 +29,19 @@ export const AnimatedNavbar = ({ user }) => {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 transition-all duration-500 pointer-events-none">
       <div className={`max-w-6xl mx-auto px-4 pt-3 transition-all duration-500 ${scrolled ? 'translate-y-1' : ''}`}>
-        <div className={`
-          pointer-events-auto rounded-full transition-all duration-500 border p-2 pl-5 pr-3 flex items-center justify-between
-          ${scrolled 
-            ? 'bg-slate-950/85 backdrop-blur-2xl border-white/15 shadow-2xl shadow-black/80' 
-            : 'bg-slate-900/40 backdrop-blur-xl border-white/10 shadow-lg'}
-        `}>
+        <div
+          className={`
+            pointer-events-auto rounded-full transition-all duration-500 border p-2 pl-5 pr-3 flex items-center justify-between
+            ${scrolled
+              ? 'bg-slate-950/85 backdrop-blur-2xl border-white/15 shadow-2xl shadow-black/80'
+              : 'bg-slate-900/40 backdrop-blur-xl border-white/10 shadow-lg'}
+          `}
+        >
           {/* Logo with Glow */}
-          <Link to="/" className="flex items-center gap-3 group">
+          <Link to="/" className="flex items-center gap-3 group" aria-label="ResolveNow — Home">
             <div className="relative flex items-center justify-center w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-600 to-cyan-500 shadow-md shadow-indigo-500/30 group-hover:scale-105 transition-transform duration-300">
-              <ShieldCheck className="w-4 h-4 text-white" />
-              <div className="absolute inset-0 rounded-full bg-indigo-500/20 blur-sm group-hover:blur-md transition-all" />
+              <ShieldCheck className="w-4 h-4 text-white" aria-hidden="true" />
+              <div className="absolute inset-0 rounded-full bg-indigo-500/20 blur-sm group-hover:blur-md transition-all" aria-hidden="true" />
             </div>
             <div className="flex flex-col text-left">
               <span className="font-heading font-black text-sm tracking-wider bg-gradient-to-r from-white via-slate-200 to-indigo-200 bg-clip-text text-transparent uppercase">
@@ -49,13 +54,17 @@ export const AnimatedNavbar = ({ user }) => {
           </Link>
 
           {/* Desktop Nav Links */}
-          <nav className="hidden md:flex items-center gap-1 bg-slate-950/60 p-1 rounded-full border border-white/10">
+          <nav
+            className="hidden md:flex items-center gap-1 bg-slate-950/60 p-1 rounded-full border border-white/10"
+            aria-label="Main navigation"
+          >
             {navLinks.map((link) => {
               const isActive = location.pathname === link.href;
               return (
                 <Link
                   key={link.name}
                   to={link.href}
+                  aria-current={isActive ? 'page' : undefined}
                   className="relative px-4 py-1.5 rounded-full text-xs font-mono font-bold uppercase tracking-wider text-slate-300 hover:text-white transition-colors"
                 >
                   {isActive && (
@@ -63,6 +72,7 @@ export const AnimatedNavbar = ({ user }) => {
                       layoutId="activePill"
                       className="absolute inset-0 bg-gradient-to-r from-indigo-600/40 to-cyan-600/40 border border-indigo-400/40 rounded-full"
                       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                      aria-hidden="true"
                     />
                   )}
                   <span className="relative z-10">{link.name}</span>
@@ -98,9 +108,12 @@ export const AnimatedNavbar = ({ user }) => {
           {/* Mobile Hamburger Toggle */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="md:hidden p-2 text-slate-300 hover:text-white rounded-full bg-slate-900 border border-white/10"
+            aria-expanded={mobileOpen}
+            aria-controls="mobile-menu"
+            aria-label={mobileOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            className="md:hidden p-2 text-slate-300 hover:text-white rounded-full bg-slate-900 border border-white/10 transition-colors"
           >
-            {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+            {mobileOpen ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}
           </button>
         </div>
       </div>
@@ -109,6 +122,9 @@ export const AnimatedNavbar = ({ user }) => {
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
+            id="mobile-menu"
+            role="navigation"
+            aria-label="Mobile navigation"
             initial={{ opacity: 0, scale: 0.95, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -10 }}
@@ -121,6 +137,7 @@ export const AnimatedNavbar = ({ user }) => {
                   key={link.name}
                   to={link.href}
                   onClick={() => setMobileOpen(false)}
+                  aria-current={location.pathname === link.href ? 'page' : undefined}
                   className="text-xs font-mono font-bold uppercase tracking-wider text-slate-300 hover:text-indigo-400 py-1.5 transition-colors"
                 >
                   {link.name}

@@ -36,6 +36,9 @@ const AdminCompliancePage = React.lazy(() => import('./pages/admin/AdminComplian
 const AdminRolesPage = React.lazy(() => import('./pages/admin/AdminRolesPage'));
 const AdminGrievancesPage = React.lazy(() => import('./pages/admin/AdminGrievancesPage').then(m => ({ default: m.AdminGrievancesPage })));
 const AdminGrievanceDetailsPage = React.lazy(() => import('./pages/admin/AdminGrievanceDetailsPage').then(m => ({ default: m.AdminGrievanceDetailsPage })));
+const AdminDepartmentsPage = React.lazy(() => import('./pages/admin/AdminDepartmentsPage'));
+const AdminReportsPage = React.lazy(() => import('./pages/admin/AdminReportsPage'));
+const AdminOfficersPage = React.lazy(() => import('./pages/admin/AdminOfficersPage'));
 
 // --- Grievance Workflow Pages ---
 const SubmitGrievancePage = React.lazy(() => import('./pages/grievances/SubmitGrievancePage').then(m => ({ default: m.SubmitGrievancePage })));
@@ -384,6 +387,48 @@ function AppContent() {
                     <RoleGuard allowedRoles={['admin', 'super admin']} fallback={<Navigate to="/dashboard" />}>
                       <Layout user={user} onLogout={logout} theme={theme} setTheme={setTheme}>
                         <AdminGrievanceDetailsPage user={user} />
+                      </Layout>
+                    </RoleGuard>
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* ── Admin — Departments ── */}
+              <Route
+                path="/admin/departments"
+                element={
+                  <ProtectedRoute>
+                    <RoleGuard allowedRoles={['admin', 'super admin']} fallback={<Navigate to="/dashboard" />}>
+                      <Layout user={user} onLogout={logout} theme={theme} setTheme={setTheme}>
+                        <AdminDepartmentsPage />
+                      </Layout>
+                    </RoleGuard>
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* ── Admin — Reports ── */}
+              <Route
+                path="/admin/reports"
+                element={
+                  <ProtectedRoute>
+                    <RoleGuard allowedRoles={['admin', 'super admin']} fallback={<Navigate to="/dashboard" />}>
+                      <Layout user={user} onLogout={logout} theme={theme} setTheme={setTheme}>
+                        <AdminReportsPage />
+                      </Layout>
+                    </RoleGuard>
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* ── Admin — Officers ── */}
+              <Route
+                path="/admin/officers"
+                element={
+                  <ProtectedRoute>
+                    <RoleGuard allowedRoles={['admin', 'super admin']} fallback={<Navigate to="/dashboard" />}>
+                      <Layout user={user} onLogout={logout} theme={theme} setTheme={setTheme}>
+                        <AdminOfficersPage />
                       </Layout>
                     </RoleGuard>
                   </ProtectedRoute>
