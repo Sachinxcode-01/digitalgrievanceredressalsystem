@@ -254,7 +254,7 @@ export const GrievanceDetailsPage = ({ user }) => {
       </div>
 
       {/* Tab Panels */}
-      <div className="min-h-[350px]">
+      <div className="min-h-87.5">
         <AnimatePresence mode="wait">
           
           {/* OVERVIEW PANEL */}
@@ -361,7 +361,7 @@ export const GrievanceDetailsPage = ({ user }) => {
               </div>
 
               <div className="space-y-6 relative pl-2">
-                <div className="absolute left-[17px] top-2 bottom-2 w-px bg-border" />
+                <div className="absolute left-4.25 top-2 bottom-2 w-px bg-border" />
                 
                 {timeline.map((step, idx) => (
                   <TimelineStep 
@@ -388,7 +388,7 @@ export const GrievanceDetailsPage = ({ user }) => {
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -5 }}
-              className="h-[500px]"
+              className="h-125"
             >
               <CommandChat 
                 grievanceId={ticket.id} 

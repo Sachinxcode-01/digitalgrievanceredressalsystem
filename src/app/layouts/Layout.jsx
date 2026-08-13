@@ -43,7 +43,7 @@ export const Layout = ({ children, user, onLogout, theme, setTheme }) => {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background bg-[radial-gradient(var(--color-border)_1px,transparent_1px)] [background-size:16px_16px] text-foreground font-sans antialiased">
+    <div className="flex h-screen overflow-hidden bg-background bg-[radial-gradient(var(--color-border)_1px,transparent_1px)] bg-size-[16px_16px] text-foreground font-sans antialiased">
       
       {/* --- Desktop Sidebar --- */}
       <aside 
@@ -117,7 +117,7 @@ export const Layout = ({ children, user, onLogout, theme, setTheme }) => {
       </aside>
 
       {/* --- Main Content Sector --- */}
-      <div className="flex-grow flex flex-col min-w-0 overflow-hidden">
+      <div className="grow flex flex-col min-w-0 overflow-hidden">
         
         {/* Top Navbar Header */}
         <header className="h-16 border-b border-border/80 bg-surface/80 backdrop-blur-md flex items-center justify-between px-6 shrink-0 z-30">
@@ -132,7 +132,7 @@ export const Layout = ({ children, user, onLogout, theme, setTheme }) => {
             
             <h2 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
               Sector / <span className="text-foreground">{isAdmin ? 'Admin Console' : 'User Console'}</span>
-              <span className="hidden sm:inline-block w-[1px] h-3 bg-border mx-1" />
+              <span className="hidden sm:inline-block w-px h-3 bg-border mx-1" />
               <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border transition-all ${
                 isSystemHealthy 
                   ? 'bg-success/5 border-success/20 text-success' 
@@ -162,7 +162,7 @@ export const Layout = ({ children, user, onLogout, theme, setTheme }) => {
               {theme === 'ocean' ? <Moon size={16} /> : <Sun size={16} />}
             </button>
             
-            <div className="w-[1px] h-5 bg-border/80 mx-1" />
+            <div className="w-px h-5 bg-border/80 mx-1" />
             
             <div className="relative group">
               <button 
@@ -177,7 +177,7 @@ export const Layout = ({ children, user, onLogout, theme, setTheme }) => {
                   )}
                 </div>
                 <div className="hidden sm:flex flex-col items-start leading-tight pr-1">
-                  <span className="text-xs font-bold text-foreground truncate max-w-[120px]">{user?.fullName || 'Operator'}</span>
+                  <span className="text-xs font-bold text-foreground truncate max-w-30">{user?.fullName || 'Operator'}</span>
                   <span className="text-[9px] font-mono font-bold text-muted-foreground uppercase">{user?.role || 'Authorized'}</span>
                 </div>
               </button>
@@ -215,7 +215,7 @@ export const Layout = ({ children, user, onLogout, theme, setTheme }) => {
         </header>
 
         {/* Scrollable Main Area */}
-        <main className="flex-grow overflow-y-auto relative z-10 custom-scrollbar p-6">
+        <main className="grow overflow-y-auto relative z-10 custom-scrollbar p-6">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname + location.search}
