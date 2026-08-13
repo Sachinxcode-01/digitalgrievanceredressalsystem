@@ -182,7 +182,7 @@ export const RegisterPage = () => {
         {/* Subtle glowing orb background effect */}
         <div 
           ref={orbRef}
-          className="absolute top-[15%] left-[50%] -translate-x-1/2 w-125 h-[350px] bg-indigo-500/10 rounded-full blur-[140px] pointer-events-none" 
+          className="absolute top-[15%] left-[50%] -translate-x-1/2 w-125 h-87.5 bg-indigo-500/10 rounded-full blur-[140px] pointer-events-none" 
         />
 
         <motion.div 
