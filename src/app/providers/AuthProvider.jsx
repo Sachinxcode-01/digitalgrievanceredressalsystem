@@ -27,16 +27,21 @@ export const AuthProvider = ({ children }) => {
     }
   }, [getToken, isSignedIn]);
 
+  // Safety fallback: guarantee loading state resolves within 800ms
+  // so slow or blocked Clerk SDK initialization never hangs the login/signup page.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, []);
+
   // Synchronize auth state (Clerk session or local credentials session)
   useEffect(() => {
     let active = true;
 
     const initializeAuth = async () => {
-      // 1. If Clerk SDK hasn't finished loading yet, remain in loading state.
-      if (!isAuthLoaded || !isUserLoaded) {
-        return;
-      }
-
       // Fast path: user state is already resolved — stop loading.
       if (user) {
         if (active) setLoading(false);
@@ -82,38 +87,43 @@ export const AuthProvider = ({ children }) => {
       }
 
       // 3. Synchronize Clerk OAuth/session once loaded.
-      if (isSignedIn && clerkUser) {
-        try {
-          if (syncedClerkIdRef.current !== clerkUser.id) {
-            syncedClerkIdRef.current = clerkUser.id;
-            const res = await apiClient.post('/auth/sync');
-            if (res.data?.token) {
-              setAccessToken(res.data.token);
+      if (isAuthLoaded && isUserLoaded) {
+        if (isSignedIn && clerkUser) {
+          try {
+            if (syncedClerkIdRef.current !== clerkUser.id) {
+              syncedClerkIdRef.current = clerkUser.id;
+              const res = await apiClient.post('/auth/sync');
+              if (res.data?.token) {
+                setAccessToken(res.data.token);
+              }
+              if (active) {
+                setUser(res.data.user);
+              }
             }
+          } catch (err) {
+            console.error('Failed to sync Clerk user with backend:', err.message);
+            syncedClerkIdRef.current = null;
             if (active) {
-              setUser(res.data.user);
+              setUser({
+                id: clerkUser.id,
+                email: clerkUser.emailAddresses[0]?.emailAddress || '',
+                role: clerkUser.publicMetadata?.role || 'student',
+                fullName: clerkUser.firstName ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim() : 'Clerk User'
+              });
             }
+          } finally {
+            if (active) setLoading(false);
           }
-        } catch (err) {
-          console.error('Failed to sync Clerk user with backend:', err.message);
-          syncedClerkIdRef.current = null;
+        } else {
           if (active) {
-            setUser({
-              id: clerkUser.id,
-              email: clerkUser.emailAddresses[0]?.emailAddress || '',
-              role: clerkUser.publicMetadata?.role || 'student',
-              fullName: clerkUser.firstName ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim() : 'Clerk User'
-            });
+            setUser(null);
+            syncedClerkIdRef.current = null;
+            setLoading(false);
           }
-        } finally {
-          if (active) setLoading(false);
         }
-      } else {
-        if (active) {
-          setUser(null);
-          syncedClerkIdRef.current = null;
-          setLoading(false);
-        }
+      } else if (!hasLocalSession) {
+        // If no local session is present and Clerk is still loading, unlock loading state immediately
+        if (active) setLoading(false);
       }
     };
 
