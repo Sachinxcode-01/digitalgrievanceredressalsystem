@@ -7,10 +7,10 @@ const auditService = require('../services/auditService');
  * POST /api/v1/auth/register
  */
 const register = async (req, res, next) => {
-  const { fullName, email, password, role } = req.body;
+  const { fullName, email, password, role, mobileNumber } = req.body;
 
   try {
-    const result = await authService.register(fullName, email, password, role, req.ip, req.headers['user-agent']);
+    const result = await authService.register(fullName, email, password, role, mobileNumber, req.ip, req.headers['user-agent']);
     res.status(201).json(result);
   } catch (err) {
     next(err);

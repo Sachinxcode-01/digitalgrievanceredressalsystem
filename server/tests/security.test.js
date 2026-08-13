@@ -417,6 +417,7 @@ describe('ResolveNow Security Hardening Verification Tests', () => {
         .send({
           fullName: 'Attacker Admin',
           email: 'register@resolve.now',
+          mobileNumber: '+919999999999',
           password: 'Password@123',
           role: 'admin' // requested admin
         });

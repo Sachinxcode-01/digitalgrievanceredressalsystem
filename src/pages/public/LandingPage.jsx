@@ -129,7 +129,7 @@ export const LandingPage = () => {
 
           {/* Hero Titles - Clean Centered Title Without 'R' Box */}
           <div className="space-y-3">
-            <h1 className="text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-heading font-black text-white tracking-tight leading-none uppercase bg-gradient-to-r from-white via-slate-100 to-indigo-200 bg-clip-text text-transparent">
+            <h1 className="text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-heading font-black tracking-tight leading-none uppercase bg-linear-to-r from-white via-slate-100 to-indigo-200 bg-clip-text text-transparent">
               ResolveNow
             </h1>
 

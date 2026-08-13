@@ -29,8 +29,9 @@ const checkOtpCooldown = async (identifier, purpose) => {
 };
 
 const authService = {
-  async register(fullName, email, password, role, ip, userAgent) {
+  async register(fullName, email, password, role, mobileNumber, ip, userAgent) {
     const normalizedEmail   = email.toLowerCase().trim();
+    const normalizedMobile  = mobileNumber ? mobileNumber.trim() : null;
 
     // 1. Hash password
     const salt         = await bcrypt.genSalt(10);
@@ -41,7 +42,7 @@ const authService = {
     //    with status 400 if duplicates exist.
     const newUser = await userRepository.registerAtomic(
       normalizedEmail,
-      null,
+      normalizedMobile,
       passwordHash,
       'student',   // always force student for public registration
       'inactive'
@@ -64,7 +65,7 @@ const authService = {
 
     await notificationRepository.insertOtpVerification({
       email:      normalizedEmail,
-      phone:      null,
+      phone:      normalizedMobile,
       code:       otp,
       purpose:    'registration',
       expires_at: expiresAt,
@@ -79,7 +80,7 @@ const authService = {
     return {
       message: 'Registration successful. Please enter the OTP sent to verify your identity.',
       email:   normalizedEmail,
-      phone:   null
+      phone:   normalizedMobile
     };
   },
 

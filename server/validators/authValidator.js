@@ -12,6 +12,10 @@ const validateRegister = [
   body('email')
     .isEmail().withMessage('A valid email address is required')
     .normalizeEmail(),
+  body('mobileNumber')
+    .trim()
+    .notEmpty().withMessage('Mobile number is required')
+    .matches(/^[0-9+\-\s()]{10,15}$/).withMessage('A valid 10-15 digit mobile number is required'),
   body('password')
     .isLength({ min: 8 }).withMessage('Password must be at least 8 characters long')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/)

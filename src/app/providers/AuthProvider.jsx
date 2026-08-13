@@ -141,13 +141,14 @@ export const AuthProvider = ({ children }) => {
   }, [signOut, isSignedIn]);
 
   // Auth Operations
-  const register = async (fullName, email, password, role) => {
+  const register = async (fullName, email, password, role = 'student', mobileNumber = '') => {
     const isSandbox = isSandboxAccount(email);
 
     if (isSandbox) {
       const payload = {
         fullName,
         email: email.toLowerCase().trim(),
+        mobileNumber: mobileNumber?.trim() || undefined,
         password,
         role
       };
@@ -180,7 +181,8 @@ export const AuthProvider = ({ children }) => {
       password: password,
       unsafeMetadata: {
         fullName,
-        role
+        role,
+        mobileNumber
       }
     });
 

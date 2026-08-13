@@ -15,10 +15,13 @@ export const AnimatedNavbar = ({ user }) => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Close mobile menu on route change
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [location.pathname]);
+  const [prevPath, setPrevPath] = useState(location.pathname);
+  if (prevPath !== location.pathname) {
+    setPrevPath(location.pathname);
+    if (mobileOpen) {
+      setMobileOpen(false);
+    }
+  }
 
   const navLinks = [
     { name: 'Home', href: '/' },
@@ -39,12 +42,12 @@ export const AnimatedNavbar = ({ user }) => {
         >
           {/* Logo with Glow */}
           <Link to="/" className="flex items-center gap-3 group" aria-label="ResolveNow — Home">
-            <div className="relative flex items-center justify-center w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-600 to-cyan-500 shadow-md shadow-indigo-500/30 group-hover:scale-105 transition-transform duration-300">
+            <div className="relative flex items-center justify-center w-9 h-9 rounded-full bg-linear-to-tr from-indigo-600 to-cyan-500 shadow-md shadow-indigo-500/30 group-hover:scale-105 transition-transform duration-300">
               <ShieldCheck className="w-4 h-4 text-white" aria-hidden="true" />
               <div className="absolute inset-0 rounded-full bg-indigo-500/20 blur-sm group-hover:blur-md transition-all" aria-hidden="true" />
             </div>
             <div className="flex flex-col text-left">
-              <span className="font-heading font-black text-sm tracking-wider bg-gradient-to-r from-white via-slate-200 to-indigo-200 bg-clip-text text-transparent uppercase">
+              <span className="font-heading font-black text-sm tracking-wider bg-linear-to-r from-white via-slate-200 to-indigo-200 bg-clip-text text-transparent uppercase">
                 ResolveNow
               </span>
               <span className="text-[8px] font-mono font-bold tracking-widest text-indigo-400 uppercase -mt-0.5">
@@ -70,7 +73,7 @@ export const AnimatedNavbar = ({ user }) => {
                   {isActive && (
                     <motion.div
                       layoutId="activePill"
-                      className="absolute inset-0 bg-gradient-to-r from-indigo-600/40 to-cyan-600/40 border border-indigo-400/40 rounded-full"
+                      className="absolute inset-0 bg-linear-to-r from-indigo-600/40 to-cyan-600/40 border border-indigo-400/40 rounded-full"
                       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                       aria-hidden="true"
                     />

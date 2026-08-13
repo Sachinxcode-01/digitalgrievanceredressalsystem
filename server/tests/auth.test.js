@@ -185,6 +185,7 @@ describe('Authentication API Endpoint Tests', () => {
         .send({
           fullName: 'Test User',
           email: 'test@nic.in',
+          mobileNumber: '+919999999999',
           password: 'Password@123',
           role: 'student'
         });
@@ -358,6 +359,7 @@ describe('Authentication API Endpoint Tests', () => {
         .send({
           fullName: 'Attacker Admin',
           email: 'admin-attacker@resolve.now',
+          mobileNumber: '+919999999999',
           password: 'ComplexPassword@2026',
           role: 'admin'
         });
