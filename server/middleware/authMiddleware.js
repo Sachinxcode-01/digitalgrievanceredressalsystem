@@ -202,8 +202,8 @@ const authorizePermissions = (...requiredPermissions) => {
 
     const userRole = req.user.role;
     
-    // Super admins bypass all permission checks
-    if (userRole === 'super admin') {
+    // Admins and Super Admins bypass permission table lookup checks
+    if (userRole === 'super admin' || userRole === 'admin') {
       return next();
     }
 

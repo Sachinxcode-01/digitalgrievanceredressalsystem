@@ -27,10 +27,12 @@ router.get('/profile', getProfile);
 // @route   PUT /api/v1/user/profile
 // @desc    Update user profile configurations (avatar, notifications, name)
 router.put('/profile', validateProfileUpdate, updateProfile);
+router.patch('/profile', validateProfileUpdate, updateProfile);
 
 // @route   PUT /api/v1/user/account
 // @desc    Update core user account settings (email, mobile)
 router.put('/account', validateAccountUpdate, updateAccount);
+router.patch('/account', validateAccountUpdate, updateAccount);
 
 // @route   POST /api/v1/user/change-password
 // @desc    Change password and invalidate other device sessions
