@@ -17,7 +17,29 @@ export const NotificationCenter = ({ user }) => {
     }
   });
 
-  const hasUnread = notifications.some(n => !n.read);
+  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'unread'
+  const unreadCount = notifications.filter(n => !n.read).length;
+  const hasUnread = unreadCount > 0;
+
+  // Web Audio API soft chime generator
+  const playChimeSound = () => {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5 note
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5 note
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.3);
+    } catch { /* AudioContext muted or unsupported — ignore */ }
+  };
 
   // Persist alerts to cache
   useEffect(() => {
@@ -60,7 +82,6 @@ export const NotificationCenter = ({ user }) => {
   }, [isOpen, user?.id]);
 
   useEffect(() => {
-    // 1. Listen for local custom notification events (legacy fallback support)
     const handleNotification = (e) => {
       const newNotif = {
         id: Date.now() + Math.random(),
@@ -69,10 +90,10 @@ export const NotificationCenter = ({ user }) => {
         ...e.detail
       };
       setNotifications(prev => [newNotif, ...prev].slice(0, 50));
+      playChimeSound();
     };
     window.addEventListener('app-notification', handleNotification);
 
-    // 2. Realtime listener setup
     if (!user || !user.id) {
       return () => {
         window.removeEventListener('app-notification', handleNotification);
@@ -102,6 +123,7 @@ export const NotificationCenter = ({ user }) => {
             if (prev.some(p => p.id === newNotif.id)) return prev;
             return [newNotif, ...prev].slice(0, 50);
           });
+          playChimeSound();
           toast(payload.new.title, { icon: '🔔' });
         }
       )
@@ -117,6 +139,7 @@ export const NotificationCenter = ({ user }) => {
     try {
       await apiClient.put('/user/notifications/read-all');
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      toast.success('All notifications marked as read.');
     } catch (err) {
       console.error('Failed to mark all read:', err.message);
     }
@@ -131,25 +154,38 @@ export const NotificationCenter = ({ user }) => {
     }
   };
 
+  const handleDeleteNotif = (id) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
   const getIcon = (type) => {
     switch (type) {
-      case 'success': return <CheckCircle className="text-success" size={14} />;
-      case 'warning': return <AlertCircle className="text-warning" size={14} />;
-      case 'error': return <ShieldAlert className="text-error" size={14} />;
-      default: return <Info className="text-primary" size={14} />;
+      case 'success': return <CheckCircle className="text-emerald-400" size={14} />;
+      case 'warning': return <AlertCircle className="text-amber-400" size={14} />;
+      case 'error': return <ShieldAlert className="text-rose-400" size={14} />;
+      default: return <Info className="text-indigo-400" size={14} />;
     }
   };
+
+  const displayedNotifications = activeTab === 'unread' 
+    ? notifications.filter(n => !n.read) 
+    : notifications;
 
   return (
     <div className="relative">
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 rounded-xl bg-background border border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+        className="relative p-2 rounded-xl bg-background/80 border border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all cursor-pointer"
         aria-label="Notifications"
       >
         <Bell size={18} />
         {hasUnread && (
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full ring-2 ring-background animate-pulse" />
+          <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-4 w-4 bg-indigo-600 text-[9px] font-black text-white items-center justify-center">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          </span>
         )}
       </button>
 
@@ -161,43 +197,89 @@ export const NotificationCenter = ({ user }) => {
               initial={{ opacity: 0, y: 8, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.98 }}
-              className="absolute right-0 mt-3 w-80 z-50 glass-card p-0 overflow-hidden shadow-xl border border-border/60 bg-surface text-left"
+              className="absolute right-0 mt-3 w-84 z-50 glass-card p-0 overflow-hidden shadow-2xl border border-border/60 bg-slate-950/95 backdrop-blur-xl text-left rounded-2xl"
             >
-              <div className="p-3.5 border-b border-border/50 flex items-center justify-between bg-background/50">
-                <h4 className="text-[10px] font-black uppercase tracking-wider text-foreground">Operational Alerts</h4>
-                <button 
-                  onClick={markAllRead} 
-                  className="text-[9px] font-bold uppercase tracking-wider text-primary hover:text-secondary transition-colors"
+              <div className="p-3.5 border-b border-border/50 flex items-center justify-between bg-slate-900/60">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-white">Live System Alerts</h4>
+                  {hasUnread && (
+                    <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-[9px] font-bold">
+                      {unreadCount} Unread
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={markAllRead} 
+                    className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 hover:text-indigo-300 transition-colors"
+                  >
+                    Mark read
+                  </button>
+                  <button 
+                    onClick={() => setIsOpen(false)}
+                    className="text-slate-400 hover:text-white p-0.5"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex border-b border-white/5 bg-slate-950 px-3 py-1.5 gap-2 text-[10px] font-bold uppercase">
+                <button
+                  onClick={() => setActiveTab('all')}
+                  className={`px-2.5 py-1 rounded-lg transition-all ${
+                    activeTab === 'all' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                  }`}
                 >
-                  Mark all read
+                  All ({notifications.length})
+                </button>
+                <button
+                  onClick={() => setActiveTab('unread')}
+                  className={`px-2.5 py-1 rounded-lg transition-all ${
+                    activeTab === 'unread' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Unread ({unreadCount})
                 </button>
               </div>
 
-              <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
-                {notifications.length === 0 ? (
-                  <div className="p-8 text-center space-y-3">
-                    <div className="w-9 h-9 bg-muted rounded-full flex items-center justify-center mx-auto text-muted-foreground">
+              <div className="max-h-80 overflow-y-auto custom-scrollbar">
+                {displayedNotifications.length === 0 ? (
+                  <div className="p-8 text-center space-y-2">
+                    <div className="w-9 h-9 bg-slate-900 rounded-full flex items-center justify-center mx-auto text-slate-400">
                       <Clock size={16} />
                     </div>
-                    <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-wider leading-relaxed">No new alerts recorded.</p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">No alerts to display.</p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-border/50">
-                    {notifications.map((n) => (
+                  <div className="divide-y divide-white/5">
+                    {displayedNotifications.map((n) => (
                       <div 
                         key={n.id} 
                         onClick={() => !n.read && handleMarkAsRead(n.id)}
-                        className={`p-4 hover:bg-muted/40 transition-colors ${n.read ? 'opacity-50 cursor-default' : 'cursor-pointer bg-primary/5'}`}
+                        className={`p-3.5 hover:bg-white/5 transition-colors group relative ${
+                          n.read ? 'opacity-60 bg-transparent' : 'bg-indigo-500/10'
+                        }`}
                       >
                         <div className="flex gap-3">
                           <div className="mt-0.5 shrink-0">{getIcon(n.type)}</div>
-                          <div className="space-y-1 text-left">
-                            <p className="text-xs font-bold text-foreground leading-tight">{n.title}</p>
-                            <p className="text-[11px] text-muted-foreground leading-normal">{n.message}</p>
-                            <p className="text-[8px] text-muted-foreground/60 font-mono">
+                          <div className="space-y-1 text-left flex-1 pr-4">
+                            <p className="text-xs font-bold text-white leading-tight">{n.title}</p>
+                            <p className="text-[11px] text-slate-300 leading-relaxed">{n.message}</p>
+                            <p className="text-[9px] text-slate-500 font-mono">
                               {formatDistanceToNow(n.time, { addSuffix: true })}
                             </p>
                           </div>
+
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteNotif(n.id); }}
+                            className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-rose-400 transition-all absolute right-2 top-2"
+                            title="Remove alert"
+                          >
+                            <X size={12} />
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -206,8 +288,8 @@ export const NotificationCenter = ({ user }) => {
               </div>
 
               {notifications.length > 0 && (
-                <div className="p-2.5 border-t border-border/50 text-center bg-background/50">
-                   <p className="text-[8px] text-muted-foreground font-black uppercase tracking-wider font-mono">Encrypted Alert Protocol</p>
+                <div className="p-2.5 border-t border-white/10 text-center bg-slate-900/60">
+                   <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider font-mono">Encrypted WebSockets Channel</p>
                 </div>
               )}
             </motion.div>
@@ -217,3 +299,5 @@ export const NotificationCenter = ({ user }) => {
     </div>
   );
 };
+
+export default NotificationCenter;

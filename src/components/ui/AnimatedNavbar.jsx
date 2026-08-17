@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, ArrowRight, ShieldCheck } from 'lucide-react';
 import AnimatedButton from './AnimatedButton';
+import NotificationCenter from '../notifications/NotificationCenter';
 
 export const AnimatedNavbar = ({ user }) => {
   const [scrolled, setScrolled] = useState(false);
@@ -84,14 +85,17 @@ export const AnimatedNavbar = ({ user }) => {
             })}
           </nav>
 
-          {/* Auth Action Buttons */}
+          {/* Auth Action Buttons & Notifications */}
           <div className="hidden md:flex items-center gap-2">
             {user ? (
-              <Link to={user.role === 'admin' || user.role === 'super admin' ? '/admin/dashboard' : '/dashboard'}>
-                <AnimatedButton variant="glow" size="sm" rightIcon={ArrowRight}>
-                  Dashboard
-                </AnimatedButton>
-              </Link>
+              <>
+                <NotificationCenter user={user} />
+                <Link to={user.role === 'admin' || user.role === 'super admin' ? '/admin/dashboard' : '/dashboard'}>
+                  <AnimatedButton variant="glow" size="sm" rightIcon={ArrowRight}>
+                    Dashboard
+                  </AnimatedButton>
+                </Link>
+              </>
             ) : (
               <>
                 <Link to="/login">
