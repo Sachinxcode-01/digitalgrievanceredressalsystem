@@ -367,7 +367,7 @@ export const AdminOfficersPage = () => {
 
           {loading ? (
             <div className="space-y-3">
-              {[...Array(5)].map((_, i) => <LoadingSkeleton key={i} className="h-[72px] rounded-2xl" />)}
+              {[...Array(5)].map((_, i) => <LoadingSkeleton key={i} className="h-18 rounded-2xl" />)}
             </div>
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
