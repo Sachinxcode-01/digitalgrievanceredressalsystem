@@ -58,7 +58,7 @@ export const GrievanceWorkflowTimeline = ({ ticket }) => {
         <SlaRiskBadge createdAt={ticket.created_at} slaDueAt={ticket.sla_due_at} status={ticket.status} />
       </div>
 
-      <div className="relative pl-6 space-y-6 before:absolute before:left-[15px] before:top-3 before:bottom-3 before:w-0.5 before:bg-border/60">
+      <div className="relative pl-6 space-y-6 before:absolute before:left-3.75 before:top-3 before:bottom-3 before:w-0.5 before:bg-border/60">
         {steps.map((step, idx) => {
           const StepIcon = step.icon;
           return (
@@ -69,7 +69,7 @@ export const GrievanceWorkflowTimeline = ({ ticket }) => {
               transition={{ delay: idx * 0.1 }}
               className="relative flex items-start gap-4"
             >
-              <div className={`absolute -left-[31px] top-0 p-1.5 rounded-full border shadow-sm ${step.color}`}>
+              <div className={`absolute -left-7.75 top-0 p-1.5 rounded-full border shadow-sm ${step.color}`}>
                 <StepIcon className="w-4 h-4" />
               </div>
 

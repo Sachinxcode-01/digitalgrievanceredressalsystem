@@ -224,7 +224,7 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
       <GlassPanel className="p-5" intensity="heavy">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-indigo-500/30">
+            <div className="w-10 h-10 rounded-2xl bg-linear-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-indigo-500/30">
               R
             </div>
             <div>
@@ -244,7 +244,7 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap flex-1 max-w-2xl">
-            <div className="relative bg-slate-950/80 border border-white/10 rounded-xl px-3 py-2 flex items-center gap-2 flex-1 min-w-[200px]">
+            <div className="relative bg-slate-950/80 border border-white/10 rounded-xl px-3 py-2 flex items-center gap-2 flex-1 min-w-50">
               <Search size={14} className="text-slate-400" />
               <input 
                 type="text"
