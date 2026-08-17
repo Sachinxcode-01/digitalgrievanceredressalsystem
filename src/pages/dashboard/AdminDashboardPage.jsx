@@ -19,6 +19,9 @@ import { reportService } from '../../services/reportService';
 import { useRealtimeConnection } from '../../hooks/useRealtimeConnection';
 import StatusBadge from '../../components/ui/StatusBadge';
 import UrgencyBadge from '../../components/ui/UrgencyBadge';
+import SlaRiskBadge from '../../components/ui/SlaRiskBadge';
+import ResolutionVelocityChart from '../../components/charts/ResolutionVelocityChart';
+import GrievanceWorkflowTimeline from '../../components/grievances/GrievanceWorkflowTimeline';
 
 import AnimatedPage from '../../components/ui/AnimatedPage';
 import CounterCard from '../../components/ui/CounterCard';
@@ -74,12 +77,12 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
       try {
         const usersRes = await apiClient.get('/admin/users');
         if (Array.isArray(usersRes.data)) setUsers(usersRes.data);
-      } catch {}
+      } catch { /* non-critical enrichment — silently skip */ }
 
       try {
         const deptRes = await apiClient.get('/admin/departments');
         if (Array.isArray(deptRes.data)) setDepartments(deptRes.data);
-      } catch {}
+      } catch { /* non-critical enrichment — silently skip */ }
     } catch (err) {
       console.error('Failed to fetch admin data:', err);
     } finally {
@@ -309,7 +312,9 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
         <CounterCard title="SLA Overdue" value={overdueCount} icon={ShieldAlert} iconColor="text-red-500" />
       </div>
 
-      {/* 3. Charts Grid */}
+      {/* 3. Resolution Velocity & Analytics Grid */}
+      <ResolutionVelocityChart tickets={tickets} />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         <GlassPanel className="lg:col-span-2 space-y-4">
@@ -412,6 +417,7 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
                 <th className="px-6 py-3.5">Category</th>
                 <th className="px-6 py-3.5">Department</th>
                 <th className="px-6 py-3.5">Priority</th>
+                <th className="px-6 py-3.5">SLA Risk</th>
                 <th className="px-6 py-3.5">Status</th>
                 <th className="px-6 py-3.5 text-right">Admin Actions</th>
               </tr>
@@ -419,13 +425,13 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
             <tbody className="divide-y divide-white/5">
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="px-6 py-12">
+                  <td colSpan="8" className="px-6 py-12">
                     <LoadingSkeleton variant="list" count={5} />
                   </td>
                 </tr>
               ) : currentTickets.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="px-6 py-12 text-center text-slate-500 italic">
+                  <td colSpan="8" className="px-6 py-12 text-center text-slate-500 italic">
                     No grievance records match the selected filters.
                   </td>
                 </tr>
@@ -450,6 +456,9 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
                     </td>
                     <td className="px-6 py-4">
                       <UrgencyBadge level={t.urgency} />
+                    </td>
+                    <td className="px-6 py-4">
+                      <SlaRiskBadge createdAt={t.created_at} slaDueAt={t.sla_due_at} status={t.status} compact={true} />
                     </td>
                     <td className="px-6 py-4">
                       <StatusBadge status={t.status} />
@@ -664,6 +673,80 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
                   </AnimatedButton>
                 </div>
               </form>
+            </MotionCard>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Ticket Details & Timeline Drawer Modal */}
+      <AnimatePresence>
+        {selectedTicket && !showReassignModal && !showStatusModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+            <MotionCard className="max-w-2xl w-full p-6 space-y-6 max-h-[90vh] overflow-y-auto custom-scrollbar" tilt={false}>
+              <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono font-bold text-indigo-400">#{selectedTicket.ticket_id}</span>
+                    <UrgencyBadge level={selectedTicket.urgency} />
+                  </div>
+                  <h3 className="text-lg font-heading font-bold text-white mt-1">
+                    {selectedTicket.title}
+                  </h3>
+                </div>
+                <button onClick={() => setSelectedTicket(null)} className="p-1.5 text-slate-400 hover:text-white rounded-lg">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="space-y-4 text-xs text-slate-300">
+                <div className="p-4 rounded-xl bg-slate-900/80 border border-white/10">
+                  <p className="font-semibold text-slate-400 uppercase text-[10px] tracking-wider mb-1">Description</p>
+                  <p className="leading-relaxed text-slate-200 whitespace-pre-wrap">
+                    {selectedTicket.description || 'No detailed text description provided.'}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="p-3 rounded-xl bg-slate-900 border border-white/5">
+                    <p className="text-[10px] text-slate-500 font-mono uppercase">Category</p>
+                    <p className="font-bold text-white mt-0.5">{selectedTicket.category || 'General'}</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-900 border border-white/5">
+                    <p className="text-[10px] text-slate-500 font-mono uppercase">Department</p>
+                    <p className="font-bold text-white mt-0.5">{selectedTicket.department || 'Nodal Authority'}</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-900 border border-white/5">
+                    <p className="text-[10px] text-slate-500 font-mono uppercase">Submitted By</p>
+                    <p className="font-bold text-white mt-0.5 truncate">{selectedTicket.email || selectedTicket.user_name || 'Student'}</p>
+                  </div>
+                </div>
+
+                <GrievanceWorkflowTimeline ticket={selectedTicket} />
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t border-white/10">
+                <div className="flex items-center gap-2">
+                  <AnimatedButton
+                    variant="secondary"
+                    size="xs"
+                    leftIcon={UserCheck}
+                    onClick={() => setShowReassignModal(true)}
+                  >
+                    Reassign Officer
+                  </AnimatedButton>
+                  <AnimatedButton
+                    variant="glow"
+                    size="xs"
+                    leftIcon={TrendingUp}
+                    onClick={() => setShowStatusModal(true)}
+                  >
+                    Update Status
+                  </AnimatedButton>
+                </div>
+                <AnimatedButton variant="secondary" size="xs" onClick={() => setSelectedTicket(null)}>
+                  Close
+                </AnimatedButton>
+              </div>
             </MotionCard>
           </div>
         )}

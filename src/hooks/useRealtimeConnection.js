@@ -35,7 +35,8 @@ export const useRealtimeConnection = (onReconnect) => {
         }
       });
     } catch {
-      setIsRealtimeConnected(true);
+      // Supabase is not configured or unavailable — stay optimistic.
+      // setIsRealtimeConnected is already true by default; no state update needed.
     }
 
     return () => {

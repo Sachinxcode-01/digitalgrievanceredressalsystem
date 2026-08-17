@@ -14,6 +14,8 @@ import { grievanceService } from '../../services/grievanceService';
 import { apiClient } from '../../api/apiClient';
 import StatusBadge from '../../components/ui/StatusBadge';
 import UrgencyBadge from '../../components/ui/UrgencyBadge';
+import SlaRiskBadge from '../../components/ui/SlaRiskBadge';
+import GrievanceWorkflowTimeline from '../../components/grievances/GrievanceWorkflowTimeline';
 import { useRealtimeConnection } from '../../hooks/useRealtimeConnection';
 import { DeliveryTrackingWidget } from '../../components/grievances/DeliveryTrackingWidget';
 
@@ -80,7 +82,7 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
       if (sessionUser?.id?.startsWith('demo-')) return;
       const res = await apiClient.get('/user/notifications');
       setNotifications(res.data || []);
-    } catch {}
+    } catch { /* notification fetch is non-critical — silently skip */ }
   }
 
   useRealtimeConnection(() => {
@@ -498,20 +500,21 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
         </GlassPanel>
       </div>
 
-      {/* 4. Active Delivery Tracker Widget */}
-      {activeTicket && (
-        <div className="space-y-2">
+      {/* 4. Active Delivery Tracker & Workflow Timeline */}
+      {selectedTicket && (
+        <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
-              Active Grievance Delivery Tracker
+              Selected Ticket Audit Trail & Milestone Progress
             </h3>
             <span className="text-[10px] text-emerald-400 font-mono">Live Sync Active</span>
           </div>
           <DeliveryTrackingWidget 
-            ticket={activeTicket}
+            ticket={selectedTicket}
             onCancel={handleCancelGrievance}
             onExportPdf={handleExportPdf}
           />
+          <GrievanceWorkflowTimeline ticket={selectedTicket} />
         </div>
       )}
 
@@ -577,6 +580,7 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
                 <th className="px-6 py-3.5">Subject</th>
                 <th className="px-6 py-3.5">Category</th>
                 <th className="px-6 py-3.5">Priority</th>
+                <th className="px-6 py-3.5">SLA Risk</th>
                 <th className="px-6 py-3.5">Status</th>
                 <th className="px-6 py-3.5 text-right">Actions</th>
               </tr>
@@ -584,13 +588,13 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
             <tbody className="divide-y divide-white/5">
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12">
+                  <td colSpan="7" className="px-6 py-12">
                     <LoadingSkeleton variant="list" count={4} />
                   </td>
                 </tr>
               ) : currentTickets.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-slate-500 italic">
+                  <td colSpan="7" className="px-6 py-12 text-center text-slate-500 italic">
                     No grievance records match your filter criteria.
                   </td>
                 </tr>
@@ -616,6 +620,9 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
                       </td>
                       <td className="px-6 py-4">
                         <UrgencyBadge level={t.urgency} />
+                      </td>
+                      <td className="px-6 py-4">
+                        <SlaRiskBadge createdAt={t.created_at} slaDueAt={t.sla_due_at} status={t.status} compact={true} />
                       </td>
                       <td className="px-6 py-4">
                         <StatusBadge status={t.status} />

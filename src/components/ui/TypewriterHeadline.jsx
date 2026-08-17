@@ -29,8 +29,12 @@ export const TypewriterHeadline = ({
         setCurrentText(targetWord.substring(0, currentText.length - 1));
       }, deletingSpeed);
     } else if (isDeleting && currentText === '') {
-      setIsDeleting(false);
-      setCurrentWordIndex((prev) => (prev + 1) % words.length);
+      // Schedule via setTimeout so the state transition happens outside the effect
+      // body, avoiding the cascading-render pattern flagged by react-hooks/set-state-in-effect.
+      timer = setTimeout(() => {
+        setIsDeleting(false);
+        setCurrentWordIndex((prev) => (prev + 1) % words.length);
+      }, 0);
     }
 
     return () => clearTimeout(timer);

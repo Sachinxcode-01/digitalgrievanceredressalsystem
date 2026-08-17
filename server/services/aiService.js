@@ -243,7 +243,7 @@ const aiService = {
                 const parsed = JSON.parse(dataStr);
                 const delta = parsed.choices[0]?.delta?.content;
                 if (delta) yield delta;
-              } catch {}
+              } catch { /* malformed SSE chunk — skip and continue streaming */ }
             }
           }
         }

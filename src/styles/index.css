@@ -82,6 +82,17 @@
   --animate-third: moveInCircle 35s linear infinite;
   --animate-fourth: moveHorizontal 35s ease infinite;
   --animate-fifth: moveInCircle 18s ease infinite;
+  --animate-aurora: aurora 18s linear infinite;
+
+  /* Depth shadow scale — theme-aware, GPU-safe (no box-shadow size changes at runtime) */
+  --shadow-z1: 0 2px 8px -2px color-mix(in srgb, var(--color-foreground) 10%, transparent),
+               0 1px 2px -1px color-mix(in srgb, var(--color-foreground) 6%, transparent);
+  --shadow-z2: 0 8px 24px -6px color-mix(in srgb, var(--color-primary-bright) 18%, rgba(15,23,42,0.22)),
+               0 2px 6px -2px color-mix(in srgb, var(--color-foreground) 8%, transparent);
+  --shadow-z3: 0 16px 40px -10px color-mix(in srgb, var(--color-primary-bright) 25%, rgba(15,23,42,0.3)),
+               0 4px 12px -4px color-mix(in srgb, var(--color-foreground) 10%, transparent);
+  --shadow-z4: 0 28px 56px -14px color-mix(in srgb, var(--color-secondary) 30%, rgba(15,23,42,0.4)),
+               0 8px 20px -6px color-mix(in srgb, var(--color-primary-bright) 14%, transparent);
 }
 
 @layer base {
@@ -233,7 +244,26 @@
     @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border;
   }
 
-  /* Shimmering skeleton loader */
+  /* ── 3-D Scene foundation ───────────────────────────────────────── */
+
+  /* Root perspective container — apply to any element whose children should tilt in 3D */
+  .scene {
+    perspective: 1400px;
+    perspective-origin: 50% 40%;
+  }
+
+  /* Tighter perspective for small card grids (<= 2 columns) */
+  .scene-tight {
+    perspective: 900px;
+    perspective-origin: 50% 40%;
+  }
+
+  /* Enable 3D pass-through on intermediate wrappers */
+  .layer-3d {
+    transform-style: preserve-3d;
+  }
+
+  /* ── Shimmering skeleton loader ──────────────────────────────────── */
   .skeleton {
     position: relative;
     overflow: hidden;
@@ -331,14 +361,55 @@
   50% { background-position: 100% 50%; }
 }
 
+@keyframes sla-pulse-red-kf {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 16px 4px rgba(239, 68, 68, 0.8);
+  }
+}
+
+@keyframes sla-pulse-amber-kf {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 12px 3px rgba(245, 158, 11, 0.7);
+  }
+}
+
+.sla-pulse-red {
+  animation: sla-pulse-red-kf 2s ease-in-out infinite;
+}
+
+.sla-pulse-amber {
+  animation: sla-pulse-amber-kf 2.5s ease-in-out infinite;
+}
+
+.tilt-card-3d {
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s ease;
+  transform-style: preserve-3d;
+}
+
+.tilt-card-3d:hover {
+  transform: translateY(-4px) rotateX(1.5deg) rotateY(-1.5deg);
+  box-shadow: var(--shadow-z3);
+}
+
 /* Respect reduced-motion preferences */
 @media (prefers-reduced-motion: reduce) {
   .glass-card,
   .card-3d,
   .btn-premium,
-  .animate-float {
+  .animate-float,
+  .sla-pulse-red,
+  .sla-pulse-amber,
+  .tilt-card-3d {
     transition: none !important;
     animation: none !important;
+    transform: none !important;
   }
   .btn-premium::after { display: none; }
 }
+
