@@ -126,22 +126,35 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
     }
   };
 
-  const startVoiceInput = () => {
+  const [voiceLang, setVoiceLang] = useState('en-US');
+
+  const startVoiceInput = (lang = voiceLang) => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      toast.error("Voice dictation is not supported in this browser.");
+      toast.error("Voice dictation is not supported in this browser. Please use Chrome/Edge.");
       return;
     }
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
-    recognition.lang = 'en-US';
+    recognition.lang = lang;
     recognition.interimResults = false;
+    recognition.continuous = false;
 
-    recognition.onstart = () => setIsListening(true);
+    recognition.onstart = () => {
+      setIsListening(true);
+      toast.success(`Voice recording active (${lang === 'hi-IN' ? 'Hindi' : 'English'}). Speak now...`);
+    };
+
     recognition.onend = () => setIsListening(false);
+    
+    recognition.onerror = (e) => {
+      setIsListening(false);
+      toast.error(`Voice recognition alert: ${e.error}`);
+    };
+
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
-      setDescription(prev => prev ? `${prev} ${transcript}` : transcript);
-      toast.success("Voice inputs appended.");
+      setDescription(prev => prev ? `${prev}\n${transcript}` : transcript);
+      toast.success("Voice narrative captured!");
     };
     recognition.start();
   };
@@ -440,27 +453,36 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
                       Narrative Statement *
                     </label>
                     
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={voiceLang}
+                        onChange={(e) => setVoiceLang(e.target.value)}
+                        className="bg-slate-900 border border-white/10 text-slate-300 text-[10px] font-mono font-bold rounded-lg px-2 py-1 outline-none cursor-pointer"
+                      >
+                        <option value="en-US">English (US)</option>
+                        <option value="hi-IN">Hindi (हिंदी)</option>
+                      </select>
+
                       <button 
                         type="button" 
-                        onClick={startVoiceInput}
-                        className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[10px] font-mono font-bold uppercase tracking-wider ${
+                        onClick={() => startVoiceInput(voiceLang)}
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer ${
                           isListening 
-                            ? 'bg-rose-500/20 text-rose-400 border-rose-500/40 animate-pulse' 
-                            : 'bg-slate-900 text-slate-400 border-white/10 hover:text-white'
+                            ? 'bg-rose-500/20 text-rose-400 border-rose-500/40 animate-pulse shadow-lg shadow-rose-500/20' 
+                            : 'bg-slate-900 text-slate-300 border-white/10 hover:text-white hover:border-indigo-500/40'
                         }`}
                       >
-                        {isListening ? <MicOff size={10} /> : <Mic size={10} />}
-                        <span>{isListening ? 'Listening' : 'Dictate'}</span>
+                        {isListening ? <MicOff size={11} className="text-rose-400" /> : <Mic size={11} className="text-indigo-400" />}
+                        <span>{isListening ? 'Recording...' : 'Dictate'}</span>
                       </button>
                       
                       <button 
                         type="button" 
                         onClick={handleAiAnalyze}
                         disabled={isAnalyzing}
-                        className="flex items-center gap-1 px-2.5 py-1 border border-indigo-500/30 bg-indigo-500/10 text-indigo-400 text-[10px] font-mono font-bold uppercase tracking-wider hover:bg-indigo-500/20"
+                        className="flex items-center gap-1.5 px-3 py-1 border border-indigo-500/30 bg-indigo-500/10 text-indigo-400 text-[10px] font-mono font-bold uppercase tracking-wider hover:bg-indigo-500/20 rounded-lg cursor-pointer disabled:opacity-50"
                       >
-                        {isAnalyzing ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
+                        {isAnalyzing ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
                         <span>{isAnalyzing ? 'Analyzing...' : 'AI Assist'}</span>
                       </button>
                     </div>
