@@ -18,6 +18,7 @@ import AnimatedPage from '../../components/ui/AnimatedPage';
 import GlassPanel from '../../components/ui/GlassPanel';
 import MotionCard from '../../components/ui/MotionCard';
 import AnimatedButton from '../../components/ui/AnimatedButton';
+import SmartTriageAssistant from '../../components/ai/SmartTriageAssistant';
 
 export const SubmitGrievancePage = ({ user, sessionUser }) => {
   const currentUser = user || sessionUser;
@@ -474,6 +475,20 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
                     required 
                   />
                 </div>
+
+                <SmartTriageAssistant 
+                  title={title}
+                  description={description}
+                  category={category}
+                  urgency={urgency}
+                  onApplyRoute={(route) => {
+                    if (route.recommended_department.includes('IT')) setCategory('IT Support');
+                    else if (route.recommended_department.includes('Academic')) setCategory('Academic');
+                    else if (route.recommended_department.includes('Financial')) setCategory('Financial');
+                    else if (route.recommended_department.includes('Facilities')) setCategory('Maintenance');
+                    toast.success(`Category updated to match ${route.recommended_department}`);
+                  }}
+                />
 
                 {/* Attachment */}
                 <div className="space-y-1">

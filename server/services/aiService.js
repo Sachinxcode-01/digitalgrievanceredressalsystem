@@ -366,6 +366,73 @@ const aiService = {
     if (reply) return reply;
 
     return `Subject: Institutional Announcement regarding ${intent}\n\nBody: Dear Students & Staff,\n\nPlease be advised regarding the following institutional update: ${intent}.\n\nSincerely,\nThe Administration`;
+  },
+
+  async smartRouteGrievance(ticketData) {
+    const { title = '', description = '', category = 'General', urgency = 'Medium' } = ticketData || {};
+
+    const systemPrompt = 'You are an institutional grievance routing specialist. Respond ONLY with JSON format without markdown.';
+    const prompt = `
+      Analyze grievance:
+      Title: "${title}"
+      Description: "${description}"
+      Category: "${category}"
+      Urgency: "${urgency}"
+
+      Output JSON with fields:
+      - recommended_department: One of ["IT Support & Campus Wi-Fi", "Academic Affairs", "Facilities & Maintenance", "Financial Services", "Hostel & Social Welfare"]
+      - predicted_sla_hours: Integer (12, 24, 48, or 72)
+      - sentiment: One of ["Calm", "Frustrated", "Urgent", "Critical"]
+      - suggested_action: Concise professional 2-sentence resolution draft for assigned nodal officer.
+
+      Respond ONLY with JSON:
+      {"recommended_department":"...","predicted_sla_hours":24,"sentiment":"...","suggested_action":"..."}
+    `;
+
+    const rawResponse = await callAI(prompt, systemPrompt, 0.2);
+    const parsed = extractJson(rawResponse);
+
+    if (parsed && parsed.recommended_department) {
+      return {
+        recommended_department: parsed.recommended_department,
+        predicted_sla_hours: parseInt(parsed.predicted_sla_hours, 10) || (urgency === 'High' ? 24 : 48),
+        sentiment: parsed.sentiment || (urgency === 'High' ? 'Urgent' : 'Calm'),
+        suggested_action: parsed.suggested_action || `Grievance #${title} logged and routed to ${parsed.recommended_department} for action within ${parsed.predicted_sla_hours || 48} hours.`
+      };
+    }
+
+    // Heuristics fallback
+    const text = `${title} ${description}`.toLowerCase();
+    let recommended_department = 'Facilities & Maintenance';
+    let predicted_sla_hours = 48;
+    let sentiment = 'Calm';
+
+    if (/(wifi|internet|network|portal|login|password|software|email)/.test(text)) {
+      recommended_department = 'IT Support & Campus Wi-Fi';
+      predicted_sla_hours = 24;
+    } else if (/(fee|money|payment|scholarship|refund|fine|dues)/.test(text)) {
+      recommended_department = 'Financial Services';
+      predicted_sla_hours = 24;
+    } else if (/(exam|marks|grade|course|class|professor|lecture|syllabus)/.test(text)) {
+      recommended_department = 'Academic Affairs';
+      predicted_sla_hours = 48;
+    } else if (/(hostel|mess|room|canteen|food|ragging|harassment)/.test(text)) {
+      recommended_department = 'Hostel & Social Welfare';
+      predicted_sla_hours = 12;
+      sentiment = 'Urgent';
+    }
+
+    if (urgency === 'High' || /(urgent|immediately|emergency)/.test(text)) {
+      sentiment = 'Urgent';
+      predicted_sla_hours = Math.min(predicted_sla_hours, 24);
+    }
+
+    return {
+      recommended_department,
+      predicted_sla_hours,
+      sentiment,
+      suggested_action: `Logged under ${category}. Recommended routing to ${recommended_department} with target resolution within ${predicted_sla_hours} hours.`
+    };
   }
 };
 

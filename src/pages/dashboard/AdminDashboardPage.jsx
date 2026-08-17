@@ -22,6 +22,7 @@ import UrgencyBadge from '../../components/ui/UrgencyBadge';
 import SlaRiskBadge from '../../components/ui/SlaRiskBadge';
 import ResolutionVelocityChart from '../../components/charts/ResolutionVelocityChart';
 import GrievanceWorkflowTimeline from '../../components/grievances/GrievanceWorkflowTimeline';
+import SmartTriageAssistant from '../../components/ai/SmartTriageAssistant';
 
 import AnimatedPage from '../../components/ui/AnimatedPage';
 import CounterCard from '../../components/ui/CounterCard';
@@ -652,6 +653,14 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
                     <option value="Closed">Closed</option>
                   </select>
                 </div>
+
+                <SmartTriageAssistant 
+                  title={selectedTicket.title}
+                  description={selectedTicket.description}
+                  category={selectedTicket.category}
+                  urgency={selectedTicket.urgency}
+                  onApplyResolution={(draftText) => setResolutionNotes(draftText)}
+                />
 
                 <div>
                   <label className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400 block mb-1">Resolution / Audit Notes</label>

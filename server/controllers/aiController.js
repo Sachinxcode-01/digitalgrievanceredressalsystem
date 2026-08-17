@@ -101,11 +101,25 @@ const composeBroadcast = async (req, res) => {
   }
 };
 
+/**
+ * Handle AI Smart Auto-Routing request.
+ */
+const smartRouteHandler = async (req, res) => {
+  try {
+    const result = await aiService.smartRouteGrievance(req.body);
+    res.json(result);
+  } catch (err) {
+    console.error('Smart Route Error:', err);
+    res.status(500).json({ error: 'Smart auto-routing analysis failed.' });
+  }
+};
+
 module.exports = {
   triageGrievance,
   suggestResolution,
   elevateBriefing,
   summarizePerformance,
   analyzeVision,
-  composeBroadcast
+  composeBroadcast,
+  smartRouteHandler
 };

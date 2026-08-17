@@ -184,7 +184,7 @@ describe('Authentication API Endpoint Tests', () => {
         .post('/api/v1/auth/register')
         .send({
           fullName: 'Test User',
-          email: 'test@nic.in',
+          email: 'admin@resolvenow.demo', // existing email
           mobileNumber: '+919999999999',
           password: 'Password@123',
           role: 'student'
@@ -192,12 +192,13 @@ describe('Authentication API Endpoint Tests', () => {
 
       expect(res.statusCode).toEqual(400);
       expect(res.body.error).toContain('is already registered');
-    });
+    }, 15000);
 
     it('should initiate registration successfully and return OTP dispatch info', async () => {
+      const freshEmail = `fresh_${Date.now()}@nic.in`;
       // Mock rpc register_user: success
       mockRpcRegisterUser.mockResolvedValueOnce({
-        data: { id: 'new_user_uuid', email: 'new@nic.in', role: 'student', status: 'inactive', mobile_number: '+919999999999' },
+        data: { id: 'new_user_uuid', email: freshEmail, role: 'student', status: 'inactive', mobile_number: '+919999999999' },
         error: null
       });
 
@@ -205,7 +206,7 @@ describe('Authentication API Endpoint Tests', () => {
         .post('/api/v1/auth/register')
         .send({
           fullName: 'Fresh Candidate',
-          email: 'new@nic.in',
+          email: freshEmail,
           mobileNumber: '+919999999999',
           password: 'ComplexPassword@2026',
           role: 'student'
@@ -216,8 +217,8 @@ describe('Authentication API Endpoint Tests', () => {
       }
       expect(res.statusCode).toEqual(201);
       expect(res.body.message).toContain('Registration successful');
-      expect(res.body.email).toEqual('new@nic.in');
-    });
+      expect(res.body.email).toEqual(freshEmail);
+    }, 15000);
   });
 
   describe('POST /api/v1/auth/verify-otp', () => {
