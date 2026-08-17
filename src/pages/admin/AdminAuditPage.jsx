@@ -114,6 +114,55 @@ export const AdminAuditPage = () => {
         </button>
       </div>
 
+      {/* Security Audit KPI Telemetry Bar */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-[#0b1329]/40 border border-white/5 rounded-2xl p-4 flex items-center gap-4">
+          <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+            <Terminal size={18} />
+          </div>
+          <div>
+            <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-500">Total Audit Logs</p>
+            <p className="text-xl font-black text-white">{logs.length}</p>
+          </div>
+        </div>
+
+        <div className="bg-[#0b1329]/40 border border-white/5 rounded-2xl p-4 flex items-center gap-4">
+          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400">
+            <ShieldAlert size={18} />
+          </div>
+          <div>
+            <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-500">Critical / Alerts</p>
+            <p className="text-xl font-black text-rose-400">
+              {logs.filter(l => (l.action || '').includes('LOCK') || (l.action || '').includes('FAILED') || (l.action || '').includes('DELETED')).length}
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-[#0b1329]/40 border border-white/5 rounded-2xl p-4 flex items-center gap-4">
+          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+            <HardDrive size={18} />
+          </div>
+          <div>
+            <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-500">Role / Config Updates</p>
+            <p className="text-xl font-black text-amber-400">
+              {logs.filter(l => (l.action || '').includes('ROLE') || (l.action || '').includes('UPDATE')).length}
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-[#0b1329]/40 border border-white/5 rounded-2xl p-4 flex items-center gap-4">
+          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+            <Terminal size={18} />
+          </div>
+          <div>
+            <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-500">Auth / Verified Sessions</p>
+            <p className="text-xl font-black text-emerald-400">
+              {logs.filter(l => (l.action || '').includes('LOGIN') || (l.action || '').includes('SUCCESS')).length}
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Filter and Search Bar */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-background/20 backdrop-blur-md p-4 rounded-2xl border border-white/5">
         <div className="relative">
@@ -131,7 +180,7 @@ export const AdminAuditPage = () => {
           <select
             value={actionFilter}
             onChange={(e) => setActionFilter(e.target.value)}
-            className="w-full bg-[#0d1324]/60 border border-white/5 rounded-xl py-3 px-4 text-xs text-slate-300 focus:outline-none focus:border-primary/50 transition-colors font-bold uppercase tracking-wider cursor-pointer h-[42px]"
+            className="w-full bg-[#0d1324]/60 border border-white/5 rounded-xl py-3 px-4 text-xs text-slate-300 focus:outline-none focus:border-primary/50 transition-colors font-bold uppercase tracking-wider cursor-pointer h-10.5"
           >
             {availableActions.map(act => (
               <option key={act} value={act}>
@@ -147,7 +196,7 @@ export const AdminAuditPage = () => {
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
-            className="w-full bg-[#0d1324]/60 border border-white/5 rounded-xl py-3 pl-10 pr-4 text-xs text-slate-300 focus:outline-none focus:border-primary/50 transition-colors font-medium h-[42px]"
+            className="w-full bg-[#0d1324]/60 border border-white/5 rounded-xl py-3 pl-10 pr-4 text-xs text-slate-300 focus:outline-none focus:border-primary/50 transition-colors font-medium h-10.5"
           />
         </div>
 
@@ -157,7 +206,7 @@ export const AdminAuditPage = () => {
             type="date"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
-            className="w-full bg-[#0d1324]/60 border border-white/5 rounded-xl py-3 pl-10 pr-4 text-xs text-slate-300 focus:outline-none focus:border-primary/50 transition-colors font-medium h-[42px]"
+            className="w-full bg-[#0d1324]/60 border border-white/5 rounded-xl py-3 pl-10 pr-4 text-xs text-slate-300 focus:outline-none focus:border-primary/50 transition-colors font-medium h-10.5"
           />
         </div>
       </div>
@@ -184,11 +233,11 @@ export const AdminAuditPage = () => {
                 className="glass-card p-5 border-white/5 bg-[#0b1329]/30 hover:bg-[#0b1329]/50 transition-all duration-300 flex flex-col md:flex-row md:items-center justify-between gap-4"
               >
                 {/* Details Sector */}
-                <div className="flex items-start gap-4 flex-grow min-w-0">
+                <div className="flex items-start gap-4 grow min-w-0">
                   <div className="p-3 bg-white/5 rounded-xl border border-white/5 text-slate-400 shrink-0">
                     <Terminal size={16} />
                   </div>
-                  <div className="space-y-1.5 min-w-0 flex-grow">
+                  <div className="space-y-1.5 min-w-0 grow">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className={`px-2 py-0.5 rounded-md text-[8px] font-mono font-bold tracking-wider ${getActionBadgeColor(log.action)}`}>
                         {log.action}
@@ -200,7 +249,7 @@ export const AdminAuditPage = () => {
                         ({log.ip_address || 'Internal/System'})
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-400 font-mono font-medium truncate max-w-2xl bg-slate-950/40 p-2 rounded border border-white/[0.02] text-left">
+                    <p className="text-[11px] text-slate-400 font-mono font-medium truncate max-w-2xl bg-slate-950/40 p-2 rounded border border-white/2 text-left">
                       {log.details ? JSON.stringify(log.details) : 'No additional metadata payload.'}
                     </p>
                     {log.user_agent && (
