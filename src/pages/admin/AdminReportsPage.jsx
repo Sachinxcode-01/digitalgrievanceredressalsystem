@@ -193,68 +193,103 @@ export const AdminReportsPage = () => {
     }
   };
 
-  // ── Export PDF ────────────────────────────────────────────────────────────
+  // ── Export PDF Executive Dossier ──────────────────────────────────────────
   const exportPDF = async () => {
     setExporting('pdf');
     try {
-      // Dynamic import to avoid initial bundle cost
       const { default: jsPDF } = await import('jspdf');
       const doc = new jsPDF();
+      const nowString = format(new Date(), 'dd MMM yyyy, HH:mm:ss');
+      const reportTitle = REPORT_TYPES.find(t => t.id === reportType)?.label || 'Executive Dossier';
 
-      doc.setFontSize(18);
-      doc.setTextColor(30, 58, 138);
-      doc.text('ResolveNow — ' + REPORT_TYPES.find(t => t.id === reportType)?.label, 15, 20);
+      // Official Header Branding Banner
+      doc.setFillColor(30, 58, 138); // Deep Navy Primary
+      doc.rect(0, 0, 210, 48, 'F');
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFont(undefined, 'bold');
+      doc.setFontSize(20);
+      doc.text('RESOLVENOW EXECUTIVE REPORT', 15, 22);
+      
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(9);
+      doc.text(`GOVERNMENT OF DIGITAL INDIA • OFFICIAL REDRESSAL REGISTRY`, 15, 30);
+      doc.text(`REPORT TYPE: ${reportTitle.toUpperCase()}`, 15, 37);
+      
+      doc.setFontSize(8);
+      doc.text(`GENERATED: ${nowString}`, 135, 22);
+      doc.text(`PERIOD: ${dateRange.from || 'ALL TIME'} → ${dateRange.to || 'TODAY'}`, 135, 30);
+      doc.text(`RECORD COUNT: ${filteredTickets.length} TICKETS`, 135, 37);
 
-      doc.setFontSize(10);
-      doc.setTextColor(100, 116, 139);
-      doc.text(`Generated: ${format(new Date(), 'dd MMM yyyy, HH:mm')}`, 15, 30);
-      doc.text(`Period: ${dateRange.from || 'All time'} → ${dateRange.to || 'today'}`, 15, 37);
-
-      doc.setFontSize(12);
+      // Section 1: Executive KPI Metrics
+      let y = 60;
       doc.setTextColor(15, 23, 42);
-      doc.text('Key Metrics', 15, 50);
+      doc.setFont(undefined, 'bold');
+      doc.setFontSize(12);
+      doc.text('1. Executive Key Performance Indicators', 15, y);
+      doc.setDrawColor(203, 213, 225);
+      doc.line(15, y + 3, 195, y + 3);
+      y += 12;
 
-      const summaryRows = [
-        ['Total Tickets', kpis.total],
-        ['Resolved', kpis.resolved],
-        ['Pending', kpis.pending],
-        ['SLA Breached', kpis.slaBreached],
+      // Summary Card KPI Boxes
+      const kpiBoxes = [
+        { label: 'Total Filed', val: kpis.total, color: [99, 102, 241] },
+        { label: 'Resolved & Closed', val: kpis.resolved, color: [16, 185, 129] },
+        { label: 'Pending Queue', val: kpis.pending, color: [245, 158, 11] },
+        { label: 'SLA Breached', val: kpis.slaBreached, color: [239, 68, 68] },
       ];
-      let y = 58;
-      summaryRows.forEach(([label, val]) => {
-        doc.setFontSize(9);
+
+      kpiBoxes.forEach((kpi, idx) => {
+        const xPos = 15 + idx * 45;
+        doc.setFillColor(248, 250, 252);
+        doc.roundedRect(xPos, y, 40, 24, 3, 3, 'F');
+        doc.setDrawColor(...kpi.color);
+        doc.rect(xPos, y, 40, 24, 'S');
+
+        doc.setFontSize(8);
         doc.setTextColor(100, 116, 139);
-        doc.text(label, 15, y);
-        doc.setTextColor(15, 23, 42);
-        doc.setFontSize(10);
-        doc.text(String(val), 80, y);
-        y += 8;
+        doc.setFont(undefined, 'normal');
+        doc.text(kpi.label, xPos + 4, y + 8);
+
+        doc.setFontSize(14);
+        doc.setTextColor(...kpi.color);
+        doc.setFont(undefined, 'bold');
+        doc.text(String(kpi.val), xPos + 4, y + 19);
       });
 
-      if (reportType === 'department') {
-        y += 8;
-        doc.setFontSize(12); doc.setTextColor(15, 23, 42);
-        doc.text('Department Breakdown', 15, y); y += 8;
-        deptData.forEach(d => {
-          doc.setFontSize(9); doc.setTextColor(100, 116, 139);
-          doc.text(d.dept, 15, y);
-          doc.setTextColor(15, 23, 42);
-          doc.text(`Total: ${d.total} | Resolved: ${d.resolved} | Breached: ${d.breached}`, 65, y);
-          y += 7;
-          if (y > 270) { doc.addPage(); y = 20; }
-        });
-      }
+      y += 34;
 
-      if (reportType === 'sla') {
-        y += 8;
-        doc.setFontSize(12); doc.setTextColor(15, 23, 42);
-        doc.text('SLA Breached Tickets', 15, y); y += 8;
-        slaData.slice(0, 30).forEach(t => {
-          doc.setFontSize(8); doc.setTextColor(100, 116, 139);
-          doc.text(`${t.ticket_id} — ${t.title?.slice(0, 40) || 'Untitled'}`, 15, y);
-          doc.text(`Due: ${t.due_date ? format(new Date(t.due_date), 'dd MMM') : 'N/A'}`, 155, y);
-          y += 6;
+      // Section 2: Department Performance / Ticket Registry Table
+      doc.setTextColor(15, 23, 42);
+      doc.setFont(undefined, 'bold');
+      doc.setFontSize(12);
+      doc.text(`2. ${reportType === 'department' ? 'Department Performance Breakdown' : 'Grievance Ticket Registry Audit'}`, 15, y);
+      doc.line(15, y + 3, 195, y + 3);
+      y += 12;
+
+      if (reportType === 'department') {
+        doc.setFontSize(8);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(100, 116, 139);
+        doc.text('DEPARTMENT SECTOR', 15, y);
+        doc.text('TOTAL FILED', 110, y);
+        doc.text('RESOLVED', 145, y);
+        doc.text('SLA BREACHED', 172, y);
+        y += 4;
+        doc.line(15, y, 195, y);
+        y += 6;
+
+        deptData.forEach(d => {
           if (y > 270) { doc.addPage(); y = 20; }
+          doc.setFont(undefined, 'normal');
+          doc.setTextColor(15, 23, 42);
+          doc.text(String(d.dept || 'Unknown').substring(0, 38), 15, y);
+          doc.text(String(d.total || 0), 110, y);
+          doc.setTextColor(16, 185, 129);
+          doc.text(String(d.resolved || 0), 145, y);
+          doc.setTextColor(d.breached > 0 ? 239 : 100, d.breached > 0 ? 68 : 116, d.breached > 0 ? 68 : 139);
+          doc.text(String(d.breached || 0), 172, y);
+          y += 7;
         });
       }
 
