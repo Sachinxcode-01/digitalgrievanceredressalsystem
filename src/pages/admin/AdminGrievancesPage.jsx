@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, AlertTriangle, Clock, CheckCircle, ArrowRight,
-  ChevronLeft, ChevronRight, Loader2, Download, ShieldCheck, Landmark
+  ChevronLeft, ChevronRight, Loader2, Download, ShieldCheck, Landmark, CheckSquare, Square
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { grievanceService } from '../../services/grievanceService';
@@ -17,6 +18,10 @@ export const AdminGrievancesPage = ({ user, sessionUser }) => {
   const [loading, setLoading] = useState(true);
   const [activeQueue, setActiveQueue] = useState('all'); // all, assigned, escalated, resolved
   
+  // Multi-select & Batch Actions State
+  const [selectedTicketIds, setSelectedTicketIds] = useState([]);
+  const [batchUpdating, setBatchUpdating] = useState(false);
+
   // Search & sorting
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
@@ -104,6 +109,63 @@ export const AdminGrievancesPage = ({ user, sessionUser }) => {
     link.download = `Registry_Audit_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
     toast.success('CSV Registry exported.');
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedTicketIds.length === currentTickets.length && currentTickets.length > 0) {
+      setSelectedTicketIds([]);
+    } else {
+      setSelectedTicketIds(currentTickets.map(t => t.id));
+    }
+  };
+
+  const toggleSelectTicket = (id, e) => {
+    e.stopPropagation();
+    setSelectedTicketIds(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleBatchStatusUpdate = async (newStatus) => {
+    if (selectedTicketIds.length === 0) return;
+    setBatchUpdating(true);
+    try {
+      await Promise.all(
+        selectedTicketIds.map(id => grievanceService.updateStatus(id, newStatus, `Batch updated to ${newStatus}`))
+      );
+      toast.success(`Updated ${selectedTicketIds.length} tickets to ${newStatus}.`);
+      setSelectedTicketIds([]);
+      fetchGlobalTickets();
+    } catch {
+      toast.error('Batch status update failed.');
+    } finally {
+      setBatchUpdating(false);
+    }
+  };
+
+  const handleBatchExportSelected = () => {
+    const selectedTickets = tickets.filter(t => selectedTicketIds.includes(t.id));
+    if (selectedTickets.length === 0) return toast.error("No selected records.");
+    const headers = ['Ticket ID', 'Title', 'Category', 'Urgency', 'Status', 'Department', 'Created At'];
+    const csvRows = [
+      headers.join(','),
+      ...selectedTickets.map(t => [
+        t.ticket_id,
+        `"${t.title.replace(/"/g, '""')}"`,
+        t.category,
+        t.urgency,
+        t.status,
+        t.department || 'General',
+        new Date(t.created_at).toLocaleString()
+      ].join(','))
+    ];
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Batch_Export_${selectedTickets.length}_Tickets.csv`;
+    link.click();
+    toast.success(`Exported ${selectedTickets.length} selected records.`);
   };
 
   // KPIs
@@ -201,7 +263,15 @@ export const AdminGrievancesPage = ({ user, sessionUser }) => {
           <table className="w-full text-xs text-left">
             <thead>
               <tr className="bg-background text-[10px] uppercase text-muted-foreground tracking-wider font-bold border-b border-border/60">
-                <th className="px-6 py-3.5">Ticket ID</th>
+                <th className="pl-6 pr-2 py-3.5 w-10">
+                  <input 
+                    type="checkbox"
+                    checked={selectedTicketIds.length > 0 && selectedTicketIds.length === currentTickets.length}
+                    onChange={toggleSelectAll}
+                    className="rounded border-border bg-slate-950 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  />
+                </th>
+                <th className="px-4 py-3.5">Ticket ID</th>
                 <th className="px-6 py-3.5">Subject</th>
                 <th className="px-6 py-3.5">Category</th>
                 <th className="px-6 py-3.5">Department</th>
@@ -213,52 +283,63 @@ export const AdminGrievancesPage = ({ user, sessionUser }) => {
             <tbody className="divide-y divide-border/50">
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="px-6 py-16 text-center text-muted-foreground italic">
+                  <td colSpan="8" className="px-6 py-16 text-center text-muted-foreground italic">
                     <Loader2 className="animate-spin text-primary-bright mx-auto mb-2" size={20} />
                     Syncing administrative indexes...
                   </td>
                 </tr>
               ) : currentTickets.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="px-6 py-16 text-center text-muted-foreground italic">
+                  <td colSpan="8" className="px-6 py-16 text-center text-muted-foreground italic">
                     No tickets found in this queue.
                   </td>
                 </tr>
               ) : (
-                currentTickets.map((ticket) => (
-                  <tr 
-                    key={ticket.id}
-                    onClick={() => navigate(`/admin/grievances/${ticket.id}`)}
-                    className="hover:bg-muted/40 transition-colors cursor-pointer group"
-                  >
-                    <td className="px-6 py-4 font-mono font-bold text-primary-bright">
-                      {ticket.ticket_id}
-                    </td>
-                    <td className="px-6 py-4 font-bold text-foreground">
-                      <div className="flex items-center gap-2">
-                        <span className="truncate max-w-[200px]">{ticket.title}</span>
-                        <ArrowRight size={10} className="opacity-0 group-hover:opacity-100 group-hover:translate-x-1 text-primary-bright transition-all shrink-0" />
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-muted-foreground">
-                      {ticket.category}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="px-2 py-0.5 border border-border bg-background rounded-md text-[10px] text-foreground font-mono">
-                        {ticket.department || 'General'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <UrgencyBadge level={ticket.urgency} />
-                    </td>
-                    <td className="px-6 py-4">
-                      <StatusBadge status={ticket.status} />
-                    </td>
-                    <td className="px-6 py-4 text-right text-muted-foreground whitespace-nowrap">
-                      {formatDistanceToNow(new Date(ticket.created_at), { addSuffix: true })}
-                    </td>
-                  </tr>
-                ))
+                currentTickets.map((ticket) => {
+                  const isSelected = selectedTicketIds.includes(ticket.id);
+                  return (
+                    <tr 
+                      key={ticket.id}
+                      onClick={() => navigate(`/admin/grievances/${ticket.id}`)}
+                      className={`hover:bg-muted/40 transition-colors cursor-pointer group ${isSelected ? 'bg-indigo-500/10' : ''}`}
+                    >
+                      <td className="pl-6 pr-2 py-4" onClick={(e) => e.stopPropagation()}>
+                        <input 
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => toggleSelectTicket(ticket.id, e)}
+                          className="rounded border-border bg-slate-950 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        />
+                      </td>
+                      <td className="px-4 py-4 font-mono font-bold text-primary-bright">
+                        {ticket.ticket_id}
+                      </td>
+                      <td className="px-6 py-4 font-bold text-foreground">
+                        <div className="flex items-center gap-2">
+                          <span className="truncate max-w-50">{ticket.title}</span>
+                          <ArrowRight size={10} className="opacity-0 group-hover:opacity-100 group-hover:translate-x-1 text-primary-bright transition-all shrink-0" />
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-muted-foreground">
+                        {ticket.category}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="px-2 py-0.5 border border-border bg-background rounded-md text-[10px] text-foreground font-mono">
+                          {ticket.department || 'General'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <UrgencyBadge level={ticket.urgency} />
+                      </td>
+                      <td className="px-6 py-4">
+                        <StatusBadge status={ticket.status} />
+                      </td>
+                      <td className="px-6 py-4 text-right text-muted-foreground whitespace-nowrap">
+                        {formatDistanceToNow(new Date(ticket.created_at), { addSuffix: true })}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -290,6 +371,60 @@ export const AdminGrievancesPage = ({ user, sessionUser }) => {
         )}
       </div>
 
+      {/* Floating Batch Control Bar */}
+      <AnimatePresence>
+        {selectedTicketIds.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-950/90 border border-indigo-500/40 backdrop-blur-2xl px-6 py-3.5 rounded-full shadow-2xl flex items-center gap-4 text-white text-xs font-bold"
+          >
+            <span className="flex items-center gap-2 bg-indigo-500/20 text-indigo-300 px-3 py-1 rounded-full border border-indigo-500/30">
+              <CheckSquare size={14} />
+              <span>{selectedTicketIds.length} Selected</span>
+            </span>
+
+            <div className="h-4 w-px bg-white/20" />
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleBatchStatusUpdate('In Progress')}
+                disabled={batchUpdating}
+                className="px-3 py-1.5 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-300 hover:bg-amber-500/30 transition-all cursor-pointer disabled:opacity-50"
+              >
+                Set In Progress
+              </button>
+
+              <button
+                onClick={() => handleBatchStatusUpdate('Under Review')}
+                disabled={batchUpdating}
+                className="px-3 py-1.5 rounded-full bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/30 transition-all cursor-pointer disabled:opacity-50"
+              >
+                Set Under Review
+              </button>
+
+              <button
+                onClick={() => handleBatchStatusUpdate('Resolved')}
+                disabled={batchUpdating}
+                className="px-3 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/30 transition-all cursor-pointer disabled:opacity-50"
+              >
+                Mark Resolved
+              </button>
+            </div>
+
+            <div className="h-4 w-px bg-white/20" />
+
+            <button
+              onClick={handleBatchExportSelected}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 border border-white/10 hover:bg-white/10 transition-all cursor-pointer"
+            >
+              <Download size={13} />
+              <span>Export CSV</span>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
