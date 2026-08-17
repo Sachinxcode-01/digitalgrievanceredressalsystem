@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Clock, AlertCircle, ChevronLeft, Landmark, Activity, CheckCircle2 } from 'lucide-react';
+import { Search, Clock, AlertCircle, ChevronLeft, Landmark, Activity, CheckCircle2, QrCode, Download, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { apiClient } from '../../api/apiClient';
 import StatusBadge from '../../components/ui/StatusBadge';
+import SlaRiskBadge from '../../components/ui/SlaRiskBadge';
+import GrievanceWorkflowTimeline from '../../components/grievances/GrievanceWorkflowTimeline';
 
 import { AuroraBackground } from '../../components/ui/BackgroundEffects';
 import MotionCard from '../../components/ui/MotionCard';
@@ -24,21 +27,32 @@ export const PublicStatusPage = () => {
     setError('');
     setTicket(null);
 
+    const cleanId = ticketId.trim();
+
     try {
+      // 1. Try Supabase Direct Query first
       const { data, error: dbError } = await supabase
         .from('grievances')
         .select('*')
-        .eq('ticket_id', ticketId.trim())
+        .eq('ticket_id', cleanId)
         .limit(1)
         .maybeSingle();
 
-      if (dbError || !data) {
-        setError('Reference Ticket ID not found in system records.');
-      } else {
+      if (!dbError && data) {
         setTicket(data);
+        setLoading(false);
+        return;
+      }
+
+      // 2. Fallback to REST API Endpoint
+      const apiRes = await apiClient.get(`/public/track/${cleanId}`);
+      if (apiRes.data && apiRes.data.ticket_id) {
+        setTicket(apiRes.data);
+      } else {
+        setError('Reference Ticket ID not found in system records.');
       }
     } catch {
-      setError('Connection to node lost. Please retry.');
+      setError('Reference Ticket ID not found in system records.');
     }
     setLoading(false);
   };
@@ -143,17 +157,23 @@ export const PublicStatusPage = () => {
               <MotionCard className="p-6 sm:p-8 text-left space-y-6 max-w-2xl mx-auto" tilt={false}>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-6">
                   <div className="space-y-1">
-                    <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest">Reference Identifier</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest">Reference Identifier</span>
+                      <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                    </div>
                     <h2 className="text-2xl font-mono text-indigo-400 font-bold tracking-wider">{ticket.ticket_id}</h2>
                   </div>
                   <div className="flex flex-col sm:items-end gap-2 shrink-0">
-                    <StatusBadge status={ticket.status} />
+                    <div className="flex items-center gap-2">
+                      <SlaRiskBadge createdAt={ticket.created_at} slaDueAt={ticket.sla_due_at} status={ticket.status} compact={true} />
+                      <StatusBadge status={ticket.status} />
+                    </div>
                     <p className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">Filing Date: {new Date(ticket.created_at).toLocaleDateString()}</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-center">
-                  <div className="sm:col-span-2 space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                  <div className="md:col-span-2 space-y-3">
                     <div>
                       <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest block">Subject</span>
                       <p className="text-base font-heading font-extrabold text-white">{ticket.title}</p>
@@ -161,15 +181,25 @@ export const PublicStatusPage = () => {
                     <div>
                       <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest block mb-1">Assigned Department</span>
                       <span className="inline-block px-3 py-1 bg-slate-950 rounded-lg text-xs text-white font-mono font-bold border border-white/10 uppercase tracking-widest">
-                        {ticket.category}
+                        {ticket.department || ticket.category || 'General'}
                       </span>
                     </div>
                   </div>
                   
-                  <div className="bg-slate-950/80 rounded-2xl p-4 border border-indigo-500/20 flex flex-col items-center justify-center text-center">
-                    <Clock size={20} className="text-indigo-400 mb-1" />
-                    <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-wider">Estimated Resolution</span>
-                    <p className="text-xl font-heading font-black text-white mt-0.5">24-48 Hrs</p>
+                  {/* Digital QR Verification Badge */}
+                  <div className="p-3.5 rounded-2xl bg-linear-to-tr from-indigo-950/80 to-slate-950 border border-indigo-500/30 text-center space-y-2">
+                    <div className="flex items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-wider text-indigo-300">
+                      <QrCode className="w-3.5 h-3.5" />
+                      <span>Official Receipt QR</span>
+                    </div>
+                    <div className="w-20 h-20 bg-white p-1.5 rounded-xl mx-auto flex items-center justify-center shadow-md">
+                      <img 
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + '/public-status?ticket=' + ticket.ticket_id)}`} 
+                        alt="Grievance Verification QR"
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                    <p className="text-[9px] font-mono text-slate-400">Scan to Verify Authentic Copy</p>
                   </div>
                 </div>
 
@@ -178,12 +208,9 @@ export const PublicStatusPage = () => {
                   <p className="text-slate-300 text-xs leading-relaxed italic">"{ticket.description}"</p>
                 </div>
 
-                {/* Progress Timeline */}
-                <div className="pt-4 border-t border-white/10 space-y-4">
-                  <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
-                    Live Progress Milestones
-                  </h3>
-                  <TrackingTimeline steps={getTimelineSteps(ticket)} />
+                {/* Audit Workflow Timeline */}
+                <div className="pt-2">
+                  <GrievanceWorkflowTimeline ticket={ticket} />
                 </div>
               </MotionCard>
             )}

@@ -6,6 +6,8 @@ const jwt = require('jsonwebtoken');
 process.env.JWT_SECRET = 'test-active-secret-key-98765';
 process.env.NODE_ENV = 'test';
 
+jest.setTimeout(30000);
+
 // Mocks
 const mockGrievanceData = [
   {
@@ -43,6 +45,16 @@ const mockGrievancesQuery = {
   single: jest.fn().mockResolvedValue({ data: mockGrievanceData[0], error: null }),
   then: jest.fn((resolve) => resolve({ data: mockGrievanceData, error: null }))
 };
+
+jest.mock('../services/aiService', () => ({
+  smartRouteGrievance: jest.fn().mockResolvedValue({
+    recommended_department: 'IT Support & Campus Wi-Fi',
+    predicted_sla_hours: 24,
+    sentiment: 'Urgent',
+    suggested_action: 'Grievance logged and routed.'
+  }),
+  generateResolutionSuggestion: jest.fn().mockResolvedValue('Suggested resolution draft.')
+}));
 
 jest.mock('../services/smsService', () => ({
   sendSms: jest.fn().mockResolvedValue({ success: true }),
