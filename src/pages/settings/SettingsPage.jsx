@@ -479,49 +479,100 @@ export const SettingsPage = ({ sessionUser, onLogout, theme, setTheme }) => {
           >
             <GlassPanel className="p-6 space-y-6">
               <div className="border-b border-white/10 pb-4">
-                <h3 className="text-sm font-heading font-bold text-white uppercase">Appearance & Motion Controls</h3>
-                <p className="text-xs text-slate-400">Customize color theme palette and visual accessibility options.</p>
+                <h3 className="text-sm font-heading font-bold text-white uppercase">Appearance & Accessibility Controls</h3>
+                <p className="text-xs text-slate-400">Customize color theme palette, font scaling, and visual accessibility options.</p>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div>
                   <label className="text-xs font-bold text-white uppercase block mb-3">Color Theme Palette</label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <button
-                      onClick={() => setTheme('ocean')}
-                      className={`p-4 rounded-2xl border flex items-center gap-3 transition-all cursor-pointer ${
+                      onClick={() => {
+                        setTheme('ocean');
+                        document.documentElement.className = '';
+                        localStorage.setItem('app_theme', 'ocean');
+                      }}
+                      className={`p-4 rounded-2xl border flex flex-col gap-2 text-left transition-all cursor-pointer ${
                         theme === 'ocean'
-                          ? 'bg-indigo-600/20 border-indigo-500 text-white'
+                          ? 'bg-indigo-600/20 border-indigo-500 text-white shadow-lg shadow-indigo-500/10'
                           : 'bg-slate-950 border-white/10 text-slate-400 hover:text-white'
                       }`}
                     >
                       <Moon className="text-indigo-400" size={20} />
-                      <div className="text-left">
+                      <div>
                         <p className="text-xs font-bold uppercase">Ocean Dark Mode</p>
-                        <p className="text-[10px] text-slate-400">Deep obsidian background with indigo accents.</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">Deep obsidian background with sapphire blue accents.</p>
                       </div>
                     </button>
 
                     <button
-                      onClick={() => setTheme('midnight')}
-                      className={`p-4 rounded-2xl border flex items-center gap-3 transition-all cursor-pointer ${
+                      onClick={() => {
+                        setTheme('midnight');
+                        document.documentElement.className = 'theme-midnight';
+                        localStorage.setItem('app_theme', 'midnight');
+                      }}
+                      className={`p-4 rounded-2xl border flex flex-col gap-2 text-left transition-all cursor-pointer ${
                         theme === 'midnight'
-                          ? 'bg-indigo-600/20 border-indigo-500 text-white'
+                          ? 'bg-indigo-600/20 border-indigo-500 text-white shadow-lg shadow-indigo-500/10'
                           : 'bg-slate-950 border-white/10 text-slate-400 hover:text-white'
                       }`}
                     >
                       <Sun className="text-amber-400" size={20} />
-                      <div className="text-left">
-                        <p className="text-xs font-bold uppercase">Midnight Black Mode</p>
-                        <p className="text-[10px] text-slate-400">Pure pitch-black OLED background profile.</p>
+                      <div>
+                        <p className="text-xs font-bold uppercase">Midnight OLED Mode</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">Pure pitch-black OLED background profile.</p>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setTheme('high-contrast');
+                        document.documentElement.className = 'theme-high-contrast';
+                        localStorage.setItem('app_theme', 'high-contrast');
+                      }}
+                      className={`p-4 rounded-2xl border flex flex-col gap-2 text-left transition-all cursor-pointer ${
+                        theme === 'high-contrast'
+                          ? 'bg-yellow-400/20 border-yellow-400 text-white shadow-lg shadow-yellow-400/10'
+                          : 'bg-slate-950 border-white/10 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <Shield className="text-yellow-400" size={20} />
+                      <div>
+                        <p className="text-xs font-bold uppercase text-yellow-400">High Contrast Cyber</p>
+                        <p className="text-[10px] text-slate-300 mt-0.5">WCAG AAA maximum contrast profile.</p>
                       </div>
                     </button>
                   </div>
                 </div>
 
+                {/* Font Scaling Accessibility */}
+                <div className="p-4 rounded-2xl bg-slate-950 border border-white/10 space-y-3">
+                  <h4 className="text-xs font-bold text-white uppercase">Font Scale Multiplier</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { id: 'normal', label: '100% Normal' },
+                      { id: 'large', label: '110% Large' },
+                      { id: 'accessibility', label: '125% Extra Large' }
+                    ].map(scale => (
+                      <button
+                        key={scale.id}
+                        onClick={() => {
+                          document.documentElement.setAttribute('data-font-scale', scale.id);
+                          localStorage.setItem('app_font_scale', scale.id);
+                          toast.success(`Font scale set to ${scale.label}`);
+                        }}
+                        className="px-3 py-1.5 rounded-xl border border-white/10 bg-slate-900 text-xs font-mono font-bold text-slate-300 hover:border-indigo-500 hover:text-white transition-all cursor-pointer"
+                      >
+                        {scale.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div
                   onClick={handleToggleReducedMotion}
-                  className="p-4 rounded-2xl bg-slate-950 border border-white/10 hover:border-indigo-500/40 cursor-pointer flex items-center justify-between transition-all mt-4"
+                  className="p-4 rounded-2xl bg-slate-950 border border-white/10 hover:border-indigo-500/40 cursor-pointer flex items-center justify-between transition-all"
                 >
                   <div>
                     <h4 className="text-xs font-bold text-white uppercase">Reduced Motion Accessibility</h4>
