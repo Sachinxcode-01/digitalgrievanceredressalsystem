@@ -57,14 +57,37 @@ const OfficerCard = ({ officer, ticketCount, onEdit, onToggleStatus, onViewActiv
       </div>
     </div>
 
-    {/* Stats */}
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/30 border border-border/50">
-        <Ticket size={11} className="text-indigo-400" />
-        <span className="text-[10px] font-mono text-muted-foreground">Assigned</span>
-        <span className="text-[10px] font-mono font-bold text-foreground">{ticketCount}</span>
+    {/* Stats & Workload Capacity Meter */}
+    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 shrink-0">
+      <div className="flex flex-col gap-1 w-32">
+        <div className="flex items-center justify-between text-[9px] font-mono">
+          <span className="text-muted-foreground uppercase font-bold">Capacity</span>
+          <span className={`font-bold ${ticketCount >= 8 ? 'text-rose-400' : ticketCount >= 5 ? 'text-amber-400' : 'text-emerald-400'}`}>
+            {ticketCount}/10 Active
+          </span>
+        </div>
+        <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden border border-white/10">
+          <div 
+            className={`h-full rounded-full transition-all duration-500 ${
+              ticketCount >= 8 ? 'bg-rose-500' : ticketCount >= 5 ? 'bg-amber-500' : 'bg-emerald-500'
+            }`} 
+            style={{ width: `${Math.min(100, (ticketCount / 10) * 100)}%` }}
+          />
+        </div>
       </div>
-      <OfficerStatusBadge status={officer.status || 'active'} />
+
+      <div className="flex items-center gap-2">
+        <span className={`px-2 py-0.5 rounded-full text-[9px] font-mono font-bold border uppercase tracking-wider ${
+          ticketCount >= 8 
+            ? 'bg-rose-500/10 border-rose-500/20 text-rose-400' 
+            : ticketCount >= 5 
+            ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' 
+            : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+        }`}>
+          {ticketCount >= 8 ? 'SLA Alert' : ticketCount >= 5 ? 'Standard SLA' : '< 24h Fast'}
+        </span>
+        <OfficerStatusBadge status={officer.status || 'active'} />
+      </div>
     </div>
 
     {/* Actions */}
