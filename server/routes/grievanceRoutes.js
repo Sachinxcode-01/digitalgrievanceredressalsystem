@@ -9,7 +9,8 @@ const {
   escalateGrievance,
   getGrievanceTimeline,
   submitFeedback,
-  deleteGrievance
+  deleteGrievance,
+  upvoteGrievance
 } = require('../controllers/grievanceController');
 const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
 const { 
@@ -34,7 +35,12 @@ router.post('/', validateCreateGrievance, createGrievance);
 // @desc    Fetch a single grievance by ID
 router.get('/:id', getGrievanceById);
 
+// @route   POST /api/v1/grievances/:id/upvote
+// @desc    Upvote and subscribe to an existing community grievance
+router.post('/:id/upvote', upvoteGrievance);
+
 // @route   DELETE /api/v1/grievances/:id
+
 // @desc    Cancel/delete a pending grievance
 router.delete('/:id', deleteGrievance);
 

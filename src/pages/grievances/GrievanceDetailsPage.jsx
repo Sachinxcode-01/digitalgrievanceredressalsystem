@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowLeft, Clock, FileDown, MessageSquare, ShieldCheck, 
   MapPin, CheckCircle, HelpCircle, Loader2, Calendar, ClipboardList, 
-  AlertCircle, History, Info, Trash2, Star, Send
+  AlertCircle, History, Info, Trash2, Star, Send, ThumbsUp
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '../../lib/supabase';
@@ -25,6 +25,7 @@ export const GrievanceDetailsPage = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview'); // overview, timeline, comments, resolution, audit
   const [isExporting, setIsExporting] = useState(false);
+  const [isUpvoting, setIsUpvoting] = useState(false);
 
   // Feedback states
   const [feedbackRating, setFeedbackRating] = useState(5);
@@ -49,6 +50,21 @@ export const GrievanceDetailsPage = ({ user }) => {
       setLoading(false);
     }
   };
+
+  const handleUpvote = async () => {
+    if (!ticket) return;
+    setIsUpvoting(true);
+    try {
+      const res = await grievanceService.upvote(ticket.id || ticket.ticket_id);
+      toast.success(res.alreadyUpvoted ? 'You have already upvoted this ticket.' : 'Upvoted ticket successfully!');
+      fetchTicketDetails();
+    } catch (err) {
+      toast.error('Upvote failed.');
+    } finally {
+      setIsUpvoting(false);
+    }
+  };
+
 
   useEffect(() => {
     fetchTicketDetails();
@@ -191,12 +207,28 @@ export const GrievanceDetailsPage = ({ user }) => {
               </span>
               <StatusBadge status={ticket.status} />
               <UrgencyBadge level={ticket.urgency} />
+              {(ticket.upvote_count > 0 || ticket.urgency === 'High') && (
+                <span className="px-2.5 py-0.5 rounded-md text-xs font-bold bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center gap-1">
+                  <ThumbsUp className="w-3 h-3" />
+                  <span>{ticket.upvote_count || 1} Upvotes</span>
+                  {ticket.upvote_count >= 5 && <span className="ml-1 text-[10px] text-amber-300">🔥 High Impact</span>}
+                </span>
+              )}
             </div>
             <h1 className="text-lg font-heading font-black text-foreground mt-1 truncate max-w-md">{ticket.title}</h1>
           </div>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          <button 
+            onClick={handleUpvote}
+            disabled={isUpvoting}
+            className="px-3 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all disabled:opacity-50"
+          >
+            <ThumbsUp size={13} />
+            <span>Upvote ({ticket.upvote_count || 1})</span>
+          </button>
+
           <button 
             onClick={handleExportDossier}
             disabled={isExporting}
@@ -216,6 +248,7 @@ export const GrievanceDetailsPage = ({ user }) => {
             </button>
           )}
         </div>
+
       </div>
 
       {/* Live Delivery Tracking Timeline Widget */}

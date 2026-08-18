@@ -7,7 +7,8 @@ const {
   summarizePerformance, 
   analyzeVision,
   composeBroadcast,
-  smartRouteHandler
+  smartRouteHandler,
+  checkDuplicates
 } = require('../controllers/aiController');
 const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
 const { aiLimiter } = require('../middleware/securityMiddleware');
@@ -22,7 +23,12 @@ router.post('/analyze', authenticateToken, triageGrievance);
 // @desc    Perform AI smart auto-routing and SLA prediction (Available to authenticated users)
 router.post('/smart-route', authenticateToken, smartRouteHandler);
 
+// @route   POST /api/v1/ai/check-duplicates
+// @desc    Perform AI duplicate ticket similarity detection
+router.post('/check-duplicates', authenticateToken, checkDuplicates);
+
 // @route   POST /api/v1/ai/suggest
+
 // @desc    AI-generated resolution draft (Restricted to admin)
 router.post('/suggest', authenticateToken, authorizeRoles('admin'), suggestResolution);
 

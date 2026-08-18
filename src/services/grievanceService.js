@@ -214,7 +214,51 @@ export const grievanceService = {
       console.warn('Backend feedback submit fallback:', err.message);
       return this.updateStatus(id, 'Closed', comments);
     }
+  },
+
+  /**
+   * Check for duplicate tickets using AI semantic similarity engine.
+   */
+  async checkDuplicates(data) {
+    try {
+      const response = await apiClient.post('/ai/check-duplicates', data);
+      return response.data;
+    } catch (err) {
+      console.warn('[grievanceService.checkDuplicates fallback]:', err.message);
+      // Fallback local check
+      const locals = getLocalGrievances();
+      const titleText = (data.title || '').toLowerCase();
+      const match = locals.find(g => g.title && g.title.toLowerCase().includes(titleText.slice(0, 10)));
+      return {
+        is_duplicate: !!match,
+        match_confidence: match ? 85 : 0,
+        matching_ticket: match || null,
+        reason: match ? `Similar ticket #${match.ticket_id} found in local system.` : 'No duplicate detected.'
+      };
+    }
+  },
+
+  /**
+   * Upvote and subscribe to an existing community grievance.
+   */
+  async upvote(id) {
+    try {
+      const response = await apiClient.post(`/grievances/${id}/upvote`);
+      return response.data;
+    } catch (err) {
+      console.warn('[grievanceService.upvote fallback]:', err.message);
+      const localData = getLocalGrievances();
+      const match = localData.find(g => g.id === id || g.ticket_id === id);
+      if (match) {
+        match.upvote_count = (match.upvote_count || 1) + 1;
+        if (match.upvote_count >= 5) match.urgency = 'High';
+        localStorage.setItem('resolvenow_local_grievances', JSON.stringify(localData));
+        return { grievance: match, message: 'Upvoted locally', alreadyUpvoted: false };
+      }
+      return { grievance: { id, upvote_count: 2 }, message: 'Upvoted', alreadyUpvoted: false };
+    }
   }
 };
 
 export default grievanceService;
+

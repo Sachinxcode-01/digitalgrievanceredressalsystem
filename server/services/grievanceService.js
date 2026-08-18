@@ -540,7 +540,23 @@ const grievanceService = {
     );
 
     return { message: `Grievance ticket #${ticket.ticket_id} has been canceled and deleted successfully.`, id };
+  },
+
+  async upvoteGrievance(id, user, ip, userAgent) {
+    const userId = user ? user.id : 'demo-user';
+    const result = await grievanceRepository.upvote(id, userId);
+
+    await logAudit(
+      userId,
+      'GRIEVANCE_UPVOTED',
+      ip,
+      userAgent,
+      { grievance_id: id, upvote_count: result.grievance.upvote_count, alreadyUpvoted: result.alreadyUpvoted }
+    );
+
+    return result;
   }
 };
 
 module.exports = grievanceService;
+

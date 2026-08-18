@@ -11,6 +11,8 @@ const inMemoryGrievances = [
     department: 'IT Support',
     urgency: 'Medium',
     status: 'In-Progress',
+    upvote_count: 4,
+    upvoted_by: ['user-101', 'user-102', 'user-103', 'user-104'],
     created_at: new Date(Date.now() - 3600000 * 24 * 2).toISOString(),
     sla_due_at: new Date(Date.now() + 3600000 * 24).toISOString(),
     frustration_index: 6
@@ -25,6 +27,8 @@ const inMemoryGrievances = [
     department: 'Academic Affairs',
     urgency: 'High',
     status: 'Assigned',
+    upvote_count: 2,
+    upvoted_by: ['user-105', 'user-106'],
     created_at: new Date(Date.now() - 3600000 * 12).toISOString(),
     sla_due_at: new Date(Date.now() + 3600000 * 12).toISOString(),
     frustration_index: 8
@@ -39,12 +43,15 @@ const inMemoryGrievances = [
     department: 'Financial Services',
     urgency: 'Medium',
     status: 'Resolved',
+    upvote_count: 1,
+    upvoted_by: ['user-107'],
     resolution_notes: 'Verified with Accounts Section. Fee credit adjusted in student portal balance.',
     resolved_at: new Date(Date.now() - 3600000 * 5).toISOString(),
     created_at: new Date(Date.now() - 3600000 * 24 * 5).toISOString(),
     frustration_index: 4
   }
 ];
+
 
 const grievanceRepository = {
   async getAll(userId = null) {
@@ -111,12 +118,14 @@ const grievanceRepository = {
       'status', 'admin_comment', 'location', 'latitude', 'longitude',
       'attachment_url', 'department', 'assigned_to', 'resolution_notes',
       'resolved_at', 'escalated_at', 'escalated_reason', 'sla_due_at',
-      'rating', 'feedback_comments'
+      'rating', 'feedback_comments', 'upvote_count', 'upvoted_by'
     ];
 
     const sanitizedPayload = {
       id: `g-gen-${Date.now()}`,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      upvote_count: grievanceData.upvote_count || 1,
+      upvoted_by: grievanceData.upvoted_by || (grievanceData.user_id ? [grievanceData.user_id] : [])
     };
     for (const key of allowedColumns) {
       if (grievanceData[key] !== undefined) {
@@ -149,8 +158,9 @@ const grievanceRepository = {
       'status', 'admin_comment', 'location', 'latitude', 'longitude',
       'attachment_url', 'department', 'assigned_to', 'resolution_notes',
       'resolved_at', 'escalated_at', 'escalated_reason', 'sla_due_at',
-      'rating', 'feedback_comments'
+      'rating', 'feedback_comments', 'upvote_count', 'upvoted_by'
     ];
+
 
     const sanitizedUpdates = {};
     for (const key of allowedColumns) {
@@ -441,7 +451,39 @@ const grievanceRepository = {
       .not('status', 'in', '("Resolved","Closed","Rejected","Escalated","Draft")');
     if (error) throw error;
     return data || [];
+  },
+
+  async upvote(id, userId) {
+    const item = await this.findById(id);
+    if (!item) throw new Error('Grievance not found');
+
+    const upvotedBy = Array.isArray(item.upvoted_by) ? item.upvoted_by : [];
+    if (userId && upvotedBy.includes(userId)) {
+      return { grievance: item, message: 'Already upvoted by this user', alreadyUpvoted: true };
+    }
+
+    const newCount = (item.upvote_count || 0) + 1;
+    const newUpvotedBy = userId ? [...upvotedBy, userId] : upvotedBy;
+    const newUrgency = newCount >= 5 && item.urgency !== 'High' ? 'High' : item.urgency;
+
+    const updates = {
+      upvote_count: newCount,
+      upvoted_by: newUpvotedBy,
+      urgency: newUrgency
+    };
+
+    if (supabase) {
+      try {
+        await supabase.from('grievances').update(updates).eq('id', item.id);
+      } catch (err) {
+        console.warn('[grievanceRepository.upvote warning]:', err.message);
+      }
+    }
+
+    Object.assign(item, updates);
+    return { grievance: item, message: 'Grievance upvoted successfully', alreadyUpvoted: false };
   }
 };
 
 module.exports = grievanceRepository;
+

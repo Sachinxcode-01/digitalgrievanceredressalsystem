@@ -19,6 +19,7 @@ import GlassPanel from '../../components/ui/GlassPanel';
 import MotionCard from '../../components/ui/MotionCard';
 import AnimatedButton from '../../components/ui/AnimatedButton';
 import SmartTriageAssistant from '../../components/ai/SmartTriageAssistant';
+import DuplicateGrievanceModal from '../../components/ai/DuplicateGrievanceModal';
 
 export const SubmitGrievancePage = ({ user, sessionUser }) => {
   const currentUser = user || sessionUser;
@@ -40,6 +41,13 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
   const [isListening, setIsListening] = useState(false);
   const [showDraftBanner, setShowDraftBanner] = useState(false);
   const [submittedTicket, setSubmittedTicket] = useState(null);
+
+  // Duplicate Check states
+  const [duplicateCheckResult, setDuplicateCheckResult] = useState(null);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
+  const [bypassDuplicateCheck, setBypassDuplicateCheck] = useState(false);
+
 
   useEffect(() => {
     const savedDraft = localStorage.getItem('resolvenow_grievance_draft');
@@ -214,11 +222,40 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
     setAttachmentUrl('');
   };
 
+  const runDuplicateCheck = async () => {
+    if (!title.trim() && !description.trim()) {
+      toast.error('Enter a title or description to scan for duplicates.');
+      return false;
+    }
+    setIsCheckingDuplicates(true);
+    try {
+      const res = await grievanceService.checkDuplicates({ title, description, category });
+      setDuplicateCheckResult(res);
+      if (res && res.is_duplicate && res.matching_ticket) {
+        setShowDuplicateModal(true);
+        return true;
+      } else {
+        toast.success('AI Scan complete: No duplicate tickets detected.');
+        return false;
+      }
+    } catch (err) {
+      console.warn('Duplicate check error:', err);
+      return false;
+    } finally {
+      setIsCheckingDuplicates(false);
+    }
+  };
+
   const handleFormSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!title.trim() || !description.trim()) {
       toast.error('Subject and narrative statement are required.');
       return;
+    }
+
+    if (!bypassDuplicateCheck) {
+      const foundDuplicate = await runDuplicateCheck();
+      if (foundDuplicate) return;
     }
 
     setIsSubmitting(true);
@@ -241,6 +278,7 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
       logSecurityEvent('New Grievance Transmitted', user?.email || 'citizen', 'Submit Page', 'warning');
       localStorage.removeItem('resolvenow_grievance_draft');
       setSubmittedTicket(created);
+      setBypassDuplicateCheck(false);
       toast.success(`Grievance submitted. Ticket ID: ${created?.ticket_id || 'assigned'}`);
     } catch (err) {
       toast.error(getErrorMessage(err, 'Filing failed. Please try again.'));
@@ -248,6 +286,7 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
       setIsSubmitting(false);
     }
   };
+
 
   const copyTicketId = () => {
     if (!submittedTicket?.ticket_id) return;
@@ -575,9 +614,26 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
           </>
         )}
 
+        <DuplicateGrievanceModal
+          isOpen={showDuplicateModal}
+          duplicateData={duplicateCheckResult}
+          onClose={() => setShowDuplicateModal(false)}
+          onProceedAsNew={() => {
+            setBypassDuplicateCheck(true);
+            toast.info('Proceeding with separate ticket submission.');
+            setTimeout(() => {
+              handleFormSubmit();
+            }, 100);
+          }}
+          onUpvotedSuccess={(ticket) => {
+            navigate(`/dashboard`);
+          }}
+        />
+
       </AnimatedPage>
     </APIProvider>
   );
 };
 
 export default SubmitGrievancePage;
+

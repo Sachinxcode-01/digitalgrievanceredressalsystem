@@ -114,6 +114,21 @@ const smartRouteHandler = async (req, res) => {
   }
 };
 
+/**
+ * Handle AI Duplicate Grievance Detection request.
+ */
+const checkDuplicates = async (req, res) => {
+  try {
+    const grievanceRepository = require('../repositories/grievanceRepository');
+    const existingGrievances = await grievanceRepository.getAll();
+    const result = await aiService.checkDuplicateGrievance(req.body, existingGrievances);
+    res.json(result);
+  } catch (err) {
+    console.error('Duplicate Check Error:', err);
+    res.status(500).json({ error: 'Duplicate detection analysis failed.' });
+  }
+};
+
 module.exports = {
   triageGrievance,
   suggestResolution,
@@ -121,5 +136,7 @@ module.exports = {
   summarizePerformance,
   analyzeVision,
   composeBroadcast,
-  smartRouteHandler
+  smartRouteHandler,
+  checkDuplicates
 };
+

@@ -433,7 +433,92 @@ const aiService = {
       sentiment,
       suggested_action: `Logged under ${category}. Recommended routing to ${recommended_department} with target resolution within ${predicted_sla_hours} hours.`
     };
+  },
+
+  /**
+   * AI Duplicate Detection Engine
+   * Compares incoming grievance draft against active grievances to identify duplicates.
+   */
+  async checkDuplicateGrievance({ title, description, category }, existingGrievances = []) {
+    if (!title && !description) {
+      return { is_duplicate: false, match_confidence: 0, matching_ticket: null, reason: 'Insufficient text for duplicate analysis.' };
+    }
+
+    const candidateTickets = existingGrievances
+      .filter(g => g.status !== 'Resolved' && g.status !== 'Closed')
+      .slice(0, 15);
+
+    if (candidateTickets.length === 0) {
+      return { is_duplicate: false, match_confidence: 0, matching_ticket: null, reason: 'No active tickets found for comparison.' };
+    }
+
+    const systemPrompt = `You are an expert AI Grievance Triage & Duplicate Resolution Engine for an institutional grievance system.
+Compare the user's NEW grievance submission against the list of EXISTING active tickets.
+Determine if the NEW grievance describes the SAME underlying incident/issue as any existing ticket (e.g. Wi-Fi down in same block, water leak in same building, grade verification delay for same semester).`;
+
+    const formattedCandidates = candidateTickets.map((t, idx) => 
+      `[${idx + 1}] Ticket ID: ${t.ticket_id || t.id} | Category: ${t.category || 'General'} | Title: "${t.title}" | Description: "${t.description}"`
+    ).join('\n');
+
+    const prompt = `NEW SUBMISSION:
+Title: "${title}"
+Description: "${description}"
+Category: "${category || 'General'}"
+
+EXISTING ACTIVE TICKETS:
+${formattedCandidates}
+
+Task:
+Determine if NEW SUBMISSION is a duplicate or directly related to any EXISTING ACTIVE TICKET.
+
+Respond ONLY with valid JSON in this exact structure:
+{
+  "is_duplicate": boolean,
+  "match_confidence": integer (0 to 100),
+  "matching_ticket_id": string (ticket_id of the matching ticket, or null if none),
+  "reason": "1-sentence explanation of why it is or is not a duplicate"
+}`;
+
+    const rawResponse = await callAI(prompt, systemPrompt, 0.1);
+    const parsed = extractJson(rawResponse);
+
+    if (parsed && typeof parsed.is_duplicate === 'boolean') {
+      const matched = candidateTickets.find(t => t.ticket_id === parsed.matching_ticket_id || t.id === parsed.matching_ticket_id);
+      return {
+        is_duplicate: parsed.is_duplicate && parsed.match_confidence >= 65,
+        match_confidence: parsed.match_confidence || 0,
+        matching_ticket: matched || (parsed.is_duplicate ? candidateTickets[0] : null),
+        reason: parsed.reason || 'Semantic similarity analysis completed.'
+      };
+    }
+
+    // Heuristics fallback (Keyword / Token overlap)
+    const newTokens = `${title} ${description}`.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(/\s+/).filter(w => w.length > 3);
+    let bestMatch = null;
+    let highestScore = 0;
+
+    for (const ticket of candidateTickets) {
+      const candidateTokens = `${ticket.title} ${ticket.description}`.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(/\s+/).filter(w => w.length > 3);
+      const overlap = newTokens.filter(w => candidateTokens.includes(w));
+      const score = Math.round((overlap.length * 2 / (newTokens.length + candidateTokens.length)) * 100);
+
+      if (score > highestScore) {
+        highestScore = score;
+        bestMatch = ticket;
+      }
+    }
+
+    const isDuplicate = highestScore >= 35;
+    return {
+      is_duplicate: isDuplicate,
+      match_confidence: Math.min(Math.round(highestScore * 1.8), 95),
+      matching_ticket: isDuplicate ? bestMatch : null,
+      reason: isDuplicate 
+        ? `High keyword & semantic overlap detected with existing ticket ${bestMatch?.ticket_id}.`
+        : 'No duplicate grievances detected.'
+    };
   }
 };
 
 module.exports = aiService;
+
