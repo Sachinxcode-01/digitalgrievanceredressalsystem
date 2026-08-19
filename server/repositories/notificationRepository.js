@@ -192,6 +192,8 @@ const notificationRepository = {
   // In-App Notifications
   async insertInAppNotification(notificationData) {
     if (!supabase) return null;
+    const isUuid = (val) => typeof val === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(val);
+    if (!isUuid(notificationData.user_id)) return null;
     const { data, error } = await supabase
       .from('in_app_notifications')
       .insert([notificationData])

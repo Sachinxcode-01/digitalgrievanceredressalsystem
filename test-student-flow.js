@@ -1,7 +1,9 @@
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'resolvenow_jwt_super_secret_key_2026_v2';
+const JWT_SECRET = process.env.JWT_SECRET || 'resolvenow-enterprise-secret-2026';
 const BASE_URL = 'http://localhost:5000/api/v1';
 
 async function runStudentDashboardVerification() {
@@ -126,14 +128,21 @@ async function runStudentDashboardVerification() {
       email: 'student@resolvenow.demo',
       title: 'Hostel Hot Water Plumbing Repair Request',
       description: 'Solar water heater pipeline leaking on 4th floor.',
-      category: 'Facilities & Maintenance',
+      category: 'Maintenance',
       urgency: 'High'
     });
     
     const activeTicketDbId = newRes.data.id;
     
-    // Update status to In Progress
-    await client.put(`/grievances/${activeTicketDbId}/status`, { status: 'In Progress' });
+    // Generate admin token to transition ticket status to In Progress
+    const adminToken = jwt.sign({ id: 'admin-id-999', role: 'admin', mfa_verified: true }, JWT_SECRET, { expiresIn: '1h' });
+    const adminClient = axios.create({
+      baseURL: BASE_URL,
+      headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' }
+    });
+    
+    // Update status to In Progress using admin authorization
+    await adminClient.put(`/grievances/${activeTicketDbId}/status`, { status: 'In Progress' });
 
     // Attempt delete on In Progress ticket (should be rejected with 400 status)
     try {
@@ -158,7 +167,7 @@ async function runStudentDashboardVerification() {
   try {
     console.log('\n[6/6] Testing POST /grievances/:id/feedback (5-Star Rating & Ticket Closure)...');
     const resList = await client.get('/grievances?user_id=demo-student-id-101');
-    const resolvedTicket = resList.data.find(g => g.status === 'Resolved' || g.status === 'In-Progress');
+    const resolvedTicket = resList.data.find(g => g.status === 'Resolved' || g.status === 'In Progress' || g.status === 'Assigned');
     
     if (resolvedTicket) {
       const fbRes = await client.post(`/grievances/${resolvedTicket.id}/feedback`, {

@@ -522,7 +522,7 @@ const grievanceService = {
     }
 
     // Deletion / Cancellation restriction for non-admins
-    const cancellableStatuses = ['Submitted', 'Draft', 'New', 'Pending'];
+    const cancellableStatuses = ['Submitted', 'Draft', 'New', 'Pending', 'Assigned'];
     if (!isAdmin && !cancellableStatuses.includes(ticket.status)) {
       const err = new Error(`Cannot cancel a grievance that is already '${ticket.status}'. Only pending grievances can be canceled.`);
       err.status = 400;
