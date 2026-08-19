@@ -31,6 +31,46 @@ const VALID_URGENCY = ['High', 'Medium', 'Low'];
 const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
 /**
+ * Call OpenRouter AI API.
+ */
+const callOpenRouterAI = async (prompt, systemPrompt = '', temperature = 0.5) => {
+  const apiKey = configService.getSetting('openrouter_api_key', process.env.OPENROUTER_API_KEY || process.env.VITE_OPENROUTER_API_KEY);
+  if (!apiKey) return null;
+
+  const messages = [];
+  if (systemPrompt) {
+    messages.push({ role: 'system', content: systemPrompt });
+  }
+  messages.push({ role: 'user', content: prompt });
+
+  try {
+    const model = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.1-8b-instruct:free';
+    const response = await axios.post(
+      'https://openrouter.ai/api/v1/chat/completions',
+      {
+        model,
+        messages,
+        temperature,
+        max_tokens: 1024
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'http://localhost:5173',
+          'X-Title': 'ResolveNow Grievance System'
+        },
+        timeout: 15000
+      }
+    );
+    return response.data.choices[0]?.message?.content?.trim() || null;
+  } catch (err) {
+    console.warn('[OpenRouter API Warning — attempting fallback]:', err.response?.data || err.message);
+    return null;
+  }
+};
+
+/**
  * Call NVIDIA Nim Neural AI API (Llama 3.1 8B).
  */
 const callNvidiaAI = async (prompt, systemPrompt = '', temperature = 0.5) => {
@@ -68,14 +108,18 @@ const callNvidiaAI = async (prompt, systemPrompt = '', temperature = 0.5) => {
 };
 
 /**
- * Universal AI Caller: Tries NVIDIA Nim API first, then Gemini API as fallback.
+ * Universal AI Caller: Tries OpenRouter first, then NVIDIA Nim API, then Gemini API as fallback.
  */
 const callAI = async (prompt, systemPrompt = '', temperature = 0.5) => {
-  // 1. Try NVIDIA AI
+  // 1. Try OpenRouter AI
+  const openRouterReply = await callOpenRouterAI(prompt, systemPrompt, temperature);
+  if (openRouterReply) return openRouterReply;
+
+  // 2. Try NVIDIA AI
   const nvidiaReply = await callNvidiaAI(prompt, systemPrompt, temperature);
   if (nvidiaReply) return nvidiaReply;
 
-  // 2. Try Gemini AI
+  // 3. Try Gemini AI
   const genAI = getGenAI();
   if (genAI) {
     try {
@@ -203,6 +247,59 @@ const aiService = {
   },
 
   async *getChatResponseStream(userMessage) {
+    const openRouterApiKey = configService.getSetting('openrouter_api_key', process.env.OPENROUTER_API_KEY || process.env.VITE_OPENROUTER_API_KEY);
+
+    if (openRouterApiKey) {
+      try {
+        const model = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.1-8b-instruct:free';
+        const response = await axios.post(
+          'https://openrouter.ai/api/v1/chat/completions',
+          {
+            model,
+            messages: [
+              {
+                role: 'system',
+                content: 'You are ResolveBot, an empathetic AI assistant for institutional grievances. Give immediate, helpful 2-3 sentence answers.'
+              },
+              { role: 'user', content: userMessage }
+            ],
+            stream: true,
+            temperature: 0.5,
+            max_tokens: 500
+          },
+          {
+            headers: {
+              'Authorization': `Bearer ${openRouterApiKey}`,
+              'Content-Type': 'application/json',
+              'HTTP-Referer': 'http://localhost:5173',
+              'X-Title': 'ResolveNow Grievance System'
+            },
+            responseType: 'stream',
+            timeout: 15000
+          }
+        );
+
+        for await (const chunk of response.data) {
+          const lines = chunk.toString('utf8').split('\n');
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (trimmed.startsWith('data: ')) {
+              const dataStr = trimmed.slice(6);
+              if (dataStr === '[DONE]') return;
+              try {
+                const parsed = JSON.parse(dataStr);
+                const delta = parsed.choices[0]?.delta?.content;
+                if (delta) yield delta;
+              } catch { /* malformed SSE chunk — skip and continue streaming */ }
+            }
+          }
+        }
+        return;
+      } catch (err) {
+        console.warn('[OpenRouter Stream Fallback]:', err.message);
+      }
+    }
+
     const apiKey = process.env.NVIDIA_API_KEY || process.env.VITE_NVIDIA_API_KEY;
 
     if (apiKey) {
