@@ -129,7 +129,9 @@ const configService = {
       case 'sms_login': return process.env.SMS_GATEWAY_LOGIN || defaultValue;
       case 'sms_password': return process.env.SMS_GATEWAY_PASSWORD || defaultValue;
       
-      // AI Keys
+      // AI Keys & Config
+      case 'ai_provider': return process.env.AI_PROVIDER || 'openrouter';
+      case 'openrouter_model': return process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.1-8b-instruct:free';
       case 'gemini_api_key': return process.env.GEMINI_API_KEY || '';
       case 'openrouter_api_key': return process.env.OPENROUTER_API_KEY || process.env.VITE_OPENROUTER_API_KEY || '';
       case 'nvidia_api_key': return process.env.NVIDIA_API_KEY || process.env.VITE_NVIDIA_API_KEY || '';

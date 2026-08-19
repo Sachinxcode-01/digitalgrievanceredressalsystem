@@ -44,7 +44,7 @@ const callOpenRouterAI = async (prompt, systemPrompt = '', temperature = 0.5) =>
   messages.push({ role: 'user', content: prompt });
 
   try {
-    const model = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.1-8b-instruct:free';
+    const model = configService.getSetting('openrouter_model', process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.1-8b-instruct:free');
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
@@ -251,7 +251,7 @@ const aiService = {
 
     if (openRouterApiKey) {
       try {
-        const model = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.1-8b-instruct:free';
+        const model = configService.getSetting('openrouter_model', process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.1-8b-instruct:free');
         const response = await axios.post(
           'https://openrouter.ai/api/v1/chat/completions',
           {

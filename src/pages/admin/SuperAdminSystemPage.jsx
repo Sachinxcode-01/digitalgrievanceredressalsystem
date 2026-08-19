@@ -958,17 +958,43 @@ export const SuperAdminSystemPage = () => {
                   </div>
                 )}
 
-                {/* 5. GEMINI AI TAB */}
+                {/* 5. GEMINI & OPENROUTER AI TAB */}
                 {activeTab === 'ai' && (
                   <div className="space-y-6">
                     <div className="border-b border-white/5 pb-3">
-                      <h2 className="text-lg font-heading font-black uppercase tracking-wider text-white">Google Gemini AI Engine</h2>
-                      <p className="text-[10px] text-slate-500">Configure AI auto-categorization, urgency and sentiment indices.</p>
+                      <h2 className="text-lg font-heading font-black uppercase tracking-wider text-white">AI Intelligence & OpenRouter Engine</h2>
+                      <p className="text-[10px] text-slate-500">Configure multi-model AI auto-categorization, sentiment triage, and streaming chat assistant.</p>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-1.5 md:col-span-2">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Gemini API Key</label>
+                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">OpenRouter API Key</label>
+                        <input
+                          type="password"
+                          placeholder="sk-or-v1-••••••••••••••••••••••••••••••••••••"
+                          value={settings.ai.openrouter_api_key || ''}
+                          onChange={(e) => handleSettingChange('ai', 'openrouter_api_key', e.target.value)}
+                          className="glass-input w-full text-xs font-medium"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">OpenRouter Model Variant</label>
+                        <select
+                          value={settings.ai.openrouter_model || 'meta-llama/llama-3.1-8b-instruct:free'}
+                          onChange={(e) => handleSettingChange('ai', 'openrouter_model', e.target.value)}
+                          className="w-full bg-[#0d1324]/60 border border-white/5 rounded-xl py-3 px-4 text-xs font-bold text-slate-300 focus:outline-none cursor-pointer"
+                        >
+                          <option value="meta-llama/llama-3.1-8b-instruct:free">Llama 3.1 8B Instruct (Free / Fast)</option>
+                          <option value="deepseek/deepseek-r1:free">DeepSeek R1 (Free / Reasoning)</option>
+                          <option value="google/gemini-2.0-flash-lite-preview-02-05:free">Gemini 2.0 Flash Lite (Free / Speed)</option>
+                          <option value="openai/gpt-4o-mini">OpenAI GPT-4o Mini (High Precision)</option>
+                          <option value="qwen/qwen-2.5-72b-instruct">Qwen 2.5 72B (Enterprise)</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Gemini API Key (Fallback)</label>
                         <input
                           type="password"
                           placeholder="••••••••••••••••••••••••••••••••••••••"
@@ -978,8 +1004,8 @@ export const SuperAdminSystemPage = () => {
                         />
                       </div>
 
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Model Variant Selection</label>
+                      <div className="space-y-1.5 md:col-span-2">
+                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Gemini Model Variant Selection</label>
                         <select
                           value={settings.ai.gemini_model || 'gemini-1.5-flash'}
                           onChange={(e) => handleSettingChange('ai', 'gemini_model', e.target.value)}
