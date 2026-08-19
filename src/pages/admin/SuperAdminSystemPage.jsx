@@ -644,7 +644,7 @@ export const SuperAdminSystemPage = () => {
                       </div>
 
                       {/* Toggles */}
-                      <div className="flex items-center justify-between gap-4 p-3 bg-slate-950/40 rounded-xl border border-white/[0.03]">
+                      <div className="flex items-center justify-between gap-4 p-3 bg-slate-950/40 rounded-xl border border-white/3">
                         <div className="space-y-0.5">
                           <h4 className="text-xs font-black text-white uppercase tracking-wide">Google Single Sign-On</h4>
                           <p className="text-[8px] text-slate-500 font-bold uppercase">Enable OAuth Login pathways</p>
@@ -661,7 +661,7 @@ export const SuperAdminSystemPage = () => {
                         </button>
                       </div>
 
-                      <div className="flex items-center justify-between gap-4 p-3 bg-slate-950/40 rounded-xl border border-white/[0.03]">
+                      <div className="flex items-center justify-between gap-4 p-3 bg-slate-950/40 rounded-xl border border-white/3">
                         <div className="space-y-0.5">
                           <h4 className="text-xs font-black text-white uppercase tracking-wide">Force Email Verification</h4>
                           <p className="text-[8px] text-slate-500 font-bold uppercase">Require verified email for access</p>
@@ -822,7 +822,7 @@ export const SuperAdminSystemPage = () => {
                           <div key={tpl.id} className="p-4 bg-slate-950/20 border border-white/5 rounded-xl flex justify-between items-start gap-4">
                             <div className="space-y-1">
                               <span className="font-mono text-[10px] font-bold text-primary-bright uppercase tracking-wider block">{tpl.name.replace(/_/g, ' ')}</span>
-                              <span className="text-xs font-bold text-white block truncate max-w-[200px]">{tpl.subject}</span>
+                              <span className="text-xs font-bold text-white block truncate max-w-50">{tpl.subject}</span>
                               <span className="text-[10px] text-slate-500 font-medium leading-normal block">{tpl.description || 'System dispatch template.'}</span>
                             </div>
                             <button
@@ -941,7 +941,7 @@ export const SuperAdminSystemPage = () => {
                           <div key={tpl.id} className="p-4 bg-slate-950/20 border border-white/5 rounded-xl flex justify-between items-start gap-4">
                             <div className="space-y-1 min-w-0 flex-1">
                               <span className="font-mono text-[10px] font-bold text-primary-bright uppercase tracking-wider block">{tpl.name.replace(/_/g, ' ')}</span>
-                              <span className="text-xs font-medium text-white block truncate max-w-[250px]">{tpl.body}</span>
+                              <span className="text-xs font-medium text-white block truncate max-w-62.5">{tpl.body}</span>
                               <span className="text-[10px] text-slate-500 font-medium leading-normal block">{tpl.description || 'System SMS template.'}</span>
                             </div>
                             <button
@@ -1017,7 +1017,7 @@ export const SuperAdminSystemPage = () => {
                         </select>
                       </div>
 
-                      <div className="flex items-center justify-between gap-4 p-3 bg-slate-950/40 rounded-xl border border-white/[0.03]">
+                      <div className="flex items-center justify-between gap-4 p-3 bg-slate-950/40 rounded-xl border border-white/3">
                         <div className="space-y-0.5">
                           <h4 className="text-xs font-black text-white uppercase tracking-wide">Auto-Categorization</h4>
                           <p className="text-[8px] text-slate-500 font-bold uppercase">Assign sector categories via AI</p>
@@ -1034,7 +1034,7 @@ export const SuperAdminSystemPage = () => {
                         </button>
                       </div>
 
-                      <div className="flex items-center justify-between gap-4 p-3 bg-slate-950/40 rounded-xl border border-white/[0.03]">
+                      <div className="flex items-center justify-between gap-4 p-3 bg-slate-950/40 rounded-xl border border-white/3">
                         <div className="space-y-0.5">
                           <h4 className="text-xs font-black text-white uppercase tracking-wide">Sentiment Analysis</h4>
                           <p className="text-[8px] text-slate-500 font-bold uppercase">Calculate user frustration rating (1-10)</p>
@@ -1051,7 +1051,7 @@ export const SuperAdminSystemPage = () => {
                         </button>
                       </div>
 
-                      <div className="flex items-center justify-between gap-4 p-3 bg-slate-950/40 rounded-xl border border-white/[0.03]">
+                      <div className="flex items-center justify-between gap-4 p-3 bg-slate-950/40 rounded-xl border border-white/3">
                         <div className="space-y-0.5">
                           <h4 className="text-xs font-black text-white uppercase tracking-wide">Urgency Detection</h4>
                           <p className="text-[8px] text-slate-500 font-bold uppercase">Detect severity index automatically</p>
@@ -1068,7 +1068,7 @@ export const SuperAdminSystemPage = () => {
                         </button>
                       </div>
 
-                      <div className="flex items-center justify-between gap-4 p-3 bg-slate-950/40 rounded-xl border border-white/[0.03]">
+                      <div className="flex items-center justify-between gap-4 p-3 bg-slate-950/40 rounded-xl border border-white/3">
                         <div className="space-y-0.5">
                           <h4 className="text-xs font-black text-white uppercase tracking-wide">Copilot Suggestions</h4>
                           <p className="text-[8px] text-slate-500 font-bold uppercase">Draft incident resolution scripts</p>
@@ -1106,7 +1106,7 @@ export const SuperAdminSystemPage = () => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="flex items-center justify-between gap-4 p-4 bg-slate-950/40 rounded-xl border border-white/[0.03]">
+                      <div className="flex items-center justify-between gap-4 p-4 bg-slate-950/40 rounded-xl border border-white/3">
                         <div className="space-y-0.5">
                           <h4 className="text-xs font-black text-white uppercase tracking-wide">SMTP Email Transmissions</h4>
                           <p className="text-[8px] text-slate-500 font-bold uppercase">Enable automated transactional emails</p>
@@ -1123,7 +1123,7 @@ export const SuperAdminSystemPage = () => {
                         </button>
                       </div>
 
-                      <div className="flex items-center justify-between gap-4 p-4 bg-slate-950/40 rounded-xl border border-white/[0.03]">
+                      <div className="flex items-center justify-between gap-4 p-4 bg-slate-950/40 rounded-xl border border-white/3">
                         <div className="space-y-0.5">
                           <h4 className="text-xs font-black text-white uppercase tracking-wide">SMS Mobile Transmissions</h4>
                           <p className="text-[8px] text-slate-500 font-bold uppercase">Enable OTP key dispatches over SMS</p>
@@ -1140,7 +1140,7 @@ export const SuperAdminSystemPage = () => {
                         </button>
                       </div>
 
-                      <div className="flex items-center justify-between gap-4 p-4 bg-slate-950/40 rounded-xl border border-white/[0.03]">
+                      <div className="flex items-center justify-between gap-4 p-4 bg-slate-950/40 rounded-xl border border-white/3">
                         <div className="space-y-0.5">
                           <h4 className="text-xs font-black text-white uppercase tracking-wide">Web Push Alerts</h4>
                           <p className="text-[8px] text-slate-500 font-bold uppercase">Toggle desktop browser push (Mock)</p>
@@ -1157,7 +1157,7 @@ export const SuperAdminSystemPage = () => {
                         </button>
                       </div>
 
-                      <div className="flex items-center justify-between gap-4 p-4 bg-slate-950/40 rounded-xl border border-white/[0.03]">
+                      <div className="flex items-center justify-between gap-4 p-4 bg-slate-950/40 rounded-xl border border-white/3">
                         <div className="space-y-0.5">
                           <h4 className="text-xs font-black text-white uppercase tracking-wide">In-App Bell Badges</h4>
                           <p className="text-[8px] text-slate-500 font-bold uppercase">Toggle header alert bell indicators</p>
@@ -1205,7 +1205,7 @@ export const SuperAdminSystemPage = () => {
                         />
                       </div>
 
-                      <div className="flex items-center justify-between gap-4 p-3 bg-slate-950/40 rounded-xl border border-white/[0.03]">
+                      <div className="flex items-center justify-between gap-4 p-3 bg-slate-950/40 rounded-xl border border-white/3">
                         <div className="space-y-0.5">
                           <h4 className="text-xs font-black text-white uppercase tracking-wide">Audit Logging</h4>
                           <p className="text-[8px] text-slate-500 font-bold uppercase">Record administrative SQL mutations</p>
@@ -1222,7 +1222,7 @@ export const SuperAdminSystemPage = () => {
                         </button>
                       </div>
 
-                      <div className="flex items-center justify-between gap-4 p-3 bg-slate-950/40 rounded-xl border border-white/[0.03]">
+                      <div className="flex items-center justify-between gap-4 p-3 bg-slate-950/40 rounded-xl border border-white/3">
                         <div className="space-y-0.5">
                           <h4 className="text-xs font-black text-white uppercase tracking-wide">Device & Browser Audit</h4>
                           <p className="text-[8px] text-slate-500 font-bold uppercase">Log User Agent browser headers</p>
@@ -1239,7 +1239,7 @@ export const SuperAdminSystemPage = () => {
                         </button>
                       </div>
 
-                      <div className="flex items-center justify-between gap-4 p-3 bg-slate-950/40 rounded-xl border border-white/[0.03]">
+                      <div className="flex items-center justify-between gap-4 p-3 bg-slate-950/40 rounded-xl border border-white/3">
                         <div className="space-y-0.5">
                           <h4 className="text-xs font-black text-white uppercase tracking-wide">Realtime Security Alerts</h4>
                           <p className="text-[8px] text-slate-500 font-bold uppercase">Broadcast notifications on lockout warning</p>
@@ -1625,7 +1625,7 @@ export const SuperAdminSystemPage = () => {
                     </select>
                   </div>
 
-                  <div className="flex items-center justify-between gap-4 p-3 bg-slate-950/40 rounded-xl border border-white/[0.03]">
+                  <div className="flex items-center justify-between gap-4 p-3 bg-slate-950/40 rounded-xl border border-white/3">
                     <div className="space-y-0.5">
                       <h4 className="text-xs font-black text-white uppercase tracking-wide">Auto-Routing Assignment</h4>
                       <p className="text-[8px] text-slate-500 font-bold uppercase">Assign grievances matching categorization</p>
