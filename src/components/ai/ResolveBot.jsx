@@ -155,7 +155,7 @@ export const ResolveBot = () => {
             whileHover={{ scale: 1.08 }}
             whileTap={{ scale: 0.94 }}
             onClick={() => setIsOpen(true)}
-            className="fixed bottom-24 right-6 md:bottom-8 md:right-8 w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center shadow-2xl shadow-indigo-500/40 z-50 cursor-pointer overflow-hidden group border border-indigo-400/40"
+            className="fixed bottom-24 right-6 md:bottom-8 md:right-8 w-14 h-14 rounded-2xl bg-linear-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center shadow-2xl shadow-indigo-500/40 z-50 cursor-pointer overflow-hidden group border border-indigo-400/40"
           >
             <MessageCircle className="text-white relative z-10" size={22} />
             <div className="absolute inset-0 bg-indigo-500/20 blur-md group-hover:blur-lg transition-all" />
@@ -171,7 +171,7 @@ export const ResolveBot = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="fixed bottom-20 right-4 md:bottom-24 md:right-8 w-[350px] h-[500px] z-50 rounded-3xl border border-white/10 bg-slate-950/95 backdrop-blur-2xl flex flex-col overflow-hidden shadow-2xl shadow-black/80 text-left"
+            className="fixed bottom-20 right-4 md:bottom-24 md:right-8 w-87.5 h-125 z-50 rounded-3xl border border-white/10 bg-slate-950/95 backdrop-blur-2xl flex flex-col overflow-hidden shadow-2xl shadow-black/80 text-left"
           >
             {/* Header */}
             <div className="p-4 border-b border-white/10 flex justify-between items-center bg-slate-900/60 backdrop-blur-md">
@@ -206,7 +206,7 @@ export const ResolveBot = () => {
                     {msg.isBot ? <Bot size={14} /> : <User size={14} />}
                   </div>
                   <div className="relative group/msg max-w-[78%]">
-                    <div className={`p-3 rounded-2xl text-xs leading-relaxed ${msg.isBot ? 'bg-slate-900/90 border border-white/10 text-slate-200 rounded-tl-sm' : 'bg-gradient-to-r from-indigo-600 to-cyan-600 text-white font-medium rounded-tr-sm shadow-md'}`}>
+                    <div className={`p-3 rounded-2xl text-xs leading-relaxed ${msg.isBot ? 'bg-slate-900/90 border border-white/10 text-slate-200 rounded-tl-sm' : 'bg-linear-to-r from-indigo-600 to-cyan-600 text-white font-medium rounded-tr-sm shadow-md'}`}>
                       {msg.text}
                     </div>
                     {msg.isBot && msg.text && (
