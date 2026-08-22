@@ -8,8 +8,6 @@ const notificationRepository = {
       .from('email_logs')
       .insert([logData])
       .select('id');
-    console.log("Supabase response (insertEmailLog):", data);
-    console.log("Supabase error (insertEmailLog):", error);
     if (error) throw error;
     return (data && data.length > 0) ? data[0] : null;
   },
@@ -111,8 +109,6 @@ const notificationRepository = {
       .update(updates)
       .eq('id', id)
       .select();
-    console.log("Supabase response (updateEmailTemplate):", data);
-    console.log("Supabase error (updateEmailTemplate):", error);
     if (error) throw error;
     return (data && data.length > 0) ? data[0] : null;
   },
@@ -145,8 +141,6 @@ const notificationRepository = {
       .update(updates)
       .eq('id', id)
       .select();
-    console.log("Supabase response (updateSmsTemplate):", data);
-    console.log("Supabase error (updateSmsTemplate):", error);
     if (error) throw error;
     return (data && data.length > 0) ? data[0] : null;
   },
@@ -173,8 +167,6 @@ const notificationRepository = {
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
-    console.log("Supabase response (findPasswordReset):", data);
-    console.log("Supabase error (findPasswordReset):", error);
     if (error) throw error;
     return data;
   },

@@ -183,8 +183,6 @@ const updateUserRole = async (req, res, next) => {
       .eq('id', id)
       .select()
       .maybeSingle();
-    console.log("Supabase response (updateUserRole):", data);
-    console.log("Supabase error (updateUserRole):", error);
 
     if (error) throw error;
 
@@ -235,8 +233,6 @@ const updateUserStatus = async (req, res, next) => {
       .eq('id', id)
       .select()
       .maybeSingle();
-    console.log("Supabase response (updateUserStatus):", data);
-    console.log("Supabase error (updateUserStatus):", error);
 
     if (error) throw error;
 
@@ -340,8 +336,6 @@ const createUser = async (req, res, next) => {
       ])
       .select()
       .maybeSingle();
-    console.log("Supabase response (createUser):", newUser);
-    console.log("Supabase error (createUser):", userError);
 
     if (userError) throw userError;
 
@@ -409,12 +403,8 @@ const updateUser = async (req, res, next) => {
     }
 
     // Fetch user before state
-    const { data: userBefore, error: userBeforeErr } = await supabase.from('users').select('*').eq('id', id).limit(1).maybeSingle();
-    console.log("Supabase response (userBefore):", userBefore);
-    console.log("Supabase error (userBefore):", userBeforeErr);
-    const { data: profileBefore, error: profileBeforeErr } = await supabase.from('user_profiles').select('*').eq('user_id', id).limit(1).maybeSingle();
-    console.log("Supabase response (profileBefore):", profileBefore);
-    console.log("Supabase error (profileBefore):", profileBeforeErr);
+    const { data: userBefore } = await supabase.from('users').select('*').eq('id', id).limit(1).maybeSingle();
+    const { data: profileBefore } = await supabase.from('user_profiles').select('*').eq('user_id', id).limit(1).maybeSingle();
 
     if (!userBefore) {
       return res.status(404).json({ error: 'User not found.' });
@@ -500,12 +490,14 @@ const deleteUser = async (req, res, next) => {
       return res.status(500).json({ error: 'Database service unavailable' });
     }
 
-    // Fetch user before deleting
-    const { data: user, error: userErr } = await supabase.from('users').select('email').eq('id', id).limit(1).maybeSingle();
-    console.log("Supabase response (deleteUserFetch):", user);
-    console.log("Supabase error (deleteUserFetch):", userErr);
+    // Fetch before state
+    const { data: user } = await supabase.from('users').select('email, role').eq('id', id).limit(1).maybeSingle();
     if (!user) {
       return res.status(404).json({ error: 'User not found.' });
+    }
+
+    if (id === req.user.id) {
+      return res.status(400).json({ error: 'You cannot delete your own administrative account.' });
     }
 
     const { error } = await supabase.from('users').delete().eq('id', id);
@@ -740,8 +732,6 @@ const createRole = async (req, res, next) => {
       .insert([{ name: name.toLowerCase(), description }])
       .select()
       .maybeSingle();
-    console.log("Supabase response (createRole):", newRole);
-    console.log("Supabase error (createRole):", roleError);
 
     if (roleError) throw roleError;
 
@@ -780,9 +770,7 @@ const updateRole = async (req, res, next) => {
     }
 
     // Fetch before state
-    const { data: role, error: roleErr } = await supabase.from('roles').select('name').eq('id', id).limit(1).maybeSingle();
-    console.log("Supabase response (updateRoleFetch):", role);
-    console.log("Supabase error (updateRoleFetch):", roleErr);
+    const { data: role } = await supabase.from('roles').select('name').eq('id', id).limit(1).maybeSingle();
     if (!role) {
       return res.status(404).json({ error: 'Role not found.' });
     }
@@ -831,15 +819,13 @@ const deleteRole = async (req, res, next) => {
       return res.status(500).json({ error: 'Database service unavailable' });
     }
 
-    const { data: role, error: roleErr } = await supabase.from('roles').select('name').eq('id', id).limit(1).maybeSingle();
-    console.log("Supabase response (deleteRoleFetch):", role);
-    console.log("Supabase error (deleteRoleFetch):", roleErr);
+    const { data: role } = await supabase.from('roles').select('name').eq('id', id).limit(1).maybeSingle();
     if (!role) {
       return res.status(404).json({ error: 'Role not found.' });
     }
 
     // Prevent deleting default critical roles
-    if (['student', 'faculty', 'staff', 'admin', 'super admin'].includes(role.name)) {
+    if (['student', 'faculty', 'staff', 'officer', 'admin', 'super admin'].includes(role.name)) {
       return res.status(400).json({ error: 'Critical system roles cannot be deleted.' });
     }
 

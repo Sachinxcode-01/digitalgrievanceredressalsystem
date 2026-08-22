@@ -285,8 +285,9 @@ export const AdminDepartmentsPage = () => {
   const totalTickets = tickets.length;
   const openTickets = tickets.filter(t => !['Resolved', 'Closed'].includes(t.status)).length;
   const slaBreached = tickets.filter(t => {
-    if (!t.due_date) return false;
-    return new Date(t.due_date) < new Date() && !['Resolved', 'Closed'].includes(t.status);
+    const slaTarget = t.sla_due_at || t.due_date;
+    if (!slaTarget) return false;
+    return new Date(slaTarget) < new Date() && !['Resolved', 'Closed'].includes(t.status);
   }).length;
 
   return (
@@ -358,7 +359,7 @@ export const AdminDepartmentsPage = () => {
 
           {loading ? (
             <div className="space-y-3">
-              {[...Array(4)].map((_, i) => <LoadingSkeleton key={i} className="h-[72px] rounded-2xl" />)}
+              {[...Array(4)].map((_, i) => <LoadingSkeleton key={i} className="h-18 rounded-2xl" />)}
             </div>
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3">

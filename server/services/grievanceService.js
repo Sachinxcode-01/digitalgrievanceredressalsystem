@@ -209,10 +209,17 @@ const grievanceService = {
   async getGrievanceById(id, user) {
     const grievance = await grievanceRepository.findById(id);
     if (!grievance) {
-      throw new Error('Grievance not found');
+      const err = new Error('Grievance not found');
+      err.status = 404;
+      throw err;
     }
 
-    if (user.role !== 'admin' && user.role !== 'super admin' && grievance.user_id !== user.id) {
+    const isAdmin = user.role === 'admin' || user.role === 'super admin';
+    const isAssignee = grievance.assigned_to === user.id || (user.email && grievance.assigned_to === user.email);
+    const isOfficer = user.role === 'officer' || user.role === 'faculty' || user.role === 'staff';
+    const isOwner = grievance.user_id === user.id || (user.email && grievance.email === user.email);
+
+    if (!isAdmin && !isOwner && !isAssignee && !isOfficer) {
       const err = new Error('Access Denied: Scoped access violation');
       err.status = 403;
       throw err;
@@ -224,7 +231,20 @@ const grievanceService = {
   async updateGrievanceStatus(id, status, resolutionNotes, user, ip, userAgent) {
     const ticket = await grievanceRepository.findById(id);
     if (!ticket) {
-      throw new Error('Grievance not found');
+      const err = new Error('Grievance not found');
+      err.status = 404;
+      throw err;
+    }
+
+    const isAdmin = user.role === 'admin' || user.role === 'super admin';
+    const isAssignee = ticket.assigned_to === user.id || (user.email && ticket.assigned_to === user.email);
+    const isOfficer = user.role === 'officer' || user.role === 'faculty' || user.role === 'staff';
+    const isOwner = ticket.user_id === user.id || (user.email && ticket.email === user.email);
+
+    if (!isAdmin && !isAssignee && !isOfficer && !isOwner) {
+      const err = new Error('Access Denied: Not authorized to update grievance status');
+      err.status = 403;
+      throw err;
     }
 
     // Enforce state transition rules
@@ -450,10 +470,17 @@ const grievanceService = {
   async getGrievanceTimeline(id, user) {
     const ticket = await grievanceRepository.findById(id);
     if (!ticket) {
-      throw new Error('Grievance not found');
+      const err = new Error('Grievance not found');
+      err.status = 404;
+      throw err;
     }
 
-    if (user.role !== 'admin' && user.role !== 'super admin' && ticket.user_id !== user.id) {
+    const isAdmin = user.role === 'admin' || user.role === 'super admin';
+    const isAssignee = ticket.assigned_to === user.id || (user.email && ticket.assigned_to === user.email);
+    const isOfficer = user.role === 'officer' || user.role === 'faculty' || user.role === 'staff';
+    const isOwner = ticket.user_id === user.id || (user.email && ticket.email === user.email);
+
+    if (!isAdmin && !isOwner && !isAssignee && !isOfficer) {
       const err = new Error('Access Denied: Timeline scoped violation');
       err.status = 403;
       throw err;

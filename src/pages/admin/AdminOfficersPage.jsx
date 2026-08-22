@@ -250,7 +250,7 @@ export const AdminOfficersPage = () => {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const getTicketCount = (officer) =>
-    tickets.filter(t => t.assigned_to === officer.email || t.officer_email === officer.email).length;
+    tickets.filter(t => t.assigned_to === officer.id || t.assigned_to === officer.email || t.officer_email === officer.email).length;
 
   const filtered = officers.filter(o => {
     const q = searchQuery.toLowerCase();

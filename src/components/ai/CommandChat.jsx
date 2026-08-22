@@ -91,14 +91,15 @@ export const CommandChat = ({ grievanceId, currentUser, role = 'user' }) => {
       )
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState();
+        const currentUserId = currentUser?.id;
         const typing = Object.values(state)
           .flat()
-          .filter(u => u.isTyping && u.userId !== currentUser.id)
+          .filter(u => u.isTyping && u.userId !== currentUserId)
           .map(u => u.userName);
         setTypingUsers(typing);
       })
       .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
+        if (status === 'SUBSCRIBED' && currentUser?.id) {
           await channel.track({
             userId: currentUser.id,
             userName: currentUser.fullName || currentUser.user_metadata?.full_name || currentUser.email || 'User',
@@ -115,7 +116,7 @@ export const CommandChat = ({ grievanceId, currentUser, role = 'user' }) => {
         channelRef.current = null;
       }
     };
-  }, [grievanceId]);
+  }, [grievanceId, currentUser?.id]);
 
   useEffect(() => {
     const handleInjectComment = (e) => {
@@ -129,11 +130,13 @@ export const CommandChat = ({ grievanceId, currentUser, role = 'user' }) => {
     return () => window.removeEventListener('inject-comment', handleInjectComment);
   }, [grievanceId]);
 
-
-
   const handleSend = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || isSending) return;
+    if (!currentUser?.id) {
+      toast.error("Please sign in to send messages.");
+      return;
+    }
 
     setIsSending(true);
     const { error } = await supabase
@@ -175,7 +178,7 @@ export const CommandChat = ({ grievanceId, currentUser, role = 'user' }) => {
   };
 
   const updatePresence = async (typingStatus) => {
-    if (channelRef.current) {
+    if (channelRef.current && currentUser?.id) {
       await channelRef.current.track({
         userId: currentUser.id,
         userName: currentUser.fullName || currentUser.user_metadata?.full_name || currentUser.email || 'User',

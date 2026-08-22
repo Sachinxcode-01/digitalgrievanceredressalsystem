@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense } from 'react';
-import { ClerkProvider } from '@clerk/clerk-react';
+import { ClerkProvider, AuthenticateWithRedirectCallback } from '@clerk/clerk-react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './app/layouts/Layout';
 import { isMisconfigured } from './lib/supabase';
@@ -85,29 +85,18 @@ const AuthenticatedRedirect = () => {
 };
 
 /**
- * Wrapper for auth pages (login/register/verify-otp/forgot/reset/admin).
- * Waits for auth initialisation to resolve so we neither flash the login form to an
- * already-authenticated user nor prematurely redirect during the brief Clerk /
- * local-session bootstrap window. Public pages are intentionally NOT wrapped so they
- * render instantly without waiting on auth.
+ * SSO / OAuth Callback Page.
+ * Renders Clerk's AuthenticateWithRedirectCallback component to finish
+ * the OAuth token exchange and seamlessly route to the target dashboard.
  */
 const SsoCallbackPage = () => {
-  const { user, isAuthenticated, loading } = useAuth();
-
-  if (loading) return <PageLoader />;
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  const role = user?.role?.toLowerCase();
-  if (role === 'admin' || role === 'super admin') {
-    return <Navigate to="/admin/dashboard" replace />;
-  }
-  if (role === 'officer' || role === 'faculty' || role === 'staff') {
-    return <Navigate to="/officer/dashboard" replace />;
-  }
-  return <Navigate to="/dashboard" replace />;
+  return (
+    <AuthenticateWithRedirectCallback
+      signInFallbackRedirectUrl="/dashboard"
+      signUpFallbackRedirectUrl="/dashboard"
+      continueSignUpUrl="/register"
+    />
+  );
 };
 
 const AuthRoute = ({ children, redirectTo }) => {

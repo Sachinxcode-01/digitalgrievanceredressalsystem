@@ -15,33 +15,48 @@ import toast from 'react-hot-toast';
 
 // ─── Status Flow Configuration ───────────────────────────────────────────────
 const STATUS_TRANSITIONS = {
-  'New':         ['Pending', 'Assigned', 'Closed'],
-  'Pending':     ['Assigned', 'In Progress', 'Closed'],
-  'Assigned':    ['In Progress', 'Resolved', 'Escalated'],
-  'In Progress': ['Resolved', 'Escalated', 'Closed'],
-  'Escalated':   ['In Progress', 'Resolved', 'Closed'],
-  'Resolved':    ['Closed', 'In Progress'],
-  'Closed':      ['In Progress'],
+  'Draft':                 ['Submitted'],
+  'Submitted':             ['Under Review', 'Assigned', 'Closed'],
+  'Under Review':          ['Assigned', 'In Progress', 'Closed'],
+  'New':                   ['Under Review', 'Assigned', 'Closed'],
+  'Pending':               ['Assigned', 'In Progress', 'Closed'],
+  'Assigned':              ['In Progress', 'Pending User Response', 'Resolved', 'Escalated'],
+  'In Progress':           ['Pending User Response', 'Resolved', 'Escalated', 'Closed'],
+  'Pending User Response': ['In Progress', 'Resolved', 'Closed'],
+  'Escalated':             ['In Progress', 'Resolved', 'Closed'],
+  'Resolved':              ['Closed', 'Reopened', 'In Progress'],
+  'Closed':                ['Reopened', 'In Progress'],
+  'Reopened':              ['Assigned', 'In Progress', 'Resolved', 'Closed']
 };
 
 const STATUS_COLORS = {
-  'New':         'text-blue-400 bg-blue-400/10 border-blue-400/30',
-  'Pending':     'text-yellow-400 bg-yellow-400/10 border-yellow-400/30',
-  'Assigned':    'text-purple-400 bg-purple-400/10 border-purple-400/30',
-  'In Progress': 'text-orange-400 bg-orange-400/10 border-orange-400/30',
-  'Escalated':   'text-red-400 bg-red-400/10 border-red-400/30',
-  'Resolved':    'text-green-400 bg-green-400/10 border-green-400/30',
-  'Closed':      'text-slate-400 bg-slate-400/10 border-slate-400/30',
+  'Draft':                 'text-slate-400 bg-slate-400/10 border-slate-400/30',
+  'Submitted':             'text-blue-400 bg-blue-400/10 border-blue-400/30',
+  'New':                   'text-blue-400 bg-blue-400/10 border-blue-400/30',
+  'Under Review':          'text-yellow-400 bg-yellow-400/10 border-yellow-400/30',
+  'Pending':               'text-yellow-400 bg-yellow-400/10 border-yellow-400/30',
+  'Pending User Response': 'text-cyan-400 bg-cyan-400/10 border-cyan-400/30',
+  'Assigned':              'text-purple-400 bg-purple-400/10 border-purple-400/30',
+  'In Progress':           'text-orange-400 bg-orange-400/10 border-orange-400/30',
+  'Escalated':             'text-red-400 bg-red-400/10 border-red-400/30',
+  'Resolved':              'text-green-400 bg-green-400/10 border-green-400/30',
+  'Closed':                'text-slate-400 bg-slate-400/10 border-slate-400/30',
+  'Reopened':              'text-amber-400 bg-amber-400/10 border-amber-400/30'
 };
 
 const STATUS_ICONS = {
-  'New':         Circle,
-  'Pending':     Clock,
-  'Assigned':    UserCheck,
-  'In Progress': Activity,
-  'Escalated':   ShieldAlert,
-  'Resolved':    CheckCircle2,
-  'Closed':      Lock,
+  'Draft':                 FileText,
+  'Submitted':             Circle,
+  'New':                   Circle,
+  'Under Review':          Clock,
+  'Pending':               Clock,
+  'Pending User Response': MessageSquare,
+  'Assigned':              UserCheck,
+  'In Progress':           Activity,
+  'Escalated':             ShieldAlert,
+  'Resolved':              CheckCircle2,
+  'Closed':                Lock,
+  'Reopened':              RotateCcw
 };
 
 // ─── AI Suggested Responses ──────────────────────────────────────────────────
@@ -59,7 +74,7 @@ const TimelineEntry = ({ entry, isLast }) => {
   return (
     <div className="flex gap-4 relative">
       {!isLast && (
-        <div className="absolute left-[18px] top-9 bottom-0 w-[1px] bg-border/40" />
+        <div className="absolute left-4.5 top-9 bottom-0 w-px bg-border/40" />
       )}
       <div className={`w-9 h-9 rounded-full border flex items-center justify-center shrink-0 ${STATUS_COLORS[entry.status] || 'text-muted-foreground border-border'}`}>
         <Icon size={14} />
@@ -403,7 +418,7 @@ export const AdminGrievanceDetailsPage = ({ user, sessionUser }) => {
               { label: 'Assigned To', value: ticket.assigned_to || 'Unassigned', highlight: !!ticket.assigned_to },
               { label: 'Last Updated', value: ticket.updated_at ? formatDistanceToNow(new Date(ticket.updated_at), { addSuffix: true }) : '—' },
             ].map((item, i) => (
-              <div key={i} className="bg-background/60 border border-border/50 rounded-lg p-3 min-w-[100px]">
+              <div key={i} className="bg-background/60 border border-border/50 rounded-lg p-3 min-w-25">
                 <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/70 mb-1">{item.label}</p>
                 <p className={`text-xs font-bold truncate ${item.mono ? 'font-mono text-primary-bright' : item.highlight ? 'text-success' : 'text-foreground'}`}>
                   {item.value}
@@ -714,7 +729,7 @@ export const AdminGrievanceDetailsPage = ({ user, sessionUser }) => {
       {/* AI ASSISTANT TAB */}
       {activeTab === 'ai' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <div className="bg-surface border border-primary-bright/20 rounded-xl p-6 shadow-sm h-[480px] flex flex-col">
+          <div className="bg-surface border border-primary-bright/20 rounded-xl p-6 shadow-sm h-120 flex flex-col">
             <h3 className="text-[10px] font-black uppercase tracking-widest text-primary-bright mb-4 flex items-center gap-2 shrink-0">
               <Bot size={11} /> AI Remediation Assistant
             </h3>

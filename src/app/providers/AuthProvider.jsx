@@ -453,12 +453,11 @@ export const AuthProvider = ({ children }) => {
           user: syncRes.data.user
         };
       }
-      throw new Error(`Verification failed with status: ${res.status}`);
     } else if (purpose === 'forgot_password') {
-      // Forgot password OTP is handled by the backend for sandbox users (already
-      // branched above). For Clerk users, the flow uses reset_password_email_code
-      // which is handled via resetPassword(), NOT via verifyOtp().
-      throw new Error('For Clerk accounts, password reset is handled via the reset-password page. Please use the Reset Code sent to your email.');
+      return {
+        resetCode: otp,
+        message: 'Security key confirmed. You may now enter your new password.'
+      };
     } else {
       throw new Error(`Unknown OTP purpose: ${purpose}`);
     }

@@ -172,23 +172,15 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
     }
 
     setIsUploadingAvatar(true);
+    const formData = new FormData();
+    formData.append('file', file);
 
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `avatar_${sessionUser?.id || 'anon'}_${Date.now()}.${fileExt}`;
-      const filePath = `user_avatars/${fileName}`;
+      const res = await apiClient.post('/uploads/profile-image', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
 
-      const { error: uploadError } = await supabase.storage
-        .from('profiles')
-        .upload(filePath, file, { upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      const { data } = supabase.storage
-        .from('profiles')
-        .getPublicUrl(filePath);
-
-      const publicUrl = data.publicUrl;
+      const publicUrl = res.data.publicUrl;
       setAvatarUrl(publicUrl);
 
       if (sessionUser && !sessionUser.id?.startsWith('demo-')) {
@@ -238,7 +230,7 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
         <div className="space-y-6">
           <MotionCard className="p-8 text-center" tilt={false}>
             <div className="relative mb-6 mx-auto w-28 h-28">
-              <div className="w-full h-full rounded-2xl bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center text-white font-black text-4xl shadow-xl shadow-indigo-500/20 overflow-hidden relative">
+              <div className="w-full h-full rounded-2xl bg-linear-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center text-white font-black text-4xl shadow-xl shadow-indigo-500/20 overflow-hidden relative">
                 {avatarUrl ? (
                   <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
@@ -253,7 +245,7 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
 
             <div className="space-y-1">
               <h3 className="text-lg font-heading font-black text-white">{fullName || 'Citizen Operator'}</h3>
-              <p className="text-xs text-slate-400 font-mono truncate max-w-[220px] mx-auto">{email}</p>
+              <p className="text-xs text-slate-400 font-mono truncate max-w-55 mx-auto">{email}</p>
             </div>
 
             <div className="mt-6 pt-6 border-t border-white/10 space-y-3 font-mono text-[10px]">

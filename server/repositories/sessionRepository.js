@@ -7,8 +7,6 @@ const sessionRepository = {
       .from('sessions')
       .insert([sessionData])
       .select();
-    console.log("Supabase response (createSession):", data);
-    console.log("Supabase error (createSession):", error);
     if (error) throw error;
     return (data && data.length > 0) ? data[0] : null;
   },
@@ -42,8 +40,6 @@ const sessionRepository = {
       .update(updates)
       .eq('id', id)
       .select();
-    console.log("Supabase response (updateSession):", data);
-    console.log("Supabase error (updateSession):", error);
     if (error) throw error;
     return (data && data.length > 0) ? data[0] : null;
   },
