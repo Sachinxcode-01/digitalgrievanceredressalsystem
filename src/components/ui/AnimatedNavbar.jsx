@@ -95,6 +95,22 @@ export const AnimatedNavbar = ({ user }) => {
                     Dashboard
                   </AnimatedButton>
                 </Link>
+                <Link 
+                  to="/profile" 
+                  title="My Profile & Clearance"
+                  className="flex items-center gap-2 p-1 pl-1 pr-2.5 rounded-full bg-slate-900/80 hover:bg-slate-850 border border-white/10 hover:border-indigo-500/40 transition-all text-xs font-mono text-slate-300"
+                >
+                  <div className="w-7 h-7 rounded-full bg-linear-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center text-white font-bold text-xs overflow-hidden ring-1 ring-white/20">
+                    {user.profilePicture ? (
+                      <img src={user.profilePicture} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      (user.fullName || user.email || 'U')[0].toUpperCase()
+                    )}
+                  </div>
+                  <span className="max-w-[80px] truncate text-[11px] font-bold text-white">
+                    {user.fullName?.split(' ')[0] || 'Profile'}
+                  </span>
+                </Link>
               </>
             ) : (
               <>

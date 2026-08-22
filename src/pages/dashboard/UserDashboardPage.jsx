@@ -374,18 +374,26 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
     <AnimatedPage className="space-y-8 text-left max-w-7xl mx-auto pb-16">
       
       {/* 1. Header Banner */}
-      <GlassPanel className="p-6 md:p-8" intensity="heavy">
+      <GlassPanel className="p-6 md:p-8 relative overflow-hidden border border-white/10 shadow-2xl rounded-3xl" intensity="heavy">
+        <div className="absolute top-0 right-0 w-125 h-125 bg-linear-to-br from-indigo-600/15 via-cyan-500/10 to-transparent rounded-full blur-3xl pointer-events-none -mr-32 -mt-32" />
+        
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-xs font-mono font-bold text-indigo-400">
-              <Zap size={13} className="animate-pulse" />
-              <span>Student Operational Console</span>
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-xs font-mono font-bold text-indigo-400 shadow-xs">
+                <Zap size={13} className="animate-pulse text-indigo-400" />
+                <span>Student Operational Console</span>
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping inline-block" />
+                <span>System Nominal • SLA Active</span>
+              </div>
             </div>
             <h1 className="text-2xl md:text-4xl font-heading font-black text-white uppercase tracking-tight">
               Welcome Back, {sessionUser?.fullName || userProfile?.fullName || 'Student'}!
             </h1>
-            <p className="text-xs md:text-sm text-slate-400 font-medium max-w-2xl">
-              Track live grievance milestones, submit institutional issues, and monitor SLA compliance in real time.
+            <p className="text-xs md:text-sm text-slate-400 font-medium max-w-2xl leading-relaxed">
+              Track live grievance milestones, file institutional issues with AI voice & translation, and monitor SLA compliance in real time.
             </p>
           </div>
 

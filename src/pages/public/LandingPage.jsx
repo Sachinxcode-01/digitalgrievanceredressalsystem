@@ -5,7 +5,7 @@ import {
   MessageSquare, Mail, MapPin, Sparkles, Cpu, Layers, Lock, KeyRound, Bot, 
   Clock, Search, LayoutDashboard, BarChart3, UploadCloud, Bell, FileSpreadsheet, 
   History, Users, Building2, School, Home, Building, HelpCircle, AlertCircle,
-  TrendingUp, Database, Code2, Server, Terminal, Check
+  TrendingUp, Database, Code2, Server, Terminal, Check, Mic
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../app/providers/AuthProvider';
@@ -33,10 +33,12 @@ export const LandingPage = () => {
   const userRole = user?.role || 'student';
   const dashboardLink = (userRole === 'admin' || userRole === 'super admin') ? '/admin/dashboard' : '/dashboard';
 
-  // 14 Core Features
+  // 16 Core Features
   const coreFeatures = [
     { icon: Lock, title: 'Secure Login & OTP', desc: 'Encrypted multi-factor authentication with 6-digit one-time passcode verification.', badge: 'Security' },
     { icon: KeyRound, title: 'Google/Microsoft Auth', desc: 'Seamless single sign-on integration for institutional single-identity login.', badge: 'Auth' },
+    { icon: Mic, title: 'AI Voice-to-Text Studio', desc: 'Real-time live speech dictation and audio upload transcription in 10+ regional languages.', badge: 'Voice AI' },
+    { icon: Globe, title: 'Multilingual Auto-Translation', desc: 'Instant AI translation between English, Hindi, Tamil, Telugu, Marathi, and regional languages.', badge: 'Translation' },
     { icon: Cpu, title: 'AI Grievance Triage', desc: 'Gemini-powered semantic classification, sentiment analysis, and urgency scoring.', badge: 'AI Engine' },
     { icon: Bot, title: 'ResolveBot Assistant', desc: 'Streaming AI chatbot for instant resolution recommendations and guidance.', badge: 'Assistant' },
     { icon: Layers, title: 'Smart Auto-Routing', desc: 'Dynamic dispatch to correct administrative terminals and department heads.', badge: 'Routing' },
