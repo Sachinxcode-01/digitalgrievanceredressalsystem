@@ -149,11 +149,11 @@ export const DeliveryTrackingWidget = ({ ticket, role = 'student', onCancel, onE
         <div className="relative flex items-center justify-between">
           
           {/* Background Track Line */}
-          <div className="absolute left-6 right-6 top-5 h-1 bg-border/60 -z-0" />
+          <div className="absolute left-6 right-6 top-5 h-1 bg-border/60 z-0" />
           
           {/* Active Progress Bar Fill */}
           <motion.div 
-            className="absolute left-6 top-5 h-1 bg-linear-to-r from-primary to-accent -z-0"
+            className="absolute left-6 top-5 h-1 bg-linear-to-r from-primary to-accent z-0"
             initial={{ width: '0%' }}
             animate={{ width: `${(currentIndex / (stages.length - 1)) * 100}%` }}
             transition={{ duration: 0.8, ease: 'easeOut' }}
@@ -178,7 +178,7 @@ export const DeliveryTrackingWidget = ({ ticket, role = 'student', onCancel, onE
                   }`}
                 >
                   {isCompleted ? (
-                    <Check size={18} className="stroke-[3]" />
+                    <Check size={18} className="stroke-3" />
                   ) : isCurrent ? (
                     <span className="relative flex h-3 w-3">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
@@ -190,7 +190,7 @@ export const DeliveryTrackingWidget = ({ ticket, role = 'student', onCancel, onE
                 </motion.div>
 
                 {/* Stage Label */}
-                <div className="mt-2 text-center max-w-[90px]">
+                <div className="mt-2 text-center max-w-22.5">
                   <p className={`text-[11px] font-bold tracking-tight leading-snug ${
                     isCompleted || isCurrent ? 'text-foreground' : 'text-muted-foreground/60'
                   }`}>
