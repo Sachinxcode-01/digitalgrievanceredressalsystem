@@ -246,8 +246,46 @@ const authorizePermissions = (...requiredPermissions) => {
   };
 };
 
+/**
+ * Optional Authentication Middleware
+ * Populates req.user if valid token exists, but doesn't block unauthenticated / visitor / demo users.
+ */
+const optionalAuth = async (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  let token = authHeader && authHeader.split(' ')[1];
+
+  if (!token && req.cookies) {
+    token = req.cookies.access_token;
+  }
+
+  if (token && JWT_SECRET) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      req.user = {
+        id: decoded.id,
+        email: decoded.email,
+        role: decoded.role || 'student',
+        full_name: decoded.full_name,
+        session_id: decoded.session_id
+      };
+      return next();
+    } catch {
+      // Fall through gracefully
+    }
+  }
+
+  // Set guest student fallback
+  req.user = req.user || {
+    id: 'guest_user',
+    role: 'student',
+    email: 'guest@resolvenow.edu'
+  };
+  next();
+};
+
 module.exports = {
   authenticateToken,
+  optionalAuth,
   authorizeRoles,
   authorizePermissions,
   JWT_SECRET

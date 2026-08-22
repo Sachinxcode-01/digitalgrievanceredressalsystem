@@ -108,18 +108,39 @@ export const ResolveBot = () => {
         if (last && last.isStreaming) {
           const updatedLast = { ...last };
           delete updatedLast.isStreaming;
+          if (!updatedLast.text) {
+            updatedLast.text = "I'm here to assist with any campus grievances or questions. You can describe your issue in detail or submit a new grievance ticket!";
+          }
           next[next.length - 1] = updatedLast;
         }
         return next;
       });
 
     } catch (error) {
-      console.error("ResolveBot stream error:", error);
+      console.warn("ResolveBot stream fallback attempting:", error.message);
       setIsTyping(false);
-      setMessages(prev => {
-        const next = prev.filter(m => !(m.isStreaming && !m.text));
-        return [...next, { text: "Connection to AI Core lost. Please submit a manual ticket.", isBot: true }];
-      });
+
+      // Attempt fallback to non-streaming POST /chat
+      try {
+        const headers = await getAuthHeaders();
+        const apiBase = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+        const res = await fetch(`${apiBase}/chat`, {
+          method: 'POST',
+          headers: { ...headers, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: userText })
+        });
+        const data = await res.json();
+        const fallbackReply = data.reply || "I'm your AI Resolution Assistant. How can I assist you with your campus queries or ticket submissions today?";
+        setMessages(prev => {
+          const next = prev.filter(m => !(m.isStreaming && !m.text));
+          return [...next, { text: fallbackReply, isBot: true }];
+        });
+      } catch {
+        setMessages(prev => {
+          const next = prev.filter(m => !(m.isStreaming && !m.text));
+          return [...next, { text: "I'm your AI Resolution Assistant. Describe your issue in detail or submit a grievance ticket directly from your dashboard!", isBot: true }];
+        });
+      }
     }
   };
 

@@ -614,6 +614,56 @@ Respond ONLY with valid JSON in this exact structure:
         ? `High keyword & semantic overlap detected with existing ticket ${bestMatch?.ticket_id}.`
         : 'No duplicate grievances detected.'
     };
+  },
+
+  /**
+   * Conversational Chat Response for ResolveBot AI
+   */
+  async getChatResponse(message, context = '') {
+    const text = (message || '').toLowerCase();
+
+    // 1. Try Neural AI
+    const systemPrompt = `You are ResolveBot AI, an intelligent, empathetic, and friendly AI Resolution Assistant for the ResolveNow platform.
+Your goals:
+1. Greet the student or user warmly and professionally.
+2. If they are asking general or self-service questions (like password resets, Wi-Fi connectivity, fee payment receipts, hostel maintenance, exam hall issues), provide a direct, concise solution immediately.
+3. If they describe a grievance or complaint, help them understand the urgency and advise them to submit a ticket via the 'Submit Grievance' tab.
+4. Keep answers friendly, clear, and under 3-4 sentences.`;
+
+    const prompt = context ? `Context:\n${context}\n\nUser Question:\n${message}` : message;
+    const aiReply = await callAI(prompt, systemPrompt, 0.6);
+    if (aiReply) return aiReply;
+
+    // 2. Intelligent Knowledge Fallback
+    if (text.includes('password') || text.includes('cannot login') || text.includes('reset') || text.includes('forgot')) {
+      return "You can instantly reset your credentials by visiting the 'Settings' tab > 'Account Security', or using the 'Forgot Password' link on the login screen. No manual IT ticket is required! 🚀";
+    }
+    if (text.includes('wifi') || text.includes('internet') || text.includes('network') || text.includes('connection')) {
+      return "For campus Wi-Fi (EduNet), please verify your DNS is set to automatic (DHCP). If the signal drops in specific wings, submit a quick IT Support ticket and our team will dispatch a router reset.";
+    }
+    if (text.includes('scholarship') || text.includes('fee') || text.includes('payment') || text.includes('finance')) {
+      return "Financial inquiries are processed within 24-48 business hours. You can download certified payment receipts directly under Student Accounts without waiting for grievance triage.";
+    }
+    if (text.includes('status') || text.includes('track') || text.includes('my ticket') || text.includes('where is')) {
+      return "You can track your live ticket status in real-time under 'Track Status' or on your Dashboard. Every grievance includes live milestones, assigned officer details, and SLA countdowns.";
+    }
+    if (text.includes('hi') || text.includes('hello') || text.includes('hey') || text.includes('good morning') || text.includes('good afternoon')) {
+      return "Hello! 👋 I'm ResolveBot, your 24/7 Grievance & Resolution Assistant. How can I assist you with your campus queries or ticket submissions today?";
+    }
+
+    return "I'm here to assist with any campus grievances or questions. Could you describe your issue in a bit more detail, or would you like me to guide you to submit a new ticket?";
+  },
+
+  /**
+   * Streaming Chat Generator for ResolveBot AI
+   */
+  async *getChatResponseStream(message, context = '') {
+    const fullResponse = await this.getChatResponse(message, context);
+    const words = fullResponse.split(' ');
+    for (const word of words) {
+      yield word + ' ';
+      await new Promise(r => setTimeout(r, 25));
+    }
   }
 };
 
