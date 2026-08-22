@@ -81,7 +81,35 @@ const sendTestSms = async (testPhone) => {
   });
 };
 
+/**
+ * Transmits Delivery Milestone Alert SMS to citizen
+ */
+const sendMilestoneSMS = async (phoneNumber, { ticketId, status, officerName, department, trackingUrl }) => {
+  const taskFn = async () => {
+    const client = getSmsClient();
+    const messageBody = `[ResolveNow] Ticket #${ticketId}: Status updated to '${status}' by ${officerName || department || 'Officer'}. Track live: ${trackingUrl || 'http://localhost:5173'}`;
+
+    if (!client) {
+      console.log(`[SMS Simulation Alert] To: ${phoneNumber} | Message: ${messageBody}`);
+      return { success: true, simulated: true, message: messageBody };
+    }
+
+    console.log(`[Android SMS Gateway] Transmitting Milestone Alert to ${phoneNumber}`);
+    return client.send({
+      phoneNumbers: [phoneNumber],
+      message: messageBody
+    });
+  };
+
+  notificationQueue.enqueue('SMS', { phone: phoneNumber, ticketId, status }, taskFn);
+  return {
+    success: true,
+    message: 'Milestone SMS transmission queued.'
+  };
+};
+
 module.exports = {
   sendOTPSMS,
-  sendTestSms
+  sendTestSms,
+  sendMilestoneSMS
 };

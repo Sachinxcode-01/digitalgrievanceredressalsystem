@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { 
   Plus, Clock, CheckCircle2, AlertCircle, X, Ticket, 
   Sparkles, Loader2, FileDown, Search, ChevronLeft, ChevronRight,
-  Activity, Trash2, Zap, Upload, Paperclip, AlertTriangle
+  Activity, Trash2, Zap, Upload, Paperclip, AlertTriangle, Bell
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer 
@@ -12,6 +12,7 @@ import {
 import { supabase } from '../../lib/supabase';
 import { grievanceService } from '../../services/grievanceService';
 import { apiClient } from '../../api/apiClient';
+import { webPushService } from '../../services/webPushService';
 import StatusBadge from '../../components/ui/StatusBadge';
 import UrgencyBadge from '../../components/ui/UrgencyBadge';
 import SlaRiskBadge from '../../components/ui/SlaRiskBadge';
@@ -389,6 +390,32 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
+            <AnimatedButton
+              variant="outline"
+              size="md"
+              leftIcon={Bell}
+              onClick={async () => {
+                const perm = await webPushService.requestPermission();
+                const ticket = selectedTicket || {
+                  ticket_id: 'TIC-1088',
+                  title: 'Campus Wi-Fi & EduNet Signal Degradation',
+                  department: 'IT Support & Campus Wi-Fi',
+                  status: 'In Progress',
+                  mobile_number: '+1 (555) 019-2834'
+                };
+                webPushService.triggerMilestoneAlert({
+                  ticketId: ticket.ticket_id,
+                  status: 'In Progress',
+                  title: ticket.title,
+                  officerName: 'Nodal Officer Rajesh',
+                  department: ticket.department || 'IT Support',
+                  smsPhone: '+1 (555) 019-2834'
+                });
+                toast.success('Live Web Push & Simulated SMS Alert Dispatched! 🔔');
+              }}
+            >
+              Test Push & SMS
+            </AnimatedButton>
             <AnimatedButton
               variant="glow"
               size="md"

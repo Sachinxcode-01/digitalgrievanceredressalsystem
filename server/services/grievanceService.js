@@ -327,7 +327,10 @@ const grievanceService = {
           console.error(`Escalation email dispatch failed: ${err.message}`)
         );
       } else {
-        notificationService.sendGrievanceStatusUpdatedEmail(ticket.user_id, ticket.ticket_id, ticket.title, currentStatus, status).catch(err =>
+        notificationService.sendGrievanceStatusUpdatedEmail(ticket.user_id, ticket.ticket_id, ticket.title, currentStatus, status, {
+          officerName: user.full_name || user.email,
+          department: ticket.department
+        }).catch(err =>
           console.error(`Status update email dispatch failed: ${err.message}`)
         );
       }

@@ -123,7 +123,7 @@ const notificationService = {
     return emailService.queueEmail(officerEmail, data.subject, htmlContent, 'Assignment Alert');
   },
 
-  async sendGrievanceStatusUpdatedEmail(userId, ticketId, title, oldStatus, newStatus) {
+  async sendGrievanceStatusUpdatedEmail(userId, ticketId, title, oldStatus, newStatus, extraData = {}) {
     const htmlContent = emailService.compileEmail('grievanceUpdatedEmail.html', {
       ticketId,
       title,
@@ -132,6 +132,22 @@ const notificationService = {
     }, 'Timeline Milestone Updated', 'user');
     const subject = `ResolveNow Status Update: #${ticketId}`;
     await createInApp(userId, 'Grievance Status Update', `Ticket #${ticketId} transitioned from ${oldStatus} to ${newStatus}.`, 'info');
+
+    // Trigger SMS Milestone Alert if citizen has phone
+    if (userId) {
+      userRepository.findById(userId).then(user => {
+        if (user && user.mobile_number) {
+          smsService.sendMilestoneSMS(user.mobile_number, {
+            ticketId,
+            status: newStatus,
+            officerName: extraData.officerName || null,
+            department: extraData.department || null,
+            trackingUrl: `${process.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/public-status?ticketId=${ticketId}`
+          }).catch(err => console.warn('SMS milestone dispatch failure:', err.message));
+        }
+      }).catch(() => {});
+    }
+
     return checkPreferenceAndQueue(userId, 'status_updates', subject, htmlContent, 'Status Milestone Update');
   },
 
@@ -146,6 +162,22 @@ const notificationService = {
     });
     const htmlContent = emailService.compileEmail(data.template, data.variables, 'Redressal Verification Complete', 'user');
     await createInApp(userId, 'Grievance Resolved', `Ticket #${ticketId} has been resolved: "${notes}"`, 'success');
+
+    // Trigger Resolution SMS Alert
+    if (userId) {
+      userRepository.findById(userId).then(user => {
+        if (user && user.mobile_number) {
+          smsService.sendMilestoneSMS(user.mobile_number, {
+            ticketId,
+            status: 'Resolved',
+            officerName: 'Redressal Officer',
+            department: 'Resolved',
+            trackingUrl: `${process.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/public-status?ticketId=${ticketId}`
+          }).catch(err => console.warn('Resolution SMS dispatch failure:', err.message));
+        }
+      }).catch(() => {});
+    }
+
     return checkPreferenceAndQueue(userId, 'status_updates', data.subject, htmlContent, 'Resolution Complete');
   },
 

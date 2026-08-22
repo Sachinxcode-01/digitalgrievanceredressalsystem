@@ -18,6 +18,7 @@ import UrgencyBadge from '../../components/ui/UrgencyBadge';
 import SlaRiskBadge from '../../components/ui/SlaRiskBadge';
 import { DeliveryTrackingWidget } from '../../components/grievances/DeliveryTrackingWidget';
 import { CommandChat } from '../../components/ai/CommandChat';
+import { webPushService } from '../../services/webPushService';
 
 import AnimatedPage from '../../components/ui/AnimatedPage';
 import CounterCard from '../../components/ui/CounterCard';
@@ -121,6 +122,17 @@ export const OfficerDashboardPage = ({ sessionUser, userProfile, onLogout }) => 
     try {
       await grievanceService.updateStatus(ticketId, nextStatus, notes);
       toast.success(`Status updated to "${nextStatus}"`);
+
+      // Trigger Web Push & Simulated SMS Alert
+      webPushService.triggerMilestoneAlert({
+        ticketId: selectedTicket?.ticket_id || ticketId,
+        status: nextStatus,
+        title: selectedTicket?.title || 'Campus Grievance',
+        officerName: sessionUser?.fullName || 'Assigned Officer',
+        department: selectedTicket?.department || officerDept,
+        smsPhone: selectedTicket?.mobile_number || '+1 (555) 019-2834'
+      });
+
       fetchOfficerTickets();
     } catch (err) {
       toast.error(err.response?.data?.error || err.message || 'Failed to update status.');
@@ -138,6 +150,17 @@ export const OfficerDashboardPage = ({ sessionUser, userProfile, onLogout }) => 
     try {
       await grievanceService.updateStatus(selectedTicket.id, 'Resolved', resolutionNotes.trim());
       toast.success('Grievance marked as Resolved and citizen notified!');
+
+      // Trigger Resolution Web Push & SMS Alert
+      webPushService.triggerMilestoneAlert({
+        ticketId: selectedTicket?.ticket_id || selectedTicket.id,
+        status: 'Resolved',
+        title: selectedTicket?.title,
+        officerName: sessionUser?.fullName || 'Assigned Officer',
+        department: selectedTicket?.department || officerDept,
+        smsPhone: selectedTicket?.mobile_number || '+1 (555) 019-2834'
+      });
+
       setShowResolveModal(false);
       setResolutionNotes('');
       fetchOfficerTickets();
@@ -159,6 +182,17 @@ export const OfficerDashboardPage = ({ sessionUser, userProfile, onLogout }) => 
     try {
       await grievanceService.escalate(selectedTicket.id, escalationReason.trim());
       toast.success('Grievance escalated to Administrative Clearance!');
+
+      // Trigger Escalation Milestone Alert
+      webPushService.triggerMilestoneAlert({
+        ticketId: selectedTicket?.ticket_id || selectedTicket.id,
+        status: 'Escalated',
+        title: selectedTicket?.title,
+        officerName: sessionUser?.fullName || 'Assigned Officer',
+        department: selectedTicket?.department || officerDept,
+        smsPhone: selectedTicket?.mobile_number || '+1 (555) 019-2834'
+      });
+
       setShowEscalateModal(false);
       setEscalationReason('');
       fetchOfficerTickets();

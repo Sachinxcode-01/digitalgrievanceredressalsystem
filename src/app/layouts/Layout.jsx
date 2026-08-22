@@ -3,6 +3,7 @@ import { LogOut, LayoutDashboard, Ticket, Users, User, Settings, Moon, Sun, Shie
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation, NavLink } from 'react-router-dom';
 import { NotificationCenter } from '../../components/notifications/NotificationCenter';
+import { LiveDeliveryAlertBanner } from '../../components/notifications/LiveDeliveryAlertBanner';
 import ResolveBot from '../../components/ai/ResolveBot';
 import { useRealtimeConnection } from '../../hooks/useRealtimeConnection';
 
@@ -288,6 +289,7 @@ export const Layout = ({ children, user, onLogout, theme, setTheme }) => {
       </AnimatePresence>
 
       <ResolveBot />
+      <LiveDeliveryAlertBanner />
     </div>
   );
 };
