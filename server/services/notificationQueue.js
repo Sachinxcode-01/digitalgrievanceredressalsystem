@@ -148,9 +148,12 @@ class NotificationQueue {
         const backoffDelay = job.baseDelayMs * Math.pow(2, job.attempt - 1);
         console.warn(`[Notification Queue] Scheduling retry for Job ${job.id} in ${backoffDelay / 1000} seconds.`);
         
-        setTimeout(() => {
+        const retryTimer = setTimeout(() => {
           this.enqueueWithId(job);
         }, backoffDelay);
+        if (retryTimer && typeof retryTimer.unref === 'function') {
+          retryTimer.unref();
+        }
       } else {
         console.error(`[Notification Queue] CRITICAL: Job ${job.id} exceeded maximum retries. Discarding job.`, job.payload);
       }

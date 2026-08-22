@@ -174,6 +174,16 @@ app.get('*', (req, res) => {
 
 // 6. Centralized Error Handling Middleware
 app.use((err, req, res, next) => {
+  // Handle Multer upload errors (e.g. file size limit exceeded)
+  if (err.name === 'MulterError') {
+    return res.status(400).json({
+      error: err.code === 'LIMIT_FILE_SIZE' 
+        ? 'File size exceeds maximum allowable limit (2MB for avatars, 5MB for attachments).' 
+        : `Upload Error: ${err.message}`,
+      timestamp: new Date().toISOString()
+    });
+  }
+
   const status = err.status || 500;
 
   // Full detail is logged server-side only, never returned to the client.
