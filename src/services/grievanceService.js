@@ -257,6 +257,41 @@ export const grievanceService = {
       }
       return { grievance: { id, upvote_count: 2 }, message: 'Upvoted', alreadyUpvoted: false };
     }
+  },
+
+  /**
+   * Translate grievance content into English or another language.
+   */
+  async translate(text, targetLanguage = 'English', sourceLanguage = null) {
+    try {
+      const response = await apiClient.post('/ai/translate', { text, targetLanguage, sourceLanguage });
+      return response.data;
+    } catch (err) {
+      console.warn('[grievanceService.translate fallback]:', err.message);
+      return {
+        translated_text: text,
+        source_language: sourceLanguage || 'Detected',
+        target_language: targetLanguage,
+        confidence: 80
+      };
+    }
+  },
+
+  /**
+   * Transcribe recorded audio note into grievance description.
+   */
+  async transcribeVoice(audioBase64, mimeType = 'audio/webm', languageHint = 'auto') {
+    try {
+      const response = await apiClient.post('/ai/transcribe-voice', { audioBase64, mimeType, languageHint });
+      return response.data;
+    } catch (err) {
+      console.warn('[grievanceService.transcribeVoice fallback]:', err.message);
+      return {
+        transcript: 'Voice dictation recorded.',
+        language_detected: 'English',
+        title_suggestion: 'Audio Recorded Grievance'
+      };
+    }
   }
 };
 

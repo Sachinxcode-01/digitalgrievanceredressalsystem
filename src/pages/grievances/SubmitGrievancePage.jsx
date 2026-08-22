@@ -20,6 +20,8 @@ import MotionCard from '../../components/ui/MotionCard';
 import AnimatedButton from '../../components/ui/AnimatedButton';
 import SmartTriageAssistant from '../../components/ai/SmartTriageAssistant';
 import DuplicateGrievanceModal from '../../components/ai/DuplicateGrievanceModal';
+import MultilingualTranslator from '../../components/ai/MultilingualTranslator';
+import VoiceStudioModal from '../../components/ai/VoiceStudioModal';
 
 export const SubmitGrievancePage = ({ user, sessionUser }) => {
   const currentUser = user || sessionUser;
@@ -38,9 +40,9 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isListening, setIsListening] = useState(false);
   const [showDraftBanner, setShowDraftBanner] = useState(false);
   const [submittedTicket, setSubmittedTicket] = useState(null);
+  const [showVoiceModal, setShowVoiceModal] = useState(false);
 
   // Duplicate Check states
   const [duplicateCheckResult, setDuplicateCheckResult] = useState(null);
@@ -132,39 +134,6 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
     } finally {
       setIsAnalyzing(false);
     }
-  };
-
-  const [voiceLang, setVoiceLang] = useState('en-US');
-
-  const startVoiceInput = (lang = voiceLang) => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      toast.error("Voice dictation is not supported in this browser. Please use Chrome/Edge.");
-      return;
-    }
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    recognition.lang = lang;
-    recognition.interimResults = false;
-    recognition.continuous = false;
-
-    recognition.onstart = () => {
-      setIsListening(true);
-      toast.success(`Voice recording active (${lang === 'hi-IN' ? 'Hindi' : 'English'}). Speak now...`);
-    };
-
-    recognition.onend = () => setIsListening(false);
-    
-    recognition.onerror = (e) => {
-      setIsListening(false);
-      toast.error(`Voice recognition alert: ${e.error}`);
-    };
-
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      setDescription(prev => prev ? `${prev}\n${transcript}` : transcript);
-      toast.success("Voice narrative captured!");
-    };
-    recognition.start();
   };
 
   const handleFileChange = async (e) => {
@@ -486,40 +455,27 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
                   </div>
                 </div>
 
-                <div className="space-y-1.5 relative">
-                  <div className="flex justify-between items-center">
+                <div className="space-y-2 relative">
+                  <div className="flex justify-between items-center flex-wrap gap-2">
                     <label className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-400">
                       Narrative Statement *
                     </label>
                     
                     <div className="flex items-center gap-2">
-                      <select
-                        value={voiceLang}
-                        onChange={(e) => setVoiceLang(e.target.value)}
-                        className="bg-slate-900 border border-white/10 text-slate-300 text-[10px] font-mono font-bold rounded-lg px-2 py-1 outline-none cursor-pointer"
-                      >
-                        <option value="en-US">English (US)</option>
-                        <option value="hi-IN">Hindi (हिंदी)</option>
-                      </select>
-
                       <button 
                         type="button" 
-                        onClick={() => startVoiceInput(voiceLang)}
-                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                          isListening 
-                            ? 'bg-rose-500/20 text-rose-400 border-rose-500/40 animate-pulse shadow-lg shadow-rose-500/20' 
-                            : 'bg-slate-900 text-slate-300 border-white/10 hover:text-white hover:border-indigo-500/40'
-                        }`}
+                        onClick={() => setShowVoiceModal(true)}
+                        className="flex items-center gap-1.5 px-3 py-1 bg-indigo-600/15 hover:bg-indigo-600/25 text-indigo-300 border border-indigo-500/30 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer shadow-xs"
                       >
-                        {isListening ? <MicOff size={11} className="text-rose-400" /> : <Mic size={11} className="text-indigo-400" />}
-                        <span>{isListening ? 'Recording...' : 'Dictate'}</span>
+                        <Mic size={12} className="text-indigo-400" />
+                        <span>AI Voice Studio</span>
                       </button>
                       
                       <button 
                         type="button" 
                         onClick={handleAiAnalyze}
                         disabled={isAnalyzing}
-                        className="flex items-center gap-1.5 px-3 py-1 border border-indigo-500/30 bg-indigo-500/10 text-indigo-400 text-[10px] font-mono font-bold uppercase tracking-wider hover:bg-indigo-500/20 rounded-lg cursor-pointer disabled:opacity-50"
+                        className="flex items-center gap-1.5 px-3 py-1 border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-[10px] font-mono font-bold uppercase tracking-wider hover:bg-cyan-500/20 rounded-lg cursor-pointer disabled:opacity-50"
                       >
                         {isAnalyzing ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
                         <span>{isAnalyzing ? 'Analyzing...' : 'AI Assist'}</span>
@@ -531,10 +487,23 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
                     rows="4" 
                     value={description} 
                     onChange={(e) => setDescription(e.target.value)} 
-                    placeholder="Describe the complaint in detail..." 
-                    className="w-full bg-slate-950 border border-white/10 rounded-xl p-4 text-xs text-white placeholder:text-slate-500 outline-none focus:border-indigo-500 resize-none" 
+                    placeholder="Describe the complaint in detail (in English, Hindi, or any regional language)..." 
+                    className="w-full bg-slate-950 border border-white/10 rounded-xl p-4 text-xs text-white placeholder:text-slate-500 outline-none focus:border-indigo-500 resize-none font-sans leading-relaxed" 
                     required 
                   />
+
+                  {/* Multilingual AI Auto-Translation Preview */}
+                  {description.trim() && (
+                    <MultilingualTranslator 
+                      text={description}
+                      title={title}
+                      onApplyTranslation={(translated) => {
+                        setDescription(translated);
+                        toast.success('Applied translation as primary description.');
+                      }}
+                      className="pt-1"
+                    />
+                  )}
                 </div>
 
                 <SmartTriageAssistant 
@@ -627,6 +596,18 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
           }}
           onUpvotedSuccess={(ticket) => {
             navigate(`/dashboard`);
+          }}
+        />
+
+        <VoiceStudioModal
+          isOpen={showVoiceModal}
+          onClose={() => setShowVoiceModal(false)}
+          onTranscriptionComplete={(text) => {
+            setDescription(prev => prev ? `${prev}\n\n${text}` : text);
+            if (!title) {
+              const previewTitle = text.split(' ').slice(0, 6).join(' ');
+              setTitle(`${previewTitle}...`);
+            }
           }}
         />
 

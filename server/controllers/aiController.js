@@ -129,6 +129,40 @@ const checkDuplicates = async (req, res) => {
   }
 };
 
+/**
+ * Handle Multilingual AI translation request.
+ */
+const translateGrievance = async (req, res) => {
+  const { text, targetLanguage, sourceLanguage } = req.body;
+  try {
+    if (!text || typeof text !== 'string') {
+      return res.status(400).json({ error: 'Text is required for translation.' });
+    }
+    const result = await aiService.translateText(text, targetLanguage || 'English', sourceLanguage);
+    res.json(result);
+  } catch (err) {
+    console.error('Translation Controller Error:', err);
+    res.status(500).json({ error: 'Translation failed: ' + err.message });
+  }
+};
+
+/**
+ * Handle AI Speech-to-Text Voice Transcription request.
+ */
+const transcribeVoice = async (req, res) => {
+  const { audioBase64, mimeType, languageHint } = req.body;
+  try {
+    if (!audioBase64) {
+      return res.status(400).json({ error: 'audioBase64 payload is required for transcription.' });
+    }
+    const result = await aiService.transcribeAudio(audioBase64, mimeType || 'audio/webm', languageHint);
+    res.json(result);
+  } catch (err) {
+    console.error('Transcription Controller Error:', err);
+    res.status(500).json({ error: 'Audio transcription failed: ' + err.message });
+  }
+};
+
 module.exports = {
   triageGrievance,
   suggestResolution,
@@ -137,6 +171,8 @@ module.exports = {
   analyzeVision,
   composeBroadcast,
   smartRouteHandler,
-  checkDuplicates
+  checkDuplicates,
+  translateGrievance,
+  transcribeVoice
 };
 

@@ -11,6 +11,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { grievanceService } from '../../services/grievanceService';
 import StatusBadge from '../../components/ui/StatusBadge';
 import UrgencyBadge from '../../components/ui/UrgencyBadge';
+import MultilingualTranslator from '../../components/ai/MultilingualTranslator';
 import toast from 'react-hot-toast';
 
 // ─── Status Flow Configuration ───────────────────────────────────────────────
@@ -457,13 +458,23 @@ export const AdminGrievanceDetailsPage = ({ user, sessionUser }) => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {/* Description */}
           <div className="lg:col-span-2 space-y-5">
-            <div className="bg-surface border border-border/80 rounded-xl p-6 shadow-sm">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-4 flex items-center gap-2">
+            <div className="bg-surface border border-border/80 rounded-xl p-6 shadow-sm space-y-3">
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                 <FileText size={11} /> Description
               </h3>
-              <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">
+              <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap font-sans">
                 {ticket.description}
               </p>
+
+              {/* Multilingual AI Auto-Translation Toggle */}
+              {ticket.description && (
+                <div className="pt-2 border-t border-border/40">
+                  <MultilingualTranslator 
+                    text={ticket.description}
+                    title={ticket.title}
+                  />
+                </div>
+              )}
             </div>
 
             {ticket.resolution_notes && (

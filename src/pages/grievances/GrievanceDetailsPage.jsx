@@ -15,6 +15,7 @@ import UrgencyBadge from '../../components/ui/UrgencyBadge';
 import TimelineStep from '../../components/ui/TimelineStep';
 import { DeliveryTrackingWidget } from '../../components/grievances/DeliveryTrackingWidget';
 import { logSecurityEvent } from '../../lib/auditLogger';
+import MultilingualTranslator from '../../components/ai/MultilingualTranslator';
 import toast from 'react-hot-toast';
 
 export const GrievanceDetailsPage = ({ user }) => {
@@ -308,11 +309,21 @@ export const GrievanceDetailsPage = ({ user }) => {
                       <p className="text-sm font-bold text-foreground">{ticket.title}</p>
                     </div>
                     
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">Detailed Narrative Statement</span>
-                      <p className="p-4 rounded-xl bg-background border border-border text-foreground text-xs leading-relaxed italic whitespace-pre-wrap">
+                      <p className="p-4 rounded-xl bg-background border border-border text-foreground text-xs leading-relaxed italic whitespace-pre-wrap font-sans">
                         "{ticket.description}"
                       </p>
+
+                      {/* Multilingual AI Auto-Translation Toggle */}
+                      {ticket.description && (
+                        <div className="pt-2">
+                          <MultilingualTranslator 
+                            text={ticket.description}
+                            title={ticket.title}
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
 

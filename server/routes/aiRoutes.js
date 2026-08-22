@@ -8,7 +8,9 @@ const {
   analyzeVision,
   composeBroadcast,
   smartRouteHandler,
-  checkDuplicates
+  checkDuplicates,
+  translateGrievance,
+  transcribeVoice
 } = require('../controllers/aiController');
 const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
 const { aiLimiter } = require('../middleware/securityMiddleware');
@@ -26,6 +28,14 @@ router.post('/smart-route', authenticateToken, smartRouteHandler);
 // @route   POST /api/v1/ai/check-duplicates
 // @desc    Perform AI duplicate ticket similarity detection
 router.post('/check-duplicates', authenticateToken, checkDuplicates);
+
+// @route   POST /api/v1/ai/translate
+// @desc    Perform Multilingual translation with source language detection
+router.post('/translate', authenticateToken, translateGrievance);
+
+// @route   POST /api/v1/ai/transcribe-voice
+// @desc    Perform AI speech-to-text audio transcription
+router.post('/transcribe-voice', authenticateToken, transcribeVoice);
 
 // @route   POST /api/v1/ai/suggest
 // @desc    AI-generated resolution draft (Restricted to admin / super admin)
