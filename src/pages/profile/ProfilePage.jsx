@@ -375,7 +375,7 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
       
       {/* ─── Hero Header & Identity Card ────────────────────────────────────────── */}
       <GlassPanel className="p-6 sm:p-8 relative overflow-hidden border border-white/10 shadow-2xl rounded-3xl">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-indigo-600/15 via-cyan-500/10 to-transparent rounded-full blur-3xl pointer-events-none -mr-32 -mt-32" />
+        <div className="absolute top-0 right-0 w-125 h-125 bg-linear-to-br from-indigo-600/15 via-cyan-500/10 to-transparent rounded-full blur-3xl pointer-events-none -mr-32 -mt-32" />
         
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10">
           
@@ -449,19 +449,19 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
 
           {/* Telemetry Stats Pills */}
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-3 w-full lg:w-auto font-mono">
-            <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 text-center min-w-[100px]">
+            <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 text-center min-w-25">
               <span className="text-[10px] text-slate-400 uppercase font-bold block">Filings</span>
               <span className="text-lg font-black text-white">{stats.totalFiled}</span>
             </div>
-            <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 text-center min-w-[100px]">
+            <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 text-center min-w-25">
               <span className="text-[10px] text-slate-400 uppercase font-bold block">Resolved</span>
               <span className="text-lg font-black text-emerald-400">{stats.resolvedCount}</span>
             </div>
-            <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 text-center min-w-[100px]">
+            <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 text-center min-w-25">
               <span className="text-[10px] text-slate-400 uppercase font-bold block">Success Rate</span>
               <span className="text-lg font-black text-cyan-400">{stats.resolutionRate}%</span>
             </div>
-            <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 text-center min-w-[100px]">
+            <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 text-center min-w-25">
               <span className="text-[10px] text-slate-400 uppercase font-bold block">Clearance</span>
               <span className="text-xs font-bold text-indigo-400 mt-1 block">
                 {roleDetails?.clearanceLevel?.split('-')[0] || 'Level 1'}
