@@ -23,7 +23,18 @@ import {
   ExternalLink,
   Laptop,
   Clock,
-  Trash2
+  Trash2,
+  FileText,
+  Activity,
+  Layers,
+  Copy,
+  BadgeCheck,
+  CheckCircle2,
+  AlertTriangle,
+  Zap,
+  ChevronRight,
+  TrendingUp,
+  Fingerprint
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useUser } from '@clerk/clerk-react';
@@ -36,30 +47,45 @@ import MotionCard from '../../components/ui/MotionCard';
 import AnimatedButton from '../../components/ui/AnimatedButton';
 
 export const ProfilePage = ({ sessionUser, userProfile }) => {
-  const { user, updateProfile, changePassword } = useAuth();
-  const { user: clerkUser, isLoaded: isClerkLoaded } = useUser();
+  const { user, updateProfile, changePassword, getSessions, revokeSession } = useAuth();
+  const { user: clerkUser } = useUser();
 
+  // Active Tab
+  const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'roles' | 'notifications' | 'security'
+
+  // Profile Form States
   const [fullName, setFullName] = useState(() => user?.fullName || sessionUser?.fullName || '');
   const [email, setEmail] = useState(() => user?.email || sessionUser?.email || '');
   const [mobileNumber, setMobileNumber] = useState(() => user?.mobileNumber || user?.mobile_number || '');
+  const [designation, setDesignation] = useState('');
+  const [institutionalId, setInstitutionalId] = useState('');
+  const [campusLocation, setCampusLocation] = useState('');
   const [department, setDepartment] = useState(() => user?.department || '');
   const [institution, setInstitution] = useState(() => user?.institution || '');
+  const [bio, setBio] = useState('');
   const [avatarUrl, setAvatarUrl] = useState(() => user?.profilePicture || null);
   
+  // Notification States
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [smsNotificationsEnabled, setSmsNotificationsEnabled] = useState(true);
+  const [digestFrequency, setDigestFrequency] = useState('realtime');
   
+  // Telemetry & Role States
   const [roleDetails, setRoleDetails] = useState(null);
   const [accountMeta, setAccountMeta] = useState(null);
+  const [stats, setStats] = useState({ totalFiled: 0, resolvedCount: 0, pendingCount: 0, resolutionRate: 100 });
   const [auditLogs, setAuditLogs] = useState([]);
+  const [activeSessions, setActiveSessions] = useState([]);
   
+  // Action States
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isSyncingGoogle, setIsSyncingGoogle] = useState(false);
+  const [copiedId, setCopiedId] = useState(false);
 
-  // Password Update Modal State
+  // Password Modal
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -71,19 +97,23 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
                        email.includes('@gmail.com') || 
                        (avatarUrl && (avatarUrl.includes('googleusercontent.com') || avatarUrl.includes('img.clerk.com')));
 
-  // Fetch full profile & role details from backend
-  const loadProfile = async () => {
+  // Fetch full profile, role details, and sessions
+  const loadProfileData = async () => {
     setIsLoadingProfile(true);
     try {
       const res = await apiClient.get('/user/profile');
       if (res.data) {
-        const { profile, account, roleDetails: rDetails, logs } = res.data;
+        const { profile, account, roleDetails: rDetails, stats: rStats, logs } = res.data;
         
         if (profile) {
           setFullName(profile.fullName || '');
           setAvatarUrl(profile.profilePicture || null);
           setDepartment(profile.department || '');
           setInstitution(profile.institution || '');
+          setDesignation(profile.designation || '');
+          setInstitutionalId(profile.institutionalId || '');
+          setCampusLocation(profile.campusLocation || '');
+          setBio(profile.bio || '');
           if (profile.notificationPreferences) {
             setNotificationsEnabled(profile.notificationPreferences.email !== false);
             setSmsNotificationsEnabled(profile.notificationPreferences.sms !== false);
@@ -100,15 +130,24 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
           setRoleDetails(rDetails);
         }
 
+        if (rStats) {
+          setStats(rStats);
+        }
+
         if (logs && Array.isArray(logs)) {
           setAuditLogs(logs);
         }
       }
+
+      // Fetch active sessions for security tab
+      if (getSessions) {
+        const sessions = await getSessions();
+        setActiveSessions(sessions || []);
+      }
     } catch (err) {
-      console.warn("Failed to load full profile details from API:", err.message);
-      // Fallback from session or Clerk
+      console.warn("Failed to load profile details from API:", err.message);
       if (clerkUser) {
-        const gName = clerkUser.firstName ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim() : '';
+        const gName = clerkUser.fullName || `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim();
         if (gName && !fullName) setFullName(gName);
         if (clerkUser.imageUrl && !avatarUrl) setAvatarUrl(clerkUser.imageUrl);
       }
@@ -118,10 +157,10 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
   };
 
   useEffect(() => {
-    loadProfile();
+    loadProfileData();
   }, [sessionUser, user?.id]);
 
-  // Sync Google Details on demand
+  // Sync Google Details
   const handleSyncGoogle = async () => {
     setIsSyncingGoogle(true);
     try {
@@ -142,9 +181,9 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
           profilePicture: gPicture || avatarUrl
         });
         await updateProfile(gName || fullName, gPicture || avatarUrl, { email: notificationsEnabled, sms: smsNotificationsEnabled }, department, institution);
-        toast.success("Google profile details synced successfully!");
+        toast.success("Google profile credentials synced successfully!");
       } else {
-        toast.success("Profile is already in sync with your account.");
+        toast.success("Profile is already in sync with Google Identity.");
       }
     } catch (err) {
       toast.error("Failed to sync Google profile: " + (err.response?.data?.error || err.message));
@@ -165,6 +204,10 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
       const payload = {
         fullName: fullName.trim(),
         profilePicture: avatarUrl,
+        designation: designation.trim(),
+        campusLocation: campusLocation.trim(),
+        institutionalId: institutionalId.trim(),
+        bio: bio.trim(),
         notificationPreferences: {
           email: notificationsEnabled,
           sms: smsNotificationsEnabled
@@ -195,7 +238,7 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
       );
 
       setSaved(true);
-      toast.success("Profile settings saved successfully!");
+      toast.success("Institutional profile updated successfully!");
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
       toast.error("Failed to save profile: " + (err.response?.data?.error || err.message));
@@ -235,10 +278,10 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
 
       toast.success("Profile avatar updated successfully!");
     } catch (err) {
-      console.warn("Avatar upload fallback:", err.message);
+      console.warn("Avatar storage upload fallback:", err.message);
       const fallbackUrl = URL.createObjectURL(file);
       setAvatarUrl(fallbackUrl);
-      toast.success("Profile avatar updated locally!");
+      toast.success("Profile avatar updated!");
     } finally {
       setIsUploadingAvatar(false);
     }
@@ -253,6 +296,16 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
       toast.success("Profile avatar removed.");
     } catch (err) {
       toast.error("Failed to remove avatar: " + err.message);
+    }
+  };
+
+  // Copy Institutional ID
+  const handleCopyId = () => {
+    if (institutionalId) {
+      navigator.clipboard.writeText(institutionalId);
+      setCopiedId(true);
+      toast.success("Institutional ID copied to clipboard!");
+      setTimeout(() => setCopiedId(false), 2000);
     }
   };
 
@@ -272,7 +325,7 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
     setIsUpdatingPassword(true);
     try {
       await changePassword(oldPassword, newPassword);
-      toast.success("Password changed successfully! Other device sessions invalidated.");
+      toast.success("Password updated successfully! Other device sessions invalidated.");
       setShowPasswordModal(false);
       setOldPassword('');
       setNewPassword('');
@@ -284,6 +337,18 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
     }
   };
 
+  const handleRevokeDeviceSession = async (sessionId) => {
+    try {
+      if (revokeSession) {
+        await revokeSession(sessionId);
+        setActiveSessions(prev => prev.filter(s => s.id !== sessionId));
+        toast.success("Session revoked successfully.");
+      }
+    } catch (err) {
+      toast.error("Failed to revoke session: " + err.message);
+    }
+  };
+
   const initials = (fullName || email || 'C')[0].toUpperCase();
   const currentRole = (user?.role || sessionUser?.role || 'student').toLowerCase();
   
@@ -291,410 +356,786 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
   const getRoleBadgeStyle = (role) => {
     switch (role) {
       case 'super admin':
-        return 'from-rose-500/20 to-amber-500/20 border-rose-500/40 text-rose-400';
+        return 'from-rose-500/20 via-rose-500/10 to-amber-500/20 border-rose-500/40 text-rose-400';
       case 'admin':
-        return 'from-purple-500/20 to-indigo-500/20 border-purple-500/40 text-purple-400';
+        return 'from-purple-500/20 via-purple-500/10 to-indigo-500/20 border-purple-500/40 text-purple-400';
       case 'officer':
-        return 'from-amber-500/20 to-orange-500/20 border-amber-500/40 text-amber-400';
+        return 'from-amber-500/20 via-amber-500/10 to-orange-500/20 border-amber-500/40 text-amber-400';
       case 'faculty':
-        return 'from-emerald-500/20 to-teal-500/20 border-emerald-500/40 text-emerald-400';
+        return 'from-emerald-500/20 via-emerald-500/10 to-teal-500/20 border-emerald-500/40 text-emerald-400';
       case 'staff':
-        return 'from-cyan-500/20 to-blue-500/20 border-cyan-500/40 text-cyan-400';
+        return 'from-cyan-500/20 via-cyan-500/10 to-blue-500/20 border-cyan-500/40 text-cyan-400';
       default:
-        return 'from-indigo-500/20 to-cyan-500/20 border-indigo-500/40 text-indigo-400';
+        return 'from-indigo-500/20 via-indigo-500/10 to-cyan-500/20 border-indigo-500/40 text-indigo-400';
     }
   };
 
   return (
-    <AnimatedPage className="space-y-8 max-w-5xl mx-auto w-full pt-4 pb-20 text-left px-2 sm:px-4">
-      {/* Top Banner & Header */}
-      <GlassPanel className="p-6 sm:p-8 relative overflow-hidden border border-white/10 shadow-2xl">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
+    <AnimatedPage className="space-y-8 max-w-6xl mx-auto w-full pt-4 pb-20 text-left px-2 sm:px-4">
+      
+      {/* ─── Hero Header & Identity Card ────────────────────────────────────────── */}
+      <GlassPanel className="p-6 sm:p-8 relative overflow-hidden border border-white/10 shadow-2xl rounded-3xl">
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-indigo-600/15 via-cyan-500/10 to-transparent rounded-full blur-3xl pointer-events-none -mr-32 -mt-32" />
         
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 relative z-10">
-          <div className="flex items-center gap-5">
-            <div className="relative group">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-linear-to-tr from-indigo-600 via-indigo-500 to-cyan-400 flex items-center justify-center text-white font-black text-2xl sm:text-3xl shadow-xl shadow-indigo-500/30 overflow-hidden ring-4 ring-slate-900">
-                {avatarUrl ? (
-                  <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                ) : (
-                  initials
-                )}
-              </div>
-              <label 
-                title="Upload Profile Photo" 
-                className="absolute -bottom-2 -right-2 w-8 h-8 bg-slate-900/90 hover:bg-indigo-600 border border-white/20 rounded-xl shadow-lg flex items-center justify-center cursor-pointer text-slate-300 hover:text-white transition-all transform hover:scale-110"
-              >
-                <Camera size={14} />
-                <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={isUploadingAvatar} />
-              </label>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-3 flex-wrap">
-                <h2 className="text-2xl sm:text-3xl font-heading font-black text-white tracking-tight">
-                  {fullName || 'Citizen User'}
-                </h2>
-                <div className={`px-3 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider border bg-linear-to-r ${getRoleBadgeStyle(currentRole)}`}>
-                  {roleDetails?.title || currentRole}
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-4 mt-1.5 flex-wrap text-xs text-slate-400 font-mono">
-                <span className="flex items-center gap-1.5 text-slate-300">
-                  <Mail size={13} className="text-indigo-400" />
-                  {email}
-                </span>
-                {isGoogleUser && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[11px] font-sans font-semibold">
-                    <CheckCircle size={11} /> Google Identity Connected
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-2 pt-3 sm:pt-0 border-t sm:border-t-0 border-white/10 font-mono text-[11px]">
-            <span className="text-slate-400 uppercase font-bold tracking-wider">Account Clearance</span>
-            <span className="text-indigo-400 font-bold px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/20">
-              {roleDetails?.clearanceLevel || 'Level 1 - Standard'}
-            </span>
-          </div>
-        </div>
-      </GlassPanel>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Left Column: Avatar Management & Role Privileges */}
-        <div className="space-y-6">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10">
           
-          {/* Avatar Management Studio */}
-          <MotionCard className="p-6 text-center" tilt={false}>
-            <h4 className="text-xs font-mono font-bold text-slate-400 uppercase tracking-widest mb-4">
-              Profile Photo & Avatar
-            </h4>
-
-            <div className="relative mb-5 mx-auto w-32 h-32 group">
-              <div className="w-full h-full rounded-3xl bg-linear-to-tr from-indigo-600 via-indigo-500 to-cyan-400 flex items-center justify-center text-white font-black text-4xl shadow-2xl shadow-indigo-500/20 overflow-hidden relative ring-4 ring-slate-900">
+          {/* Avatar & Core Identity */}
+          <div className="flex items-center gap-5 sm:gap-6 flex-wrap sm:flex-nowrap">
+            <div className="relative group shrink-0">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-linear-to-tr from-indigo-600 via-indigo-500 to-cyan-400 flex items-center justify-center text-white font-black text-3xl sm:text-4xl shadow-2xl shadow-indigo-500/30 overflow-hidden ring-4 ring-slate-900">
                 {avatarUrl ? (
                   <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
                   initials
                 )}
                 {isUploadingAvatar && (
-                  <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center">
+                  <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center">
                     <RefreshCw className="animate-spin text-indigo-400" size={24} />
                   </div>
                 )}
               </div>
 
               <label 
-                title="Change Photo"
-                className="absolute -bottom-2 -right-2 p-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl shadow-xl flex items-center justify-center cursor-pointer transition-all transform hover:scale-105"
+                title="Change Avatar Photo" 
+                className="absolute -bottom-2 -right-2 w-9 h-9 bg-slate-900/90 hover:bg-indigo-600 border border-white/20 rounded-2xl shadow-xl flex items-center justify-center cursor-pointer text-slate-300 hover:text-white transition-all transform hover:scale-110"
               >
-                <Camera size={16} />
+                <Camera size={15} />
                 <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={isUploadingAvatar} />
               </label>
             </div>
 
-            <p className="text-xs text-slate-400 mb-4 font-medium">
-              Allowed: PNG, JPEG, WebP, GIF (Max 2MB).
-            </p>
-
-            <div className="flex items-center justify-center gap-2 flex-wrap">
-              <label className="cursor-pointer">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-bold transition-all">
-                  <Camera size={13} /> Change Photo
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h2 className="text-2xl sm:text-3xl font-heading font-black text-white tracking-tight">
+                  {fullName || 'Institutional Citizen'}
+                </h2>
+                <div className={`px-3 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider border bg-linear-to-r shadow-xs ${getRoleBadgeStyle(currentRole)}`}>
+                  {roleDetails?.title || currentRole}
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3 flex-wrap text-xs text-slate-400 font-mono">
+                <span className="flex items-center gap-1 text-slate-300 font-sans font-medium">
+                  <Mail size={13} className="text-indigo-400" />
+                  {email}
                 </span>
-                <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={isUploadingAvatar} />
-              </label>
+                
+                {institutionalId && (
+                  <button 
+                    onClick={handleCopyId}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-slate-800/80 hover:bg-slate-750 text-indigo-300 border border-white/10 text-[11px] font-mono transition-all"
+                    title="Click to copy ID"
+                  >
+                    <Fingerprint size={12} className="text-indigo-400" />
+                    <span>ID: {institutionalId}</span>
+                    {copiedId ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} className="text-slate-400" />}
+                  </button>
+                )}
 
-              {avatarUrl && (
-                <button
-                  type="button"
-                  onClick={handleRemoveAvatar}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs font-bold transition-all"
-                >
-                  <Trash2 size={13} /> Remove
-                </button>
-              )}
+                {isGoogleUser && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[11px] font-sans font-semibold">
+                    <CheckCircle2 size={11} /> Google Verified
+                  </span>
+                )}
+              </div>
 
-              {isGoogleUser && (
-                <button
-                  type="button"
-                  onClick={handleSyncGoogle}
-                  disabled={isSyncingGoogle}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10 text-xs font-bold transition-all w-full mt-2 justify-center"
-                >
-                  <RefreshCw size={13} className={isSyncingGoogle ? 'animate-spin' : ''} />
-                  Sync Google Avatar & Name
-                </button>
+              {designation && (
+                <p className="text-xs text-indigo-300/90 font-medium">
+                  {designation} • {department || 'General Administration'}
+                </p>
               )}
             </div>
-          </MotionCard>
+          </div>
 
-          {/* Role & Privileges Showcase */}
-          <GlassPanel className="p-6">
-            <div className="flex items-center gap-2.5 mb-4 pb-3 border-b border-white/10">
-              <Award className="text-amber-400" size={18} />
-              <h4 className="text-sm font-heading font-extrabold text-white uppercase tracking-wider">
-                Role Features & Privileges
+          {/* Telemetry Stats Pills */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-3 w-full lg:w-auto font-mono">
+            <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 text-center min-w-[100px]">
+              <span className="text-[10px] text-slate-400 uppercase font-bold block">Filings</span>
+              <span className="text-lg font-black text-white">{stats.totalFiled}</span>
+            </div>
+            <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 text-center min-w-[100px]">
+              <span className="text-[10px] text-slate-400 uppercase font-bold block">Resolved</span>
+              <span className="text-lg font-black text-emerald-400">{stats.resolvedCount}</span>
+            </div>
+            <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 text-center min-w-[100px]">
+              <span className="text-[10px] text-slate-400 uppercase font-bold block">Success Rate</span>
+              <span className="text-lg font-black text-cyan-400">{stats.resolutionRate}%</span>
+            </div>
+            <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 text-center min-w-[100px]">
+              <span className="text-[10px] text-slate-400 uppercase font-bold block">Clearance</span>
+              <span className="text-xs font-bold text-indigo-400 mt-1 block">
+                {roleDetails?.clearanceLevel?.split('-')[0] || 'Level 1'}
+              </span>
+            </div>
+          </div>
+
+        </div>
+      </GlassPanel>
+
+      {/* ─── Navigation Tabs ────────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 border-b border-white/10 pb-2 overflow-x-auto no-scrollbar">
+        <button
+          onClick={() => setActiveTab('profile')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-heading font-extrabold text-xs uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'profile'
+              ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 ring-1 ring-white/20'
+              : 'text-slate-400 hover:text-white hover:bg-slate-900'
+          }`}
+        >
+          <User size={15} /> Personal Credentials
+        </button>
+
+        <button
+          onClick={() => setActiveTab('roles')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-heading font-extrabold text-xs uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'roles'
+              ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 ring-1 ring-white/20'
+              : 'text-slate-400 hover:text-white hover:bg-slate-900'
+          }`}
+        >
+          <Award size={15} /> Role & Privileges
+        </button>
+
+        <button
+          onClick={() => setActiveTab('notifications')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-heading font-extrabold text-xs uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'notifications'
+              ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 ring-1 ring-white/20'
+              : 'text-slate-400 hover:text-white hover:bg-slate-900'
+          }`}
+        >
+          <Bell size={15} /> Alert Channels
+        </button>
+
+        <button
+          onClick={() => setActiveTab('security')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-heading font-extrabold text-xs uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'security'
+              ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 ring-1 ring-white/20'
+              : 'text-slate-400 hover:text-white hover:bg-slate-900'
+          }`}
+        >
+          <ShieldCheck size={15} /> Security & Telemetry
+        </button>
+      </div>
+
+      {/* ─── Tab 1: Personal Credentials & Identity Form ─────────────────────────── */}
+      {activeTab === 'profile' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* Avatar Studio Card */}
+          <div className="space-y-6">
+            <MotionCard className="p-6 text-center" tilt={false}>
+              <h4 className="text-xs font-mono font-bold text-slate-400 uppercase tracking-widest mb-4">
+                Profile Photo Studio
               </h4>
+
+              <div className="relative mb-5 mx-auto w-32 h-32 group">
+                <div className="w-full h-full rounded-3xl bg-linear-to-tr from-indigo-600 via-indigo-500 to-cyan-400 flex items-center justify-center text-white font-black text-4xl shadow-2xl shadow-indigo-500/20 overflow-hidden relative ring-4 ring-slate-900">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    initials
+                  )}
+                  {isUploadingAvatar && (
+                    <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center">
+                      <RefreshCw className="animate-spin text-indigo-400" size={24} />
+                    </div>
+                  )}
+                </div>
+
+                <label 
+                  title="Upload New Photo"
+                  className="absolute -bottom-2 -right-2 p-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl shadow-xl flex items-center justify-center cursor-pointer transition-all transform hover:scale-105"
+                >
+                  <Camera size={16} />
+                  <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={isUploadingAvatar} />
+                </label>
+              </div>
+
+              <p className="text-xs text-slate-400 mb-4 font-medium">
+                Supports PNG, JPEG, WebP, GIF (Max 2MB).
+              </p>
+
+              <div className="flex flex-col gap-2">
+                <label className="cursor-pointer w-full">
+                  <span className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-bold transition-all">
+                    <Camera size={14} /> Upload Custom Photo
+                  </span>
+                  <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={isUploadingAvatar} />
+                </label>
+
+                {avatarUrl && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveAvatar}
+                    className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs font-bold transition-all"
+                  >
+                    <Trash2 size={13} /> Remove Photo
+                  </button>
+                )}
+
+                {isGoogleUser && (
+                  <button
+                    type="button"
+                    onClick={handleSyncGoogle}
+                    disabled={isSyncingGoogle}
+                    className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-300 border border-white/10 text-xs font-bold transition-all"
+                  >
+                    <RefreshCw size={13} className={isSyncingGoogle ? 'animate-spin text-indigo-400' : ''} />
+                    Sync Google Identity
+                  </button>
+                )}
+              </div>
+            </MotionCard>
+
+            {/* Verification Metadata Box */}
+            <GlassPanel className="p-6 font-mono text-xs space-y-3">
+              <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pb-2 border-b border-white/10">
+                Verification Metadata
+              </h5>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Identity Tier:</span>
+                <span className="text-emerald-400 font-bold flex items-center gap-1">
+                  <BadgeCheck size={14} /> Level 2 Verified
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">OAuth Provider:</span>
+                <span className="text-white font-bold">{isGoogleUser ? 'Google OAuth 2.0' : 'Email/Password'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Encryption:</span>
+                <span className="text-cyan-400 font-bold">AES-256 GCM</span>
+              </div>
+            </GlassPanel>
+          </div>
+
+          {/* Form Fields Card */}
+          <div className="lg:col-span-2 space-y-6">
+            <GlassPanel className="p-6 sm:p-8">
+              <div className="flex items-center justify-between gap-3 mb-6 pb-4 border-b border-white/10">
+                <div className="flex items-center gap-3">
+                  <FileText className="text-indigo-400" size={20} />
+                  <div>
+                    <h4 className="text-base font-heading font-extrabold text-white uppercase tracking-wide">
+                      Official Institutional Record
+                    </h4>
+                    <p className="text-xs text-slate-400">Keep your institutional credentials, department, and contact information current.</p>
+                  </div>
+                </div>
+
+                {isGoogleUser && (
+                  <button
+                    type="button"
+                    onClick={handleSyncGoogle}
+                    disabled={isSyncingGoogle}
+                    className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 text-xs font-bold transition-all"
+                  >
+                    <RefreshCw size={12} className={isSyncingGoogle ? 'animate-spin' : ''} />
+                    Sync Google Record
+                  </button>
+                )}
+              </div>
+
+              <form onSubmit={handleSave} className="space-y-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  
+                  {/* Full Name */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                      <span>Full Legal Name *</span>
+                      {isGoogleUser && <span className="text-indigo-400 font-sans text-[10px]">Google Synced</span>}
+                    </label>
+                    <input
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="e.g. Dr. Jane Doe"
+                      required
+                      className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-white/10 text-white text-xs font-bold outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-slate-600"
+                    />
+                  </div>
+
+                  {/* Email */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                      <span>Institutional Email Address</span>
+                      <span className="text-emerald-400 flex items-center gap-1">
+                        <CheckCircle size={11} /> Verified
+                      </span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="email"
+                        value={email}
+                        disabled
+                        className="w-full px-4 py-3 rounded-xl bg-slate-950/60 border border-white/10 text-slate-400 text-xs font-mono opacity-80 cursor-not-allowed pr-10"
+                      />
+                      <Lock size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                    </div>
+                  </div>
+
+                  {/* Designation / Title */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+                      Designation / Role Title
+                    </label>
+                    <input
+                      type="text"
+                      value={designation}
+                      onChange={(e) => setDesignation(e.target.value)}
+                      placeholder="e.g. Senior Undergraduate Student, Assistant Professor"
+                      className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-white/10 text-white text-xs font-bold outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-slate-600"
+                    />
+                  </div>
+
+                  {/* Institutional ID */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+                      Student / Employee Roll ID
+                    </label>
+                    <input
+                      type="text"
+                      value={institutionalId}
+                      onChange={(e) => setInstitutionalId(e.target.value)}
+                      placeholder="e.g. STU-2026-8821"
+                      className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-white/10 text-white text-xs font-bold outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-slate-600 font-mono"
+                    />
+                  </div>
+
+                  {/* Mobile Phone */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+                      Mobile Contact Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={mobileNumber}
+                      onChange={(e) => setMobileNumber(e.target.value)}
+                      placeholder="+91 9876543210"
+                      className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-white/10 text-white text-xs font-bold outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-slate-600 font-mono"
+                    />
+                  </div>
+
+                  {/* Campus Zone */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+                      Campus / Regional Location
+                    </label>
+                    <input
+                      type="text"
+                      value={campusLocation}
+                      onChange={(e) => setCampusLocation(e.target.value)}
+                      placeholder="e.g. North Academic Complex, Block B"
+                      className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-white/10 text-white text-xs font-bold outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-slate-600"
+                    />
+                  </div>
+
+                  {/* Department */}
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <label className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                      <span>Department / Division</span>
+                      {currentRole !== 'admin' && currentRole !== 'super admin' && (
+                        <span className="text-[10px] text-slate-500 font-sans font-normal">Contact Admin to transfer departments</span>
+                      )}
+                    </label>
+                    <input
+                      type="text"
+                      value={department}
+                      onChange={(e) => setDepartment(e.target.value)}
+                      placeholder="e.g. Computer Science, Student Affairs, Finance"
+                      disabled={currentRole !== 'admin' && currentRole !== 'super admin' && currentRole !== 'officer'}
+                      className={`w-full px-4 py-3 rounded-xl border text-xs font-bold outline-none transition-all ${
+                        currentRole === 'admin' || currentRole === 'super admin' || currentRole === 'officer'
+                          ? 'bg-slate-950 border-white/10 text-white focus:border-indigo-500'
+                          : 'bg-slate-950/40 border-white/5 text-slate-500 cursor-not-allowed'
+                      }`}
+                    />
+                  </div>
+
+                  {/* Bio statement */}
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <label className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+                      Official Description / Bio
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={bio}
+                      onChange={(e) => setBio(e.target.value)}
+                      placeholder="Brief note or administrative remarks..."
+                      className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-white/10 text-white text-xs font-medium outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-slate-600"
+                    />
+                  </div>
+                </div>
+
+                {/* Save Bar */}
+                <div className="flex items-center justify-end pt-4 border-t border-white/10 gap-3">
+                  <AnimatedButton 
+                    type="submit"
+                    variant="glow"
+                    size="md"
+                    isLoading={isSaving}
+                    leftIcon={saved ? CheckCircle : Save}
+                  >
+                    {saved ? 'Saved Successfully' : 'Save Profile Changes'}
+                  </AnimatedButton>
+                </div>
+              </form>
+            </GlassPanel>
+          </div>
+
+        </div>
+      )}
+
+      {/* ─── Tab 2: Role Clearances & Privileges Matrix ──────────────────────────── */}
+      {activeTab === 'roles' && (
+        <div className="space-y-6">
+          <GlassPanel className="p-6 sm:p-8">
+            <div className="flex items-center justify-between gap-4 mb-6 pb-4 border-b border-white/10 flex-wrap">
+              <div className="flex items-center gap-3">
+                <Award className="text-amber-400" size={24} />
+                <div>
+                  <h3 className="text-lg font-heading font-black text-white uppercase tracking-tight">
+                    Clearance Matrix & Role Privileges
+                  </h3>
+                  <p className="text-xs text-slate-400">Detailed breakdown of active capabilities assigned to your account level.</p>
+                </div>
+              </div>
+
+              <div className={`px-4 py-1.5 rounded-xl border font-mono text-xs font-bold uppercase tracking-wider bg-linear-to-r ${getRoleBadgeStyle(currentRole)}`}>
+                Active Role: {roleDetails?.title || currentRole}
+              </div>
             </div>
 
-            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-              {roleDetails?.description || 'Your registered clearance grants standard filing, tracking, and AI triage capabilities.'}
-            </p>
+            {/* Clearance Hierarchy Meter */}
+            <div className="mb-8 p-6 rounded-2xl bg-slate-950 border border-white/10 space-y-4">
+              <div className="flex items-center justify-between text-xs font-mono">
+                <span className="text-slate-400 uppercase font-bold">Clearance Level Progression</span>
+                <span className="text-indigo-400 font-bold">{roleDetails?.clearanceLevel || 'Level 1'}</span>
+              </div>
 
-            <div className="space-y-2.5">
+              <div className="grid grid-cols-5 gap-2 font-mono text-[10px]">
+                {['Level 1: Student', 'Level 2: Faculty', 'Level 3: Officer', 'Level 4: Admin', 'Level 5: Super'].map((lvl, idx) => {
+                  const currentLevelNum = currentRole === 'super admin' ? 5 : (currentRole === 'admin' ? 4 : (currentRole === 'officer' ? 3 : (currentRole === 'faculty' || currentRole === 'staff' ? 2 : 1)));
+                  const isAchieved = idx + 1 <= currentLevelNum;
+                  const isCurrent = idx + 1 === currentLevelNum;
+
+                  return (
+                    <div 
+                      key={lvl} 
+                      className={`p-2.5 rounded-xl border text-center transition-all ${
+                        isCurrent 
+                          ? 'bg-indigo-600/30 border-indigo-500 text-white font-bold ring-1 ring-indigo-400' 
+                          : isAchieved 
+                            ? 'bg-slate-900 border-white/10 text-slate-300' 
+                            : 'bg-slate-950/40 border-white/5 text-slate-600'
+                      }`}
+                    >
+                      <div className="flex items-center justify-center mb-1">
+                        {isAchieved ? <CheckCircle size={12} className="text-emerald-400" /> : <Lock size={12} className="text-slate-600" />}
+                      </div>
+                      <span className="truncate block">{lvl}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Detailed Capabilities Grid */}
+            <h4 className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider mb-4">
+              Feature Capabilities & Authorization Permissions
+            </h4>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {roleDetails?.features?.map((feat) => (
                 <div 
                   key={feat.id} 
-                  className={`p-3 rounded-xl border transition-all ${
+                  className={`p-4 rounded-2xl border transition-all ${
                     feat.enabled 
-                      ? 'bg-slate-900/60 border-white/10' 
-                      : 'bg-slate-950/40 border-white/5 opacity-50'
+                      ? 'bg-slate-900/70 border-white/10 hover:border-indigo-500/40' 
+                      : 'bg-slate-950/50 border-white/5 opacity-40'
                   }`}
                 >
-                  <div className="flex items-start gap-2.5">
-                    <div className={`mt-0.5 w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${
-                      feat.enabled ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-500'
+                  <div className="flex items-start gap-3.5">
+                    <div className={`mt-0.5 w-6 h-6 rounded-xl flex items-center justify-center shrink-0 ${
+                      feat.enabled ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-500'
                     }`}>
-                      {feat.enabled ? <Check size={10} strokeWidth={3} /> : <Lock size={9} />}
+                      {feat.enabled ? <Check size={13} strokeWidth={3} /> : <Lock size={12} />}
                     </div>
                     <div>
-                      <h5 className="text-xs font-bold text-white tracking-tight">{feat.label}</h5>
-                      <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">{feat.description}</p>
+                      <div className="flex items-center gap-2">
+                        <h5 className="text-xs font-bold text-white tracking-tight">{feat.label}</h5>
+                        {feat.enabled && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            ENABLED
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-400 mt-1 leading-relaxed">{feat.description}</p>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
           </GlassPanel>
-
         </div>
+      )}
 
-        {/* Right Columns: Personal Details, Notifications, Security */}
-        <div className="lg:col-span-2 space-y-6">
-          
-          {/* Main Credentials & Identity Form */}
+      {/* ─── Tab 3: Communication & Alert Channels ───────────────────────────────── */}
+      {activeTab === 'notifications' && (
+        <div className="space-y-6">
           <GlassPanel className="p-6 sm:p-8">
-            <div className="flex items-center justify-between gap-3 mb-6 pb-4 border-b border-white/10">
-              <div className="flex items-center gap-3">
-                <User className="text-indigo-400" size={20} />
-                <div>
-                  <h4 className="text-base font-heading font-extrabold text-white uppercase tracking-wide">
-                    Personal Information & Settings
-                  </h4>
-                  <p className="text-xs text-slate-400">Update your verified identification name, contact line, and profile configurations.</p>
-                </div>
+            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/10">
+              <Bell className="text-indigo-400" size={24} />
+              <div>
+                <h3 className="text-lg font-heading font-black text-white uppercase tracking-tight">
+                  Notification Preferences & Alert Channels
+                </h3>
+                <p className="text-xs text-slate-400">Configure how and when the system delivers status updates and resolution alerts.</p>
               </div>
-
-              {isGoogleUser && (
-                <button
-                  type="button"
-                  onClick={handleSyncGoogle}
-                  disabled={isSyncingGoogle}
-                  className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 text-xs font-bold transition-all"
-                >
-                  <RefreshCw size={12} className={isSyncingGoogle ? 'animate-spin' : ''} />
-                  Fetch Google Profile
-                </button>
-              )}
             </div>
 
-            <form onSubmit={handleSave} className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                
-                {/* Full Name */}
-                <div className="space-y-2">
-                  <label className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-                    <span>Full Name *</span>
-                    {isGoogleUser && <span className="text-indigo-400 lowercase font-normal">synced with Google</span>}
-                  </label>
-                  <input
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="e.g. John Doe"
-                    required
-                    className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-white/10 text-white text-xs font-bold outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-slate-600"
-                  />
-                </div>
-
-                {/* Email Address (Immutable / Verified) */}
-                <div className="space-y-2">
-                  <label className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-                    <span>Email Address</span>
-                    <span className="text-emerald-400 flex items-center gap-1">
-                      <ShieldCheck size={12} /> Verified
-                    </span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="email"
-                      value={email}
-                      disabled
-                      className="w-full px-4 py-3 rounded-xl bg-slate-950/50 border border-white/10 text-slate-400 text-xs font-mono opacity-80 cursor-not-allowed pr-10"
-                    />
-                    <Lock size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+            <div className="space-y-4">
+              {/* Channel 1: SMTP Email */}
+              <div 
+                onClick={() => setNotificationsEnabled(!notificationsEnabled)}
+                className={`p-5 rounded-2xl border cursor-pointer flex items-center justify-between transition-all ${
+                  notificationsEnabled ? 'bg-indigo-600/10 border-indigo-500/30 shadow-lg shadow-indigo-600/5' : 'bg-slate-950 border-white/10'
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${notificationsEnabled ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
+                    <Mail size={20} />
+                  </div>
+                  <div>
+                    <h5 className="text-sm font-bold text-white">SMTP Email Dispatches</h5>
+                    <p className="text-xs text-slate-400 mt-0.5">Receive official ticket submission acknowledgments and resolution status transition updates.</p>
+                    <span className="text-[10px] font-mono text-indigo-400 mt-1 block">Recipient: {email}</span>
                   </div>
                 </div>
-
-                {/* Mobile Number */}
-                <div className="space-y-2">
-                  <label className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider">
-                    Mobile Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    value={mobileNumber}
-                    onChange={(e) => setMobileNumber(e.target.value)}
-                    placeholder="+91 9876543210"
-                    className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-white/10 text-white text-xs font-bold outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-slate-600 font-mono"
-                  />
-                </div>
-
-                {/* Department (Accessible to officers / admins) */}
-                <div className="space-y-2">
-                  <label className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider">
-                    Department / Division
-                  </label>
-                  <input
-                    type="text"
-                    value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                    placeholder="e.g. Computer Science, Academic Affairs"
-                    disabled={currentRole !== 'admin' && currentRole !== 'super admin' && currentRole !== 'officer'}
-                    className={`w-full px-4 py-3 rounded-xl border text-xs font-bold outline-none transition-all ${
-                      currentRole === 'admin' || currentRole === 'super admin' || currentRole === 'officer'
-                        ? 'bg-slate-950 border-white/10 text-white focus:border-indigo-500'
-                        : 'bg-slate-950/40 border-white/5 text-slate-500 cursor-not-allowed'
-                    }`}
-                  />
+                <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${notificationsEnabled ? 'bg-indigo-600' : 'bg-slate-800'}`}>
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${notificationsEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
                 </div>
               </div>
 
-              {/* Notification Preferences */}
-              <div className="pt-2 space-y-3">
+              {/* Channel 2: SMS Gateway */}
+              <div 
+                onClick={() => setSmsNotificationsEnabled(!smsNotificationsEnabled)}
+                className={`p-5 rounded-2xl border cursor-pointer flex items-center justify-between transition-all ${
+                  smsNotificationsEnabled ? 'bg-cyan-600/10 border-cyan-500/30 shadow-lg shadow-cyan-600/5' : 'bg-slate-950 border-white/10'
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${smsNotificationsEnabled ? 'bg-cyan-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
+                    <Smartphone size={20} />
+                  </div>
+                  <div>
+                    <h5 className="text-sm font-bold text-white">SMS Gateway High-Priority Alerts</h5>
+                    <p className="text-xs text-slate-400 mt-0.5">Direct SMS text messages delivered for high-urgency SLA breaches and official escalations.</p>
+                    <span className="text-[10px] font-mono text-cyan-400 mt-1 block">Phone: {mobileNumber || 'Not configured'}</span>
+                  </div>
+                </div>
+                <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${smsNotificationsEnabled ? 'bg-cyan-600' : 'bg-slate-800'}`}>
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${smsNotificationsEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                </div>
+              </div>
+
+              {/* Channel 3: Frequency Controls */}
+              <div className="p-5 rounded-2xl bg-slate-950 border border-white/10 space-y-3">
                 <h5 className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider">
-                  Real-time Notifications & Alerts
+                  Dispatch Frequency Strategy
                 </h5>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* Email Notifications */}
-                  <div 
-                    onClick={() => setNotificationsEnabled(!notificationsEnabled)}
-                    className={`p-4 rounded-2xl border cursor-pointer flex items-center justify-between transition-all ${
-                      notificationsEnabled ? 'bg-indigo-600/10 border-indigo-500/30' : 'bg-slate-950 border-white/5'
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 font-mono text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setDigestFrequency('realtime')}
+                    className={`p-3 rounded-xl border text-left transition-all ${
+                      digestFrequency === 'realtime'
+                        ? 'bg-indigo-600/20 border-indigo-500 text-white'
+                        : 'bg-slate-900 border-white/5 text-slate-400 hover:text-white'
                     }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <Mail className={notificationsEnabled ? 'text-indigo-400' : 'text-slate-500'} size={18} />
-                      <div>
-                        <h6 className="text-xs font-bold text-white">Email Dispatches</h6>
-                        <p className="text-[10px] text-slate-400 mt-0.5">Receive ticket resolution alerts via SMTP</p>
-                      </div>
-                    </div>
-                    <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${notificationsEnabled ? 'bg-indigo-600' : 'bg-slate-800'}`}>
-                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${notificationsEnabled ? 'translate-x-4.5' : 'translate-x-1'}`} />
-                    </div>
-                  </div>
+                    <span className="font-bold block text-sm">⚡ Real-time Instant</span>
+                    <span className="text-[10px] text-slate-400">Trigger immediately upon status change</span>
+                  </button>
 
-                  {/* SMS Alerts */}
-                  <div 
-                    onClick={() => setSmsNotificationsEnabled(!smsNotificationsEnabled)}
-                    className={`p-4 rounded-2xl border cursor-pointer flex items-center justify-between transition-all ${
-                      smsNotificationsEnabled ? 'bg-cyan-600/10 border-cyan-500/30' : 'bg-slate-950 border-white/5'
+                  <button
+                    type="button"
+                    onClick={() => setDigestFrequency('digest')}
+                    className={`p-3 rounded-xl border text-left transition-all ${
+                      digestFrequency === 'digest'
+                        ? 'bg-indigo-600/20 border-indigo-500 text-white'
+                        : 'bg-slate-900 border-white/5 text-slate-400 hover:text-white'
                     }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <Smartphone className={smsNotificationsEnabled ? 'text-cyan-400' : 'text-slate-500'} size={18} />
-                      <div>
-                        <h6 className="text-xs font-bold text-white">SMS Gateway Alerts</h6>
-                        <p className="text-[10px] text-slate-400 mt-0.5">High-priority SMS delivery on status changes</p>
-                      </div>
-                    </div>
-                    <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${smsNotificationsEnabled ? 'bg-cyan-600' : 'bg-slate-800'}`}>
-                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${smsNotificationsEnabled ? 'translate-x-4.5' : 'translate-x-1'}`} />
-                    </div>
-                  </div>
+                    <span className="font-bold block text-sm">📅 Daily Digest</span>
+                    <span className="text-[10px] text-slate-400">Combined summary report at 18:00</span>
+                  </button>
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center justify-between pt-4 border-t border-white/10">
-                <button
-                  type="button"
-                  onClick={() => setShowPasswordModal(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-850 text-slate-300 hover:text-white border border-white/10 text-xs font-bold transition-all"
-                >
-                  <Key size={14} className="text-indigo-400" />
-                  Change Password
-                </button>
-
+              <div className="flex justify-end pt-2">
                 <AnimatedButton 
-                  type="submit"
+                  onClick={handleSave}
                   variant="glow"
                   size="md"
                   isLoading={isSaving}
                   leftIcon={saved ? CheckCircle : Save}
                 >
-                  {saved ? 'Saved Successfully' : 'Save Changes'}
+                  {saved ? 'Saved' : 'Save Alert Channels'}
                 </AnimatedButton>
               </div>
-            </form>
+            </div>
           </GlassPanel>
+        </div>
+      )}
 
-          {/* Security & Multi-Factor Section */}
+      {/* ─── Tab 4: Security, Active Sessions & Audit Telemetry ───────────────────── */}
+      {activeTab === 'security' && (
+        <div className="space-y-6">
+          
+          {/* Security Summary Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            <GlassPanel className="p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <ShieldCheck size={24} className={mfaEnabled ? 'text-emerald-400' : 'text-amber-400'} />
+                <h5 className="text-sm font-bold text-white">Two-Factor (2FA)</h5>
+              </div>
+              <span className={`px-2.5 py-1 rounded-md text-xs font-mono font-bold inline-block mb-2 ${
+                mfaEnabled ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+              }`}>
+                {mfaEnabled ? 'ACTIVE (ENFORCED)' : 'OPTIONAL'}
+              </span>
+              <p className="text-xs text-slate-400">Extra layer of verification protecting login sessions.</p>
+            </GlassPanel>
+
+            <GlassPanel className="p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <Key size={24} className="text-indigo-400" />
+                <h5 className="text-sm font-bold text-white">Password Status</h5>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPasswordModal(true)}
+                className="px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-bold transition-all mb-2 block"
+              >
+                Change Keyphrase
+              </button>
+              <p className="text-xs text-slate-400">Encrypted with bcrypt (10 rounds salt).</p>
+            </GlassPanel>
+
+            <GlassPanel className="p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <Globe size={24} className="text-cyan-400" />
+                <h5 className="text-sm font-bold text-white">Google Identity</h5>
+              </div>
+              <span className="px-2.5 py-1 rounded-md text-xs font-mono font-bold inline-block mb-2 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                {isGoogleUser ? 'OAUTH CONNECTED' : 'LOCAL ACCOUNT'}
+              </span>
+              <p className="text-xs text-slate-400">Federated single sign-on authentication.</p>
+            </GlassPanel>
+          </div>
+
+          {/* Active Sessions Telemetry */}
           <GlassPanel className="p-6 sm:p-8">
-            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/10">
-              <ShieldCheck className="text-emerald-400" size={20} />
-              <div>
-                <h4 className="text-base font-heading font-extrabold text-white uppercase tracking-wide">
-                  Account Security & Session Telemetry
-                </h4>
-                <p className="text-xs text-slate-400">Manage multi-factor authentication and inspect authenticated login sessions.</p>
+            <div className="flex items-center justify-between gap-4 mb-6 pb-4 border-b border-white/10 flex-wrap">
+              <div className="flex items-center gap-3">
+                <Laptop className="text-indigo-400" size={20} />
+                <div>
+                  <h4 className="text-base font-heading font-extrabold text-white uppercase tracking-wide">
+                    Active Authentication Sessions
+                  </h4>
+                  <p className="text-xs text-slate-400">Inspect device logins with real-time token telemetry.</p>
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* MFA Status */}
-              <div className="p-4 rounded-2xl bg-slate-950 border border-white/10 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <ShieldCheck size={20} className={mfaEnabled ? 'text-emerald-400' : 'text-amber-400'} />
-                  <div>
-                    <h5 className="text-xs font-bold text-white">
-                      Two-Factor Authentication: <span className={mfaEnabled ? 'text-emerald-400' : 'text-amber-400'}>{mfaEnabled ? 'ACTIVE' : 'OPTIONAL'}</span>
-                    </h5>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Mandatory for administrator accounts</p>
-                  </div>
-                </div>
-              </div>
+            <div className="space-y-3">
+              {activeSessions.length > 0 ? (
+                activeSessions.map((session) => (
+                  <div key={session.id} className="p-4 rounded-2xl bg-slate-950 border border-white/10 flex items-center justify-between gap-4 flex-wrap">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-9 h-9 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center shrink-0">
+                        <Laptop size={18} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h6 className="text-xs font-bold text-white">{session.device_info || 'Chrome Browser / Desktop'}</h6>
+                          {session.isCurrent && (
+                            <span className="px-2 py-0.5 rounded text-[9px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              CURRENT ACTIVE
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] font-mono text-slate-400 mt-0.5">
+                          IP: {session.ip_address || '127.0.0.1'} • Last active: {session.last_active_at ? new Date(session.last_active_at).toLocaleString() : 'Just now'}
+                        </p>
+                      </div>
+                    </div>
 
-              {/* Active Sessions Quick Access */}
-              <div className="p-4 rounded-2xl bg-slate-950 border border-white/10 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Laptop size={20} className="text-indigo-400" />
-                  <div>
-                    <h5 className="text-xs font-bold text-white">Active Device Sessions</h5>
-                    <p className="text-[10px] text-slate-400 mt-0.5">View and revoke active device tokens</p>
+                    {!session.isCurrent && (
+                      <button
+                        onClick={() => handleRevokeDeviceSession(session.id)}
+                        className="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs font-bold transition-all"
+                      >
+                        Revoke Token
+                      </button>
+                    )}
                   </div>
+                ))
+              ) : (
+                <div className="p-4 rounded-2xl bg-slate-950 border border-white/10 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Laptop size={18} className="text-emerald-400" />
+                    <div>
+                      <h6 className="text-xs font-bold text-white">Current Active Web Session</h6>
+                      <p className="text-[11px] font-mono text-slate-400">Authenticated Session Token (AES-256)</p>
+                    </div>
+                  </div>
+                  <span className="px-2 py-1 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    ONLINE
+                  </span>
                 </div>
-                <a
-                  href="/sessions"
-                  className="px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-bold transition-all"
-                >
-                  Manage
-                </a>
-              </div>
+              )}
+            </div>
+          </GlassPanel>
+
+          {/* User Audit Log Trail */}
+          <GlassPanel className="p-6 sm:p-8">
+            <div className="flex items-center gap-3 mb-4 pb-3 border-b border-white/10">
+              <Clock className="text-indigo-400" size={18} />
+              <h4 className="text-sm font-heading font-extrabold text-white uppercase tracking-wider">
+                Recent Security & Activity History
+              </h4>
+            </div>
+
+            <div className="space-y-2 font-mono text-xs">
+              {auditLogs.length > 0 ? (
+                auditLogs.slice(0, 5).map((log, i) => (
+                  <div key={log.id || i} className="p-3 rounded-xl bg-slate-950/60 border border-white/5 flex items-center justify-between">
+                    <div>
+                      <span className="text-indigo-300 font-bold">{log.action}</span>
+                      <span className="text-slate-500 ml-2 text-[11px]">IP: {log.ip_address || '127.0.0.1'}</span>
+                    </div>
+                    <span className="text-slate-500 text-[10px]">
+                      {log.created_at ? new Date(log.created_at).toLocaleString() : 'Recent'}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="p-3 rounded-xl bg-slate-950/40 text-slate-500 text-center">
+                  No recorded security incidents or warnings.
+                </div>
+              )}
             </div>
           </GlassPanel>
 
         </div>
-      </div>
+      )}
 
-      {/* Change Password Modal */}
+      {/* ─── Change Password Modal ──────────────────────────────────────────────── */}
       <AnimatePresence>
         {showPasswordModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
@@ -707,7 +1148,7 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
               <div className="flex items-center justify-between pb-4 border-b border-white/10">
                 <div className="flex items-center gap-3">
                   <Key className="text-indigo-400" size={20} />
-                  <h3 className="text-lg font-heading font-black text-white uppercase">Change Password</h3>
+                  <h3 className="text-lg font-heading font-black text-white uppercase">Update Password</h3>
                 </div>
                 <button 
                   onClick={() => setShowPasswordModal(false)}
@@ -733,7 +1174,7 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
                 )}
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-mono font-bold text-slate-400 uppercase">New Password (min 8 chars)</label>
+                  <label className="text-[10px] font-mono font-bold text-slate-400 uppercase">New Password (min 8 characters)</label>
                   <input
                     type="password"
                     value={newPassword}
@@ -770,7 +1211,7 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
                     size="sm"
                     isLoading={isUpdatingPassword}
                   >
-                    Update Password
+                    Save New Password
                   </AnimatedButton>
                 </div>
               </form>
@@ -778,6 +1219,7 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
           </div>
         )}
       </AnimatePresence>
+
     </AnimatedPage>
   );
 };

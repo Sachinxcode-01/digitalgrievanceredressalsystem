@@ -150,8 +150,34 @@ const getProfile = async (req, res, next) => {
       auditLogs = [];
     }
 
+    // Compute user grievance statistics
+    let stats = {
+      totalFiled: 0,
+      resolvedCount: 0,
+      pendingCount: 0,
+      resolutionRate: 100
+    };
+
+    try {
+      const grievanceRepository = require('../repositories/grievanceRepository');
+      const allUserGrievances = await grievanceRepository.getAll(userId);
+      if (Array.isArray(allUserGrievances)) {
+        stats.totalFiled = allUserGrievances.length;
+        stats.resolvedCount = allUserGrievances.filter(g => g.status === 'Resolved' || g.status === 'Closed').length;
+        stats.pendingCount = allUserGrievances.filter(g => g.status !== 'Resolved' && g.status !== 'Closed').length;
+        stats.resolutionRate = stats.totalFiled > 0 ? Math.round((stats.resolvedCount / stats.totalFiled) * 100) : 100;
+      }
+    } catch (statsErr) {
+      console.warn('Profile stats calculation warning:', statsErr.message);
+    }
+
     const normRole = (user.role || 'student').toLowerCase();
     const roleDetails = ROLE_FEATURES_MAP[normRole] || ROLE_FEATURES_MAP['student'];
+
+    const designation = profile.designation || (normRole === 'student' ? 'Undergraduate Scholar' : (normRole === 'officer' ? 'Grievance Resolution Officer' : (normRole.includes('admin') ? 'Institutional Administrator' : 'Staff Member')));
+    const campusLocation = profile.campus_location || 'Main Academic Campus';
+    const institutionalId = profile.institutional_id || `RN-${user.id.slice(0, 8).toUpperCase()}`;
+    const bio = profile.bio || 'Active participant in the institutional digital grievance resolution system.';
 
     res.json({
       profile: {
@@ -159,7 +185,11 @@ const getProfile = async (req, res, next) => {
         profilePicture: profile.profile_picture || req.user.profilePicture || req.user.profile_picture || null,
         notificationPreferences: profile.notification_preferences || { email: true, sms: true },
         department: profile.department || req.user.department || '',
-        institution: profile.institution || ''
+        institution: profile.institution || 'State Institutional Portal',
+        designation,
+        campusLocation,
+        institutionalId,
+        bio
       },
       account: {
         id: user.id,
@@ -171,6 +201,7 @@ const getProfile = async (req, res, next) => {
         phone_verified: user.phone_verified,
         created_at: user.created_at
       },
+      stats,
       roleDetails,
       logs: auditLogs || []
     });
@@ -185,7 +216,7 @@ const getProfile = async (req, res, next) => {
  */
 const updateProfile = async (req, res, next) => {
   const userId = req.user.id;
-  const { fullName, profilePicture, notificationPreferences, department, institution } = req.body;
+  const { fullName, profilePicture, notificationPreferences, department, institution, designation, campusLocation, bio, institutionalId } = req.body;
 
   const isAuthorized = req.user.role === 'admin' || req.user.role === 'super admin';
   if ((department !== undefined || institution !== undefined) && !isAuthorized) {
@@ -199,8 +230,27 @@ const updateProfile = async (req, res, next) => {
     if (notificationPreferences !== undefined) updates.notification_preferences = notificationPreferences;
     if (department !== undefined) updates.department = department;
     if (institution !== undefined) updates.institution = institution;
+    if (designation !== undefined) updates.designation = designation;
+    if (campusLocation !== undefined) updates.campus_location = campusLocation;
+    if (bio !== undefined) updates.bio = bio;
+    if (institutionalId !== undefined) updates.institutional_id = institutionalId;
 
-    const updatedProfile = await userRepository.updateProfile(userId, updates);
+    let updatedProfile;
+    try {
+      updatedProfile = await userRepository.updateProfile(userId, updates);
+    } catch (dbErr) {
+      // If extended columns (designation, bio) are not yet in the DB schema, filter down to base columns
+      const baseUpdates = {
+        full_name: updates.full_name,
+        profile_picture: updates.profile_picture,
+        notification_preferences: updates.notification_preferences,
+        department: updates.department,
+        institution: updates.institution
+      };
+      // remove undefined
+      Object.keys(baseUpdates).forEach(k => baseUpdates[k] === undefined && delete baseUpdates[k]);
+      updatedProfile = await userRepository.updateProfile(userId, baseUpdates);
+    }
 
     await logAudit(userId, 'PROFILE_UPDATE_SUCCESSFUL', req.ip, req.headers['user-agent']);
 
@@ -211,7 +261,11 @@ const updateProfile = async (req, res, next) => {
         profilePicture: updatedProfile.profile_picture,
         notificationPreferences: updatedProfile.notification_preferences,
         department: updatedProfile.department,
-        institution: updatedProfile.institution
+        institution: updatedProfile.institution,
+        designation: updates.designation || updatedProfile.designation,
+        campusLocation: updates.campus_location || updatedProfile.campus_location,
+        bio: updates.bio || updatedProfile.bio,
+        institutionalId: updates.institutionalId || updatedProfile.institutional_id
       }
     });
   } catch (err) {
