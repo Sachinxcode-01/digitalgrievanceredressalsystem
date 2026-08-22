@@ -19,14 +19,17 @@ export const CounterCard = ({
   const isPositive = trend > 0;
 
   return (
-    <MotionCard className={`p-6 ${className}`}>
+    <MotionCard className={`p-6 relative overflow-hidden group hover:border-indigo-500/40 transition-all duration-300 ${className}`}>
       {/* Background Radial Glow */}
-      <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${gradient} rounded-full blur-2xl pointer-events-none opacity-50 group-hover:opacity-100 transition-opacity duration-500`} />
+      <div className={`absolute top-0 right-0 w-32 h-32 bg-linear-to-br ${gradient} rounded-full blur-2xl pointer-events-none opacity-50 group-hover:opacity-100 transition-opacity duration-500`} />
+      
+      {/* Top Edge Sheen */}
+      <div className="absolute top-0 left-0 right-0 h-[1px] bg-linear-to-r from-transparent via-white/15 to-transparent group-hover:via-indigo-400/40 transition-colors" />
 
       <div className="flex items-center justify-between mb-4">
         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{title}</span>
         {Icon && (
-          <div className={`p-2.5 rounded-xl bg-slate-800/80 border border-white/10 ${iconColor} shadow-inner`}>
+          <div className={`p-2.5 rounded-xl bg-slate-800/80 border border-white/10 ${iconColor} shadow-inner group-hover:scale-110 transition-transform`}>
             <Icon className="w-5 h-5" />
           </div>
         )}

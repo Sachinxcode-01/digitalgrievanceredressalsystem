@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Clock, AlertCircle, ChevronLeft, Landmark, Activity, CheckCircle2, QrCode, Download, ShieldCheck } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Search, Clock, AlertCircle, ChevronLeft, Landmark, Activity, CheckCircle2, QrCode, Download, ShieldCheck, Copy, FileDown, Check } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { apiClient } from '../../api/apiClient';
 import StatusBadge from '../../components/ui/StatusBadge';
 import SlaRiskBadge from '../../components/ui/SlaRiskBadge';
 import GrievanceWorkflowTimeline from '../../components/grievances/GrievanceWorkflowTimeline';
+import MultilingualTranslator from '../../components/ai/MultilingualTranslator';
+import toast from 'react-hot-toast';
 
 import { AuroraBackground } from '../../components/ui/BackgroundEffects';
 import MotionCard from '../../components/ui/MotionCard';
@@ -14,20 +16,21 @@ import AnimatedButton from '../../components/ui/AnimatedButton';
 import TrackingTimeline from '../../components/ui/TrackingTimeline';
 
 export const PublicStatusPage = () => {
-  const [ticketId, setTicketId] = useState('');
+  const [searchParams] = useSearchParams();
+  const [ticketId, setTicketId] = useState(searchParams.get('ticket') || '');
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!ticketId.trim()) return;
+  const fetchTicketDetails = async (idToFetch) => {
+    if (!idToFetch || !idToFetch.trim()) return;
     
     setLoading(true);
     setError('');
     setTicket(null);
 
-    const cleanId = ticketId.trim();
+    const cleanId = idToFetch.trim();
 
     try {
       // 1. Try Supabase Direct Query first
@@ -55,6 +58,74 @@ export const PublicStatusPage = () => {
       setError('Reference Ticket ID not found in system records.');
     }
     setLoading(false);
+  };
+
+  useEffect(() => {
+    const paramTicket = searchParams.get('ticket');
+    if (paramTicket) {
+      setTicketId(paramTicket);
+      fetchTicketDetails(paramTicket);
+    }
+  }, [searchParams]);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    fetchTicketDetails(ticketId);
+  };
+
+  const handleCopyLink = () => {
+    const url = `${window.location.origin}/public-status?ticket=${ticket.ticket_id}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    toast.success('Public tracking link copied!');
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleExportPdf = async () => {
+    if (!ticket) return;
+    try {
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF();
+      
+      doc.setFillColor(37, 99, 235);
+      doc.rect(0, 0, 210, 42, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(20);
+      doc.text("OFFICIAL GRIEVANCE STATUS RECEIPT", 15, 24);
+      doc.setFontSize(10);
+      doc.text(`TICKET REFERENCE: #${ticket.ticket_id}`, 135, 24);
+      doc.text(`VERIFIED: ${new Date().toLocaleDateString()}`, 135, 31);
+      
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(12);
+      doc.text("Grievance Status Overview", 15, 54);
+      doc.line(15, 57, 195, 57);
+      
+      doc.setFontSize(10);
+      doc.text(`Subject: ${ticket.title}`, 15, 66);
+      doc.text(`Department: ${ticket.department || ticket.category || 'General'}`, 15, 74);
+      doc.text(`Current Status: ${ticket.status}`, 15, 82);
+      doc.text(`Filing Date: ${new Date(ticket.created_at).toLocaleString()}`, 15, 90);
+      
+      const splitDesc = doc.splitTextToSize(`Narrative: ${ticket.description}`, 180);
+      doc.text(splitDesc, 15, 102);
+
+      if (ticket.resolution_notes) {
+        doc.setFillColor(240, 253, 250);
+        doc.rect(15, 130, 180, 25, 'F');
+        doc.setTextColor(13, 148, 136);
+        doc.setFontSize(10);
+        doc.text("Verified Resolution Statement:", 20, 138);
+        doc.setFontSize(9);
+        doc.setTextColor(51, 65, 85);
+        doc.text(doc.splitTextToSize(ticket.resolution_notes, 170), 20, 146);
+      }
+      
+      doc.save(`Receipt_${ticket.ticket_id}.pdf`);
+      toast.success("Receipt PDF downloaded.");
+    } catch {
+      toast.error("Failed to generate PDF.");
+    }
   };
 
   const getTimelineSteps = (t) => {
@@ -205,7 +276,33 @@ export const PublicStatusPage = () => {
 
                 <div className="p-4 bg-slate-950/60 rounded-2xl border border-white/10 space-y-3">
                   <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest block">Narrative Statement Log</span>
-                  <p className="text-slate-300 text-xs leading-relaxed italic">"{ticket.description}"</p>
+                  <p className="text-slate-300 text-xs leading-relaxed italic font-sans">"{ticket.description}"</p>
+                  
+                  {/* Multilingual AI Auto-Translation Toggle */}
+                  <div className="pt-2 border-t border-white/5">
+                    <MultilingualTranslator text={ticket.description} title={ticket.title} />
+                  </div>
+                </div>
+
+                {/* Receipt Actions: Copy Link & Download Official PDF */}
+                <div className="flex items-center justify-between gap-3 pt-2 border-t border-white/10 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={handleCopyLink}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-850 text-indigo-300 border border-white/10 text-xs font-mono font-bold transition-all cursor-pointer"
+                  >
+                    {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                    <span>{copied ? 'Link Copied' : 'Share Verification Link'}</span>
+                  </button>
+
+                  <AnimatedButton
+                    variant="glow"
+                    size="sm"
+                    leftIcon={FileDown}
+                    onClick={handleExportPdf}
+                  >
+                    Download Official PDF Receipt
+                  </AnimatedButton>
                 </div>
 
                 {/* Audit Workflow Timeline */}
