@@ -13,6 +13,7 @@ import { RoleGuard } from './app/routes/RoleGuard';
 const LoginPage = React.lazy(() => import('./pages/auth/LoginPage').then(m => ({ default: m.LoginPage })));
 const AdminLoginPage = React.lazy(() => import('./pages/auth/AdminLoginPage').then(m => ({ default: m.AdminLoginPage })));
 const UserDashboard = React.lazy(() => import('./pages/dashboard/UserDashboardPage').then(m => ({ default: m.UserDashboard })));
+const OfficerDashboard = React.lazy(() => import('./pages/dashboard/OfficerDashboardPage').then(m => ({ default: m.OfficerDashboardPage })));
 const AdminDashboard = React.lazy(() => import('./pages/dashboard/AdminDashboardPage').then(m => ({ default: m.AdminDashboard })));
 const ProfilePage = React.lazy(() => import('./pages/profile/ProfilePage').then(m => ({ default: m.ProfilePage })));
 const PublicStatusPage = React.lazy(() => import('./pages/public/PublicTrackingPage').then(m => ({ default: m.PublicStatusPage })));
@@ -195,7 +196,7 @@ function AppContent() {
                   <ProtectedRoute>
                     <RoleGuard allowedRoles={['officer', 'faculty', 'staff', 'admin', 'super admin']} fallback={<Navigate to="/dashboard" />}>
                       <Layout user={user} onLogout={logout} theme={theme} setTheme={setTheme}>
-                        <AdminDashboard sessionUser={user} userProfile={user} onLogout={logout} />
+                        <OfficerDashboard sessionUser={user} userProfile={user} onLogout={logout} />
                       </Layout>
                     </RoleGuard>
                   </ProtectedRoute>

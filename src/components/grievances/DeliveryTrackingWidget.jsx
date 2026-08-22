@@ -8,7 +8,7 @@ import StatusBadge from '../ui/StatusBadge';
 import UrgencyBadge from '../ui/UrgencyBadge';
 import toast from 'react-hot-toast';
 
-export const DeliveryTrackingWidget = ({ ticket, onCancel, onExportPdf }) => {
+export const DeliveryTrackingWidget = ({ ticket, role = 'student', onCancel, onExportPdf, onStatusUpdate }) => {
   if (!ticket) return null;
 
   const publicTrackingUrl = `${window.location.origin}/public-status?ticketId=${ticket.ticket_id}`;
@@ -23,10 +23,10 @@ export const DeliveryTrackingWidget = ({ ticket, onCancel, onExportPdf }) => {
   const stages = [
     { key: 'Submitted', title: 'Submitted', subtitle: 'Grievance Registered', icon: FileText },
     { key: 'AI Analyzed', title: 'AI Triaged', subtitle: 'Category & SLA Mapped', icon: Sparkles },
-    { key: 'Assigned', title: 'Officer Assigned', subtitle: ticket.department || 'Department Allocated', icon: UserCheck },
-    { key: 'In Progress', title: 'In Progress', subtitle: 'Investigation Active', icon: Clock },
+    { key: 'Assigned', title: 'Officer Dispatched', subtitle: ticket.department || 'Department Allocated', icon: UserCheck },
+    { key: 'In Progress', title: 'In Transit / Action', subtitle: 'Investigation Active', icon: Clock },
     { key: 'Escalated', title: 'Escalated / Review', subtitle: 'Senior Clearance', icon: AlertTriangle, conditional: ticket.status === 'Escalated' },
-    { key: 'Resolved', title: 'Resolved & Closed', subtitle: 'Redressal Complete', icon: CheckCircle2 }
+    { key: 'Resolved', title: 'Delivered / Resolved', subtitle: 'Redressal Complete', icon: CheckCircle2 }
   ];
 
   // Helper to determine current stage index
@@ -74,8 +74,28 @@ export const DeliveryTrackingWidget = ({ ticket, onCancel, onExportPdf }) => {
   const slaInfo = getSLAInfo();
 
   return (
-    <div className="bg-surface/80 backdrop-blur-xl border border-border/80 rounded-2xl p-6 shadow-lg space-y-6 text-left relative overflow-hidden">
+    <div className="bg-surface/80 backdrop-blur-xl border border-border/80 rounded-3xl p-6 shadow-lg space-y-6 text-left relative overflow-hidden">
       
+      {/* Real-time Delivery Status Pulse Ribbon */}
+      <div className="flex items-center justify-between bg-primary/10 border border-primary/20 rounded-2xl px-4 py-2 text-xs">
+        <div className="flex items-center gap-2">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary"></span>
+          </span>
+          <span className="font-bold text-foreground">
+            {ticket.status === 'Resolved' ? 'Redressal Delivered & Case Closed' :
+             ticket.status === 'In Progress' ? 'Officer In Action / Active Investigation' :
+             ticket.status === 'Assigned' ? 'Dispatched to Department Officer' :
+             ticket.status === 'Pending User Response' ? 'Awaiting Citizen Clarification' :
+             'Registered & Routing in Progress'}
+          </span>
+        </div>
+        <span className="font-mono text-[10px] text-muted-foreground">
+          Live Tracking • Updates in Real-Time
+        </span>
+      </div>
+
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-border/60 pb-4">
         <div>
@@ -105,7 +125,7 @@ export const DeliveryTrackingWidget = ({ ticket, onCancel, onExportPdf }) => {
           {onExportPdf && (
             <button 
               onClick={() => onExportPdf(ticket)}
-              className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1.5"
+              className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1.5 cursor-pointer"
             >
               <FileText size={14} />
               <span>Dossier PDF</span>
@@ -133,7 +153,7 @@ export const DeliveryTrackingWidget = ({ ticket, onCancel, onExportPdf }) => {
           
           {/* Active Progress Bar Fill */}
           <motion.div 
-            className="absolute left-6 top-5 h-1 bg-gradient-to-r from-primary to-accent -z-0"
+            className="absolute left-6 top-5 h-1 bg-linear-to-r from-primary to-accent -z-0"
             initial={{ width: '0%' }}
             animate={{ width: `${(currentIndex / (stages.length - 1)) * 100}%` }}
             transition={{ duration: 0.8, ease: 'easeOut' }}
@@ -187,25 +207,28 @@ export const DeliveryTrackingWidget = ({ ticket, onCancel, onExportPdf }) => {
       </div>
 
       {/* Footer Info & Public Tracking Bar */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-background/50 rounded-xl p-4 border border-border/50 text-xs">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-background/50 rounded-2xl p-4 border border-border/50 text-xs">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
-            <UserCheck size={16} />
+          <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+            <UserCheck size={18} />
           </div>
           <div>
-            <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-wider">Department Coordinator</p>
-            <p className="text-foreground font-bold">{ticket.department || 'Facilities & Maintenance'}</p>
+            <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-wider">Assigned Redressal Unit</p>
+            <p className="text-foreground font-bold">{ticket.department || 'General Administration'}</p>
+            {ticket.assigned_to && (
+              <p className="text-[10px] text-indigo-400 font-mono">Officer ID: {ticket.assigned_to}</p>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-2 bg-surface/90 px-3 py-2 rounded-lg border border-border">
+        <div className="flex items-center justify-between gap-2 bg-surface/90 px-3 py-2 rounded-xl border border-border">
           <div className="truncate">
-            <p className="text-muted-foreground text-[9px] font-bold uppercase tracking-wider">Public Tracking Link</p>
+            <p className="text-muted-foreground text-[9px] font-bold uppercase tracking-wider">Live Public Tracking Link</p>
             <p className="text-primary font-mono text-[10px] truncate">{publicTrackingUrl}</p>
           </div>
           <button 
             onClick={copyTrackingLink}
-            className="p-1.5 hover:bg-muted/80 rounded text-muted-foreground hover:text-foreground transition-all shrink-0 cursor-pointer"
+            className="p-1.5 hover:bg-muted/80 rounded-lg text-muted-foreground hover:text-foreground transition-all shrink-0 cursor-pointer"
             title="Copy tracking URL"
           >
             <Copy size={14} />

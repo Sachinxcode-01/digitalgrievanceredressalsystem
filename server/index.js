@@ -207,6 +207,7 @@ app.use((err, req, res, next) => {
 const supabaseClient = require('./config/supabase');
 const notificationService = require('./services/notificationService');
 
+let lastRealtimeStatus = null;
 if (supabaseClient) {
   supabaseClient
     .channel('server-db-events')
@@ -219,7 +220,10 @@ if (supabaseClient) {
       notificationService.handleGrievanceUpdatedEvent(payload.new, payload.old).catch(console.error);
     })
     .subscribe((status) => {
-      console.log(`📡 Supabase Database Realtime Channel Status: ${status}`);
+      if (status !== lastRealtimeStatus) {
+        lastRealtimeStatus = status;
+        console.log(`📡 Supabase Database Realtime Channel Status: ${status}`);
+      }
     });
 }
 
