@@ -5,6 +5,98 @@ const auditRepository = require('../repositories/auditRepository');
 const { logAudit } = require('../services/auditService');
 const notificationService = require('../services/notificationService');
 
+const ROLE_FEATURES_MAP = {
+  'student': {
+    title: 'Student / Citizen',
+    badgeColor: 'indigo',
+    clearanceLevel: 'Level 1 - Public User',
+    description: 'Standard access for reporting grievances, community upvoting, and tracking resolution timelines.',
+    features: [
+      { id: 'file_grievances', label: 'File & Submit Grievances', description: 'Submit categorized tickets with attachments & geolocation', enabled: true },
+      { id: 'track_live', label: 'Live Ticket Timeline', description: 'Track real-time status and officer assignments', enabled: true },
+      { id: 'community_upvoting', label: 'Community Upvoting', description: 'Upvote matching campus issues to escalate priority', enabled: true },
+      { id: 'ai_triage', label: 'AI Smart Assistant', description: 'Interactive AI resolution advisor and auto-triage', enabled: true },
+      { id: 'satisfaction_ratings', label: 'Satisfaction Feedback', description: 'Rate resolved grievances and provide closure feedback', enabled: true },
+      { id: 'admin_oversight', label: 'Department Resolution Queue', description: 'Officer resolution tools', enabled: false },
+      { id: 'system_settings', label: 'System Administration', description: 'Full system telemetry and RBAC config', enabled: false }
+    ]
+  },
+  'faculty': {
+    title: 'Faculty Member',
+    badgeColor: 'emerald',
+    clearanceLevel: 'Level 2 - Academic Staff',
+    description: 'Academic and department grievance submission and priority routing.',
+    features: [
+      { id: 'file_grievances', label: 'Priority Grievance Filing', description: 'Fast-track academic & departmental filings', enabled: true },
+      { id: 'track_live', label: 'Live Timeline Tracker', description: 'Full ticket progression & history inspection', enabled: true },
+      { id: 'community_upvoting', label: 'Academic Endorsement', description: 'Endorse urgent departmental issues', enabled: true },
+      { id: 'ai_triage', label: 'AI Assistant & Drafts', description: 'AI assistant with expedited SLA estimates', enabled: true },
+      { id: 'satisfaction_ratings', label: 'Closure Review & Feedback', description: 'Detailed feedback on resolution quality', enabled: true },
+      { id: 'admin_oversight', label: 'Department Resolution Queue', description: 'Officer resolution tools', enabled: false },
+      { id: 'system_settings', label: 'System Administration', description: 'Full system telemetry and RBAC config', enabled: false }
+    ]
+  },
+  'staff': {
+    title: 'Staff Member',
+    badgeColor: 'cyan',
+    clearanceLevel: 'Level 2 - Operations Staff',
+    description: 'Operational grievance filing and facilities tracking.',
+    features: [
+      { id: 'file_grievances', label: 'Operations Filing', description: 'Facility & administrative grievance logging', enabled: true },
+      { id: 'track_live', label: 'Live Tracking & Notifications', description: 'Instant alerts on ticket movements', enabled: true },
+      { id: 'community_upvoting', label: 'Staff Co-sign', description: 'Support campus-wide maintenance tickets', enabled: true },
+      { id: 'ai_triage', label: 'AI Smart Triage', description: 'Auto-category and urgency classification', enabled: true },
+      { id: 'satisfaction_ratings', label: 'Resolution Ratings', description: 'Rate operational fixes and responsiveness', enabled: true },
+      { id: 'admin_oversight', label: 'Department Resolution Queue', description: 'Officer resolution tools', enabled: false },
+      { id: 'system_settings', label: 'System Administration', description: 'Full system telemetry and RBAC config', enabled: false }
+    ]
+  },
+  'officer': {
+    title: 'Grievance Officer',
+    badgeColor: 'amber',
+    clearanceLevel: 'Level 3 - Resolution Officer',
+    description: 'Authorized department officer responsible for investigating and resolving assigned grievances.',
+    features: [
+      { id: 'assigned_queue', label: 'Assigned Grievance Queue', description: 'Dedicated inbox of grievances assigned to your department', enabled: true },
+      { id: 'resolution_management', label: 'Resolution & Status Transition', description: 'Mark in-progress, record official notes, resolve tickets', enabled: true },
+      { id: 'ai_solutions', label: 'AI Resolution Drafter', description: 'Generate AI-suggested official resolution responses', enabled: true },
+      { id: 'sla_monitoring', label: 'SLA Countdown & Risk Monitor', description: 'Real-time breach alerts and deadline timers', enabled: true },
+      { id: 'department_reassign', label: 'Department Routing & Escalation', description: 'Reassign or elevate complex matters to specialists', enabled: true },
+      { id: 'audit_logs', label: 'Ticket Timeline Auditing', description: 'Examine detailed event logs and user submissions', enabled: true },
+      { id: 'system_settings', label: 'System Administration', description: 'System-wide RBAC and global configuration', enabled: false }
+    ]
+  },
+  'admin': {
+    title: 'System Administrator',
+    badgeColor: 'purple',
+    clearanceLevel: 'Level 4 - Institutional Administrator',
+    description: 'Full institutional management with oversight of all departments, users, SLAs, and security logs.',
+    features: [
+      { id: 'global_oversight', label: 'Global Grievance Command', description: 'Complete visibility into all institutional grievances', enabled: true },
+      { id: 'officer_assignments', label: 'Officer & Dept Dispatch', description: 'Assign tickets to officers and balance departmental loads', enabled: true },
+      { id: 'user_management', label: 'User & Role Management', description: 'Manage user accounts, clearances, and lockouts', enabled: true },
+      { id: 'sla_escalation', label: 'SLA Rules & Escalation Engine', description: 'Configure SLA hours, automated breach thresholds, and alerts', enabled: true },
+      { id: 'ai_engine', label: 'AI Governance & Vision Analysis', description: 'Execute vision forensics, briefings, and AI summaries', enabled: true },
+      { id: 'audit_telemetry', label: 'Security & Audit Telemetry', description: 'Inspect real-time security events, health, and logs', enabled: true },
+      { id: 'institutional_broadcasts', label: 'Campus-wide Broadcasts', description: 'Dispatch bulk emails and urgent SMS alerts', enabled: true }
+    ]
+  },
+  'super admin': {
+    title: 'Super Administrator',
+    badgeColor: 'rose',
+    clearanceLevel: 'Level 5 - Root Kernel Clearance',
+    description: 'Unrestricted root clearance with full authority across core infrastructure, database backups, and RBAC.',
+    features: [
+      { id: 'kernel_control', label: 'Root Infrastructure Control', description: 'Execute system maintenance, cache purges, and backups', enabled: true },
+      { id: 'rbac_management', label: 'Custom Roles & RBAC Matrix', description: 'Create and assign granular database permissions', enabled: true },
+      { id: 'compliance_reports', label: 'Compliance & Legal Reports', description: 'Export full audit archives, CSV telemetry, and statistics', enabled: true },
+      { id: 'global_oversight', label: 'Unrestricted Ticket Oversight', description: 'Full access to all citizen, student, and admin records', enabled: true },
+      { id: 'emergency_broadcast', label: 'Emergency Broadcast Dispatch', description: 'High-priority SMS & SMTP campus-wide alerts', enabled: true },
+      { id: 'ai_governance', label: 'AI Model & Token Governance', description: 'Configure providers (Gemini, OpenRouter, Nvidia)', enabled: true }
+    ]
+  }
+};
+
 /**
  * Retrieve Profile
  * GET /api/v1/user/profile
@@ -19,8 +111,8 @@ const getProfile = async (req, res, next) => {
     // If profile row doesn't exist yet, auto-create a default one or fallback
     if (!profile) {
       profile = {
-        full_name: req.user.fullName || req.user.email?.split('@')[0] || 'Citizen',
-        profile_picture: null,
+        full_name: req.user.fullName || req.user.full_name || req.user.email?.split('@')[0] || 'Citizen',
+        profile_picture: req.user.profilePicture || req.user.profile_picture || null,
         notification_preferences: { email: true, sms: true },
         department: req.user.department || null,
         institution: null
@@ -30,6 +122,7 @@ const getProfile = async (req, res, next) => {
         await userRepository.createProfile({
           user_id: userId,
           full_name: profile.full_name,
+          profile_picture: profile.profile_picture,
           notification_preferences: profile.notification_preferences
         });
       } catch (createErr) {
@@ -57,12 +150,15 @@ const getProfile = async (req, res, next) => {
       auditLogs = [];
     }
 
+    const normRole = (user.role || 'student').toLowerCase();
+    const roleDetails = ROLE_FEATURES_MAP[normRole] || ROLE_FEATURES_MAP['student'];
+
     res.json({
       profile: {
-        fullName: profile.full_name || req.user.fullName || 'Citizen',
-        profilePicture: profile.profile_picture || null,
+        fullName: profile.full_name || req.user.fullName || req.user.full_name || 'Citizen',
+        profilePicture: profile.profile_picture || req.user.profilePicture || req.user.profile_picture || null,
         notificationPreferences: profile.notification_preferences || { email: true, sms: true },
-        department: profile.department || '',
+        department: profile.department || req.user.department || '',
         institution: profile.institution || ''
       },
       account: {
@@ -75,6 +171,7 @@ const getProfile = async (req, res, next) => {
         phone_verified: user.phone_verified,
         created_at: user.created_at
       },
+      roleDetails,
       logs: auditLogs || []
     });
   } catch (err) {

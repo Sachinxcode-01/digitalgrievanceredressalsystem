@@ -481,8 +481,31 @@ const authService = {
       }
     }
 
-    const profile = await userRepository.findProfileByUserId(user.id);
-    user.full_name = profile ? profile.full_name : name || 'Google User';
+    let profile = await userRepository.findProfileByUserId(user.id);
+    if (!profile) {
+      await userRepository.createProfile({
+        user_id: user.id,
+        full_name: name || 'Google User',
+        profile_picture: picture || null,
+        notification_preferences: { email: true, sms: true }
+      }).catch(console.error);
+      profile = await userRepository.findProfileByUserId(user.id).catch(() => null);
+    } else {
+      const profileUpdates = {};
+      if (picture && (!profile.profile_picture || profile.profile_picture.includes('googleusercontent.com'))) {
+        profileUpdates.profile_picture = picture;
+      }
+      if (name && (!profile.full_name || profile.full_name === 'Google User' || profile.full_name === 'Citizen')) {
+        profileUpdates.full_name = name;
+      }
+      if (Object.keys(profileUpdates).length > 0) {
+        await userRepository.updateProfile(user.id, profileUpdates).catch(console.error);
+        profile = await userRepository.findProfileByUserId(user.id).catch(() => profile);
+      }
+    }
+
+    user.full_name = profile?.full_name || name || 'Google User';
+    user.profile_picture = profile?.profile_picture || picture || null;
 
     // Enforce MFA for Admin/Super Admin in Google login
     if (user.role === 'admin' || user.role === 'super admin') {
@@ -522,7 +545,8 @@ const authService = {
         email: user.email,
         mobileNumber: user.mobile_number,
         role: user.role,
-        fullName: user.full_name
+        fullName: user.full_name,
+        profilePicture: user.profile_picture
       }
     };
   }

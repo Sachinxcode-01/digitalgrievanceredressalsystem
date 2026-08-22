@@ -248,25 +248,38 @@ const syncUser = async (req, res, next) => {
 
     const role     = clerkUser.publicMetadata?.role || 'student';
     const fullName = clerkUser.unsafeMetadata?.fullName
-      || (clerkUser.firstName ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim() : 'Clerk User');
+      || (clerkUser.firstName ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim() : 'Google User');
     const mobile   = clerkUser.unsafeMetadata?.mobileNumber
       || clerkUser.phoneNumbers?.[0]?.phoneNumber
       || null;
+    const profilePicture = clerkUser.imageUrl || (clerkUser.hasImage ? clerkUser.imageUrl : null);
 
     // Atomic upsert: creates or updates the user row without a race condition.
     // Calls the PostgreSQL sync_clerk_user() function which uses ON CONFLICT (email).
     let user = await userRepository.syncClerkUserAtomic(email, clerkId, mobile, role, fullName);
 
-    // Ensure the user profile exists (created outside the upsert for flexibility)
-    const profile = await userRepository.findProfileByUserId(user.id).catch(() => null);
+    // Ensure the user profile exists and sync name + avatar photo
+    let profile = await userRepository.findProfileByUserId(user.id).catch(() => null);
     if (!profile) {
       await userRepository.createProfile({
         user_id: user.id,
         full_name: fullName,
+        profile_picture: profilePicture,
         notification_preferences: { email: true, sms: true }
       }).catch(console.error);
-    } else if (profile.full_name !== fullName) {
-      await userRepository.updateProfile(user.id, { full_name: fullName }).catch(console.error);
+      profile = await userRepository.findProfileByUserId(user.id).catch(() => null);
+    } else {
+      const updates = {};
+      if (fullName && (!profile.full_name || profile.full_name === 'Clerk User' || profile.full_name === 'Google User')) {
+        updates.full_name = fullName;
+      }
+      if (profilePicture && (!profile.profile_picture || profile.profile_picture.includes('img.clerk.com') || profile.profile_picture.includes('googleusercontent.com'))) {
+        updates.profile_picture = profilePicture;
+      }
+      if (Object.keys(updates).length > 0) {
+        await userRepository.updateProfile(user.id, updates).catch(console.error);
+        profile = await userRepository.findProfileByUserId(user.id).catch(() => profile);
+      }
     }
 
     // Create local session for legacy fallback/testing support
@@ -278,7 +291,8 @@ const syncUser = async (req, res, next) => {
           email: user.email,
           mobile_number: user.mobile_number,
           role: user.role,
-          full_name: fullName
+          full_name: profile?.full_name || fullName,
+          profile_picture: profile?.profile_picture || profilePicture
         },
         req.ip,
         req.headers['user-agent']
@@ -299,11 +313,12 @@ const syncUser = async (req, res, next) => {
       message: 'User synchronized successfully.',
       token: localSessionData?.accessToken || null,
       user: {
-        id:           user.id,
-        email:        user.email,
-        mobileNumber: user.mobile_number,
-        role:         user.role,
-        fullName
+        id:             user.id,
+        email:          user.email,
+        mobileNumber:   user.mobile_number,
+        role:           user.role,
+        fullName:       profile?.full_name || fullName,
+        profilePicture: profile?.profile_picture || profilePicture || null
       }
     });
   } catch (err) {

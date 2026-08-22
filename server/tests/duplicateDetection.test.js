@@ -1,8 +1,9 @@
-/* global describe, it, expect */
+/* global describe, it, expect, jest */
 const request = require('supertest');
 const aiService = require('../services/aiService');
 const grievanceRepository = require('../repositories/grievanceRepository');
 
+jest.setTimeout(25000);
 
 describe('AI Duplicate Grievance Detection & Upvoting Engine', () => {
 

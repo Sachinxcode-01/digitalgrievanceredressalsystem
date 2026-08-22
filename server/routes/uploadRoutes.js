@@ -92,11 +92,31 @@ router.post('/', authenticateToken, (req, res, next) => {
   }
 });
 
+const avatarUpload = multer({
+  storage,
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB limit for avatars
+  fileFilter: (req, file, cb) => {
+    const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (allowedImageTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      const err = new Error('Invalid avatar file type. Allowed formats: JPEG, PNG, WebP, GIF.');
+      err.status = 400;
+      cb(err);
+    }
+  }
+});
+
 // @route   POST /api/v1/uploads/profile-image
 // @desc    Upload user profile image avatar to Supabase Storage
 router.post('/profile-image', authenticateToken, (req, res, next) => {
-  upload.single('file')(req, res, (err) => {
-    if (err) return res.status(400).json({ error: err.message });
+  avatarUpload.single('file')(req, res, (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'Avatar image size exceeds 2MB limit.' });
+      }
+      return res.status(err.status || 400).json({ error: err.message });
+    }
     next();
   });
 }, async (req, res, next) => {

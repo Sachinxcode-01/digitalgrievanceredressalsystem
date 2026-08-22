@@ -44,7 +44,7 @@ const callOpenRouterAI = async (prompt, systemPrompt = '', temperature = 0.5) =>
   messages.push({ role: 'user', content: prompt });
 
   try {
-    const model = configService.getSetting('openrouter_model', process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.1-8b-instruct:free');
+    const model = configService.getSetting('openrouter_model', process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free');
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
@@ -60,12 +60,12 @@ const callOpenRouterAI = async (prompt, systemPrompt = '', temperature = 0.5) =>
           'HTTP-Referer': 'http://localhost:5173',
           'X-Title': 'ResolveNow Grievance System'
         },
-        timeout: 15000
+        timeout: 10000
       }
     );
     return response.data.choices[0]?.message?.content?.trim() || null;
   } catch (err) {
-    console.warn('[OpenRouter API Warning — attempting fallback]:', err.response?.data || err.message);
+    console.warn('[OpenRouter API Warning — attempting fallback]:', err.response?.data?.error?.message || err.message);
     return null;
   }
 };

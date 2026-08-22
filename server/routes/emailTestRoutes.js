@@ -16,6 +16,11 @@ const router  = express.Router();
 const nodemailer   = require('nodemailer');
 const emailService = require('../services/emailService');
 const configService = require('../services/configService');
+const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
+
+// Ensure email test endpoints require authenticated administrator session
+router.use(authenticateToken);
+router.use(authorizeRoles('admin', 'super admin'));
 
 // ─── Helper: run one email dispatch and capture result ──────────────────────
 const runTest = async (label, fn) => {

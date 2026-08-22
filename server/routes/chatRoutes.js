@@ -32,26 +32,37 @@ router.post('/stream', optionalAuth, async (req, res, next) => {
     }
 
     res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
     if (res.flushHeaders) res.flushHeaders();
+
+    let isClosed = false;
+    req.on('close', () => {
+      isClosed = true;
+    });
 
     const stream = aiService.getChatResponseStream(message);
     for await (const chunk of stream) {
+      if (isClosed) break;
       res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
     }
 
-    res.write('data: [DONE]\n\n');
-    res.end();
+    if (!isClosed) {
+      res.write('data: [DONE]\n\n');
+      res.end();
+    }
   } catch (error) {
     console.error("Chat streaming error:", error);
     try {
-      const fallbackReply = "Hello! I am your AI Resolution Assistant. Describe your issue and I can help evaluate urgency or assist in quick resolution!";
-      res.write(`data: ${JSON.stringify({ text: fallbackReply })}\n\n`);
-      res.write('data: [DONE]\n\n');
-      res.end();
+      if (!res.writableEnded) {
+        const fallbackReply = "Hello! I am your AI Resolution Assistant. Describe your issue and I can help evaluate urgency or assist in quick resolution!";
+        res.write(`data: ${JSON.stringify({ text: fallbackReply })}\n\n`);
+        res.write('data: [DONE]\n\n');
+        res.end();
+      }
     } catch {
-      res.end();
+      if (!res.writableEnded) res.end();
     }
   }
 });

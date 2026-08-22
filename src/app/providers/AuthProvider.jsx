@@ -621,9 +621,18 @@ export const AuthProvider = ({ children }) => {
       department,
       institution
     });
-    if (res.data?.profile?.fullName) {
+    if (res.data?.profile) {
       setUser(prev => {
-        const updated = { ...prev, fullName: res.data.profile.fullName };
+        const updated = {
+          ...prev,
+          fullName: res.data.profile.fullName || prev?.fullName,
+          profilePicture: res.data.profile.profilePicture !== undefined ? res.data.profile.profilePicture : prev?.profilePicture
+        };
+        try {
+          localStorage.setItem('demo_user', JSON.stringify(updated));
+        } catch (storageErr) {
+          console.debug('Failed to sync updated user in localStorage:', storageErr);
+        }
         return updated;
       });
     }
