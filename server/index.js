@@ -140,6 +140,7 @@ const sessionRoutes     = require('./routes/sessionRoutes');
 const emailTestRoutes   = require('./routes/emailTestRoutes');
 const publicRoutes      = require('./routes/publicRoutes');
 const uploadRoutes      = require('./routes/uploadRoutes');
+const messagingRoutes   = require('./routes/messagingRoutes');
 
 // 5. Versioned API Routing
 app.use('/api/v1/grievances', grievanceRoutes);
@@ -153,6 +154,7 @@ app.use('/api/v1/sessions', sessionRoutes);
 app.use('/api/v1/test-email', emailTestRoutes);
 app.use('/api/v1/public', publicRoutes);
 app.use('/api/v1/uploads', uploadRoutes);
+app.use('/api/v1/messaging', messagingRoutes);
 
 
 // --- Production/Deployment: Serve frontend ---

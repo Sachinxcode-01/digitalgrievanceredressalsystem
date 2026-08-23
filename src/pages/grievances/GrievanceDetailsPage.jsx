@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowLeft, Clock, FileDown, MessageSquare, ShieldCheck, 
   MapPin, CheckCircle, HelpCircle, Loader2, Calendar, ClipboardList, 
-  AlertCircle, History, Info, Trash2, Star, Send, ThumbsUp
+  AlertCircle, History, Info, Trash2, Star, Send, ThumbsUp, Smartphone
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '../../lib/supabase';
@@ -15,6 +15,7 @@ import UrgencyBadge from '../../components/ui/UrgencyBadge';
 import TimelineStep from '../../components/ui/TimelineStep';
 import { DeliveryTrackingWidget } from '../../components/grievances/DeliveryTrackingWidget';
 import CommunityPetitionWidget from '../../components/grievances/CommunityPetitionWidget';
+import MobileNotificationSimulatorModal from '../../components/notifications/MobileNotificationSimulatorModal';
 import { logSecurityEvent } from '../../lib/auditLogger';
 import MultilingualTranslator from '../../components/ai/MultilingualTranslator';
 import toast from 'react-hot-toast';
@@ -28,6 +29,7 @@ export const GrievanceDetailsPage = ({ user }) => {
   const [activeTab, setActiveTab] = useState('overview'); // overview, timeline, comments, resolution, audit
   const [isExporting, setIsExporting] = useState(false);
   const [isUpvoting, setIsUpvoting] = useState(false);
+  const [showMobileSimulator, setShowMobileSimulator] = useState(false);
 
   // Feedback states
   const [feedbackRating, setFeedbackRating] = useState(5);
@@ -238,6 +240,15 @@ export const GrievanceDetailsPage = ({ user }) => {
           >
             {isExporting ? <Loader2 size={12} className="animate-spin" /> : <FileDown size={12} />}
             <span>Export Dossier</span>
+          </button>
+
+          <button 
+            onClick={() => setShowMobileSimulator(true)}
+            className="px-3 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all"
+            title="View live WhatsApp / Telegram Notification Webhook Simulator"
+          >
+            <Smartphone size={13} />
+            <span>Mobile Alerts</span>
           </button>
 
           {isCancellable && (
@@ -619,6 +630,15 @@ export const GrievanceDetailsPage = ({ user }) => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Mobile WhatsApp / Telegram Webhook Simulator Modal */}
+      {ticket && (
+        <MobileNotificationSimulatorModal
+          isOpen={showMobileSimulator}
+          onClose={() => setShowMobileSimulator(false)}
+          ticket={ticket}
+        />
+      )}
 
     </div>
   );

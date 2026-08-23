@@ -13,6 +13,7 @@ import StatusBadge from '../../components/ui/StatusBadge';
 import UrgencyBadge from '../../components/ui/UrgencyBadge';
 import MultilingualTranslator from '../../components/ai/MultilingualTranslator';
 import AiResolutionCopilotModal from '../../components/ai/AiResolutionCopilotModal';
+import MobileNotificationSimulatorModal from '../../components/notifications/MobileNotificationSimulatorModal';
 import toast from 'react-hot-toast';
 
 // ─── Status Flow Configuration ───────────────────────────────────────────────
@@ -213,7 +214,9 @@ export const AdminGrievanceDetailsPage = ({ user, sessionUser }) => {
   const [assignDept, setAssignDept] = useState('');
   const [escalationReason, setEscalationReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // Modal states
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
+  const [isMobileSimulatorOpen, setIsMobileSimulatorOpen] = useState(false);
 
   // ── Fetch ticket + timeline ────────────────────────────────────────────────
   const fetchData = async () => {
@@ -370,8 +373,16 @@ export const AdminGrievanceDetailsPage = ({ user, sessionUser }) => {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setIsMobileSimulatorOpen(true)}
+            className="btn-ghost flex items-center gap-1.5 text-xs text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/10 cursor-pointer"
+            title="Dispatch WhatsApp / Telegram / SMS Alert"
+          >
+            <Smartphone size={13} />
+            <span>Mobile Dispatch</span>
+          </button>
+          <button
             onClick={() => setIsCopilotOpen(true)}
-            className="btn-primary flex items-center gap-1.5 text-xs shadow-md shadow-primary-bright/20 bg-linear-to-r from-primary-bright via-indigo-500 to-cyan-500 hover:opacity-95"
+            className="btn-primary flex items-center gap-1.5 text-xs shadow-md shadow-primary-bright/20 bg-linear-to-r from-primary-bright via-indigo-500 to-cyan-500 hover:opacity-95 cursor-pointer"
           >
             <Sparkles size={13} className="text-amber-300 animate-pulse" />
             AI Resolution Copilot
@@ -861,6 +872,13 @@ export const AdminGrievanceDetailsPage = ({ user, sessionUser }) => {
         onClose={() => setIsCopilotOpen(false)}
         ticket={ticket}
         onApplyResolution={handleApplyResolution}
+      />
+
+      {/* Mobile WhatsApp / Telegram Webhook Simulator Modal */}
+      <MobileNotificationSimulatorModal
+        isOpen={isMobileSimulatorOpen}
+        onClose={() => setIsMobileSimulatorOpen(false)}
+        ticket={ticket}
       />
 
     </div>

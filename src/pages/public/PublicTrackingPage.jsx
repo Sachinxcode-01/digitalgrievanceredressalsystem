@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Clock, AlertCircle, ChevronLeft, Landmark, Activity, CheckCircle2, QrCode, Download, ShieldCheck, Copy, FileDown, Check } from 'lucide-react';
+import { Search, Clock, AlertCircle, ChevronLeft, Landmark, Activity, CheckCircle2, QrCode, Download, ShieldCheck, Copy, FileDown, Check, Smartphone } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { apiClient } from '../../api/apiClient';
@@ -8,6 +8,7 @@ import StatusBadge from '../../components/ui/StatusBadge';
 import SlaRiskBadge from '../../components/ui/SlaRiskBadge';
 import GrievanceWorkflowTimeline from '../../components/grievances/GrievanceWorkflowTimeline';
 import CommunityPetitionWidget from '../../components/grievances/CommunityPetitionWidget';
+import MobileNotificationSimulatorModal from '../../components/notifications/MobileNotificationSimulatorModal';
 import MultilingualTranslator from '../../components/ai/MultilingualTranslator';
 import toast from 'react-hot-toast';
 
@@ -23,6 +24,7 @@ export const PublicStatusPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [showMobileSimulator, setShowMobileSimulator] = useState(false);
 
   const fetchTicketDetails = async (idToFetch) => {
     if (!idToFetch || !idToFetch.trim()) return;
@@ -293,14 +295,26 @@ export const PublicStatusPage = () => {
 
                 {/* Receipt Actions: Copy Link & Download Official PDF */}
                 <div className="flex items-center justify-between gap-3 pt-2 border-t border-white/10 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={handleCopyLink}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-850 text-indigo-300 border border-white/10 text-xs font-mono font-bold transition-all cursor-pointer"
-                  >
-                    {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
-                    <span>{copied ? 'Link Copied' : 'Share Verification Link'}</span>
-                  </button>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={handleCopyLink}
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-850 text-indigo-300 border border-white/10 text-xs font-mono font-bold transition-all cursor-pointer"
+                    >
+                      {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                      <span>{copied ? 'Link Copied' : 'Share Link'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowMobileSimulator(true)}
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-mono font-bold transition-all cursor-pointer"
+                      title="Test WhatsApp & Telegram Alerts"
+                    >
+                      <Smartphone size={14} />
+                      <span>Mobile Alerts</span>
+                    </button>
+                  </div>
 
                   <AnimatedButton
                     variant="glow"
@@ -325,6 +339,15 @@ export const PublicStatusPage = () => {
           </footer>
         </div>
       </div>
+
+      {/* Mobile WhatsApp / Telegram Webhook Simulator Modal */}
+      {ticket && (
+        <MobileNotificationSimulatorModal
+          isOpen={showMobileSimulator}
+          onClose={() => setShowMobileSimulator(false)}
+          ticket={ticket}
+        />
+      )}
     </AuroraBackground>
   );
 };
