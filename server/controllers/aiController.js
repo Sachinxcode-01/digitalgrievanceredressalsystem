@@ -163,9 +163,32 @@ const transcribeVoice = async (req, res) => {
   }
 };
 
+/**
+ * Handle AI Official Policy Resolution Dossier Drafting.
+ */
+const draftOfficialResolutionHandler = async (req, res) => {
+  const { ticket, tone, officerNotes, policyReference } = req.body;
+  try {
+    if (!ticket) {
+      return res.status(400).json({ error: 'Ticket payload is required for drafting resolution.' });
+    }
+    const resolutionDossier = await aiService.draftOfficialResolution({
+      ticket,
+      tone,
+      officerNotes,
+      policyReference
+    });
+    res.json({ success: true, resolution: resolutionDossier });
+  } catch (err) {
+    console.error('Draft Official Resolution Error:', err);
+    res.status(500).json({ error: 'Failed to draft official resolution dossier: ' + err.message });
+  }
+};
+
 module.exports = {
   triageGrievance,
   suggestResolution,
+  draftOfficialResolutionHandler,
   elevateBriefing,
   summarizePerformance,
   analyzeVision,
@@ -175,4 +198,5 @@ module.exports = {
   translateGrievance,
   transcribeVoice
 };
+
 

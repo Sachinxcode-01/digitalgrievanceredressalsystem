@@ -395,6 +395,66 @@ const aiService = {
     return `We have received your ${ticket.category || 'grievance'} report (#${ticket.ticket_id}). Our dedicated support team has logged the issue and is actively coordinating a resolution within 48 hours.`;
   },
 
+  async draftOfficialResolution({ ticket, tone = 'Empathetic & Formal', officerNotes = '', policyReference = '' }) {
+    const institutionName = configService.getSetting('institution_name', 'ResolveNow Institutional Redressal Cell');
+    
+    const systemPrompt = `You are a Senior Grievance Redressal Officer and Institutional Policy Specialist at ${institutionName}.
+Draft an authoritative, highly professional, and empathetic official resolution dossier for an institutional grievance.
+
+Return ONLY valid JSON matching this schema:
+{
+  "resolutionSummary": "A concise 2-sentence executive summary of the investigation findings and final resolution.",
+  "officialLetter": "The complete formal resolution letter addressed to the complainant. Include date, subject, greeting, formal findings, specific remediation actions taken, policy citations, right to appeal within 7 business days, and formal sign-off from the Department Officer.",
+  "recommendedStatus": "Resolved",
+  "keyActionPoints": [
+    "Action step 1 executed by the team",
+    "Action step 2 executed",
+    "Action step 3 preventative safeguard instituted"
+  ],
+  "policyCitations": [
+    "Citation to specific Institutional Standard Operating Procedure or Policy"
+  ],
+  "preventativeMeasures": "Specific long-term corrective action taken to prevent recurrence of this issue.",
+  "appealWindowDays": 7
+}`;
+
+    const prompt = `
+Ticket ID: #${ticket.ticket_id || ticket.id || 'TKT-2026-XXXX'}
+Subject / Title: ${ticket.title}
+Category: ${ticket.category || 'General'}
+Department: ${ticket.department || 'Institutional Administration'}
+Urgency Level: ${ticket.urgency || 'Medium'}
+Complainant Name: ${ticket.user_name || ticket.full_name || 'Complainant'}
+Original Grievance Narrative: "${ticket.description}"
+
+Officer's Remediation Notes & Findings: "${officerNotes || 'Standard remediation procedures and corrective actions successfully deployed.'}"
+Requested Tone: ${tone}
+Specified Policy Reference: ${policyReference || 'Institutional Grievance Standard Operating Procedure (SOP)'}
+`;
+
+    const rawReply = await callAI(prompt, systemPrompt, 0.3);
+    const parsed = extractJson(rawReply);
+    if (parsed && parsed.officialLetter && parsed.resolutionSummary) {
+      return parsed;
+    }
+
+    return {
+      resolutionSummary: `The ${ticket.category || 'reported'} grievance (#${ticket.ticket_id || 'TKT-REF'}) has undergone full departmental investigation and corrective remediation has been successfully enacted.`,
+      officialLetter: `Dear ${ticket.user_name || 'Complainant'},\n\nRE: OFFICIAL GRIEVANCE RESOLUTION NOTICE — #${ticket.ticket_id || 'TKT-REF'}\n\nWe are writing to formally notify you that your grievance regarding "${ticket.title}" submitted under the ${ticket.category || 'General'} category has been fully investigated by the ${ticket.department || 'Institutional Redressal'} team.\n\nFollowing our review and in accordance with institutional policy, the following corrective measures have been implemented:\n• ${officerNotes || 'Verification and remediation executed by designated department officers.'}\n• Preventive system audit conducted to avert recurrence.\n\nThis matter is now marked as RESOLVED. If you require further clarification or wish to appeal this outcome, you may do so through your dashboard within 7 business days.\n\nSincerely,\nOffice of Grievance Redressal\n${institutionName}`,
+      recommendedStatus: "Resolved",
+      keyActionPoints: [
+        `Departmental investigation completed for ticket #${ticket.ticket_id || 'TKT-REF'}.`,
+        officerNotes ? `Action taken: ${officerNotes}` : 'Corrective remediation applied in accordance with SLA protocols.',
+        'Quality assurance inspection and verification concluded.'
+      ],
+      policyCitations: [
+        policyReference || 'Institutional Grievance Redressal Standard Operating Procedure (SOP) §4.1'
+      ],
+      preventativeMeasures: 'Continuous monitoring and staff briefing conducted to uphold service level agreements.',
+      appealWindowDays: 7
+    };
+  },
+
   async generateDepartmentBriefing(ticket, department) {
     const systemPrompt = `You are an AI assistant briefing a specialist in the ${department} department. Provide a 2-sentence technical summary and action item.`;
     const prompt = `

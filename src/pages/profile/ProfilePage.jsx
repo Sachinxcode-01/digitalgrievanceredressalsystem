@@ -1,25 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  User, 
-  Save, 
-  CheckCircle, 
-  Bell, 
-  Shield, 
-  Camera, 
-  Globe, 
-  ShieldCheck, 
-  ShieldAlert, 
-  Sparkles, 
-  RefreshCw, 
-  Smartphone, 
-  Mail, 
-  Building, 
-  Award, 
-  Check, 
-  X, 
-  Lock, 
-  Key, 
+import {
+  User,
+  Save,
+  CheckCircle,
+  Bell,
+  Shield,
+  Camera,
+  Globe,
+  ShieldCheck,
+  ShieldAlert,
+  Sparkles,
+  RefreshCw,
+  Smartphone,
+  Mail,
+  Building,
+  Award,
+  Check,
+  X,
+  Lock,
+  Key,
   ExternalLink,
   Laptop,
   Clock,
@@ -64,19 +64,19 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
   const [institution, setInstitution] = useState(() => user?.institution || '');
   const [bio, setBio] = useState('');
   const [avatarUrl, setAvatarUrl] = useState(() => user?.profilePicture || null);
-  
+
   // Notification States
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [smsNotificationsEnabled, setSmsNotificationsEnabled] = useState(true);
   const [digestFrequency, setDigestFrequency] = useState('realtime');
-  
+
   // Telemetry & Role States
   const [roleDetails, setRoleDetails] = useState(null);
   const [accountMeta, setAccountMeta] = useState(null);
   const [stats, setStats] = useState({ totalFiled: 0, resolvedCount: 0, pendingCount: 0, resolutionRate: 100 });
   const [auditLogs, setAuditLogs] = useState([]);
   const [activeSessions, setActiveSessions] = useState([]);
-  
+
   // Action States
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -93,9 +93,9 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
   const mfaEnabled = clerkUser ? clerkUser.twoFactorEnabled : false;
-  const isGoogleUser = clerkUser?.externalAccounts?.some(acc => acc.provider === 'google') || 
-                       email.includes('@gmail.com') || 
-                       (avatarUrl && (avatarUrl.includes('googleusercontent.com') || avatarUrl.includes('img.clerk.com')));
+  const isGoogleUser = clerkUser?.externalAccounts?.some(acc => acc.provider === 'google') ||
+    email.includes('@gmail.com') ||
+    (avatarUrl && (avatarUrl.includes('googleusercontent.com') || avatarUrl.includes('img.clerk.com')));
 
   // Fetch full profile, role details, and sessions
   const loadProfileData = async () => {
@@ -104,7 +104,7 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
       const res = await apiClient.get('/user/profile');
       if (res.data) {
         const { profile, account, roleDetails: rDetails, stats: rStats, logs } = res.data;
-        
+
         if (profile) {
           setFullName(profile.fullName || '');
           setAvatarUrl(profile.profilePicture || null);
@@ -351,7 +351,7 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
 
   const initials = (fullName || email || 'C')[0].toUpperCase();
   const currentRole = (user?.role || sessionUser?.role || 'student').toLowerCase();
-  
+
   // Badge Color Styles for Roles
   const getRoleBadgeStyle = (role) => {
     switch (role) {
@@ -372,13 +372,13 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
 
   return (
     <AnimatedPage className="space-y-8 max-w-6xl mx-auto w-full pt-4 pb-20 text-left px-2 sm:px-4">
-      
+
       {/* ─── Hero Header & Identity Card ────────────────────────────────────────── */}
       <GlassPanel className="p-6 sm:p-8 relative overflow-hidden border border-white/10 shadow-2xl rounded-3xl">
         <div className="absolute top-0 right-0 w-125 h-125 bg-linear-to-br from-indigo-600/15 via-cyan-500/10 to-transparent rounded-full blur-3xl pointer-events-none -mr-32 -mt-32" />
-        
+
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10">
-          
+
           {/* Avatar & Core Identity */}
           <div className="flex items-center gap-5 sm:gap-6 flex-wrap sm:flex-nowrap">
             <div className="relative group shrink-0">
@@ -395,8 +395,8 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
                 )}
               </div>
 
-              <label 
-                title="Change Avatar Photo" 
+              <label
+                title="Change Avatar Photo"
                 className="absolute -bottom-2 -right-2 w-9 h-9 bg-slate-900/90 hover:bg-indigo-600 border border-white/20 rounded-2xl shadow-xl flex items-center justify-center cursor-pointer text-slate-300 hover:text-white transition-all transform hover:scale-110"
               >
                 <Camera size={15} />
@@ -413,15 +413,15 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
                   {roleDetails?.title || currentRole}
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-3 flex-wrap text-xs text-slate-400 font-mono">
                 <span className="flex items-center gap-1 text-slate-300 font-sans font-medium">
                   <Mail size={13} className="text-indigo-400" />
                   {email}
                 </span>
-                
+
                 {institutionalId && (
-                  <button 
+                  <button
                     onClick={handleCopyId}
                     className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-slate-800/80 hover:bg-slate-750 text-indigo-300 border border-white/10 text-[11px] font-mono transition-all"
                     title="Click to copy ID"
@@ -476,44 +476,40 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
       <div className="flex items-center gap-2 border-b border-white/10 pb-2 overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveTab('profile')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-heading font-extrabold text-xs uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'profile'
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-heading font-extrabold text-xs uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${activeTab === 'profile'
               ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 ring-1 ring-white/20'
               : 'text-slate-400 hover:text-white hover:bg-slate-900'
-          }`}
+            }`}
         >
           <User size={15} /> Personal Credentials
         </button>
 
         <button
           onClick={() => setActiveTab('roles')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-heading font-extrabold text-xs uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'roles'
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-heading font-extrabold text-xs uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${activeTab === 'roles'
               ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 ring-1 ring-white/20'
               : 'text-slate-400 hover:text-white hover:bg-slate-900'
-          }`}
+            }`}
         >
           <Award size={15} /> Role & Privileges
         </button>
 
         <button
           onClick={() => setActiveTab('notifications')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-heading font-extrabold text-xs uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'notifications'
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-heading font-extrabold text-xs uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${activeTab === 'notifications'
               ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 ring-1 ring-white/20'
               : 'text-slate-400 hover:text-white hover:bg-slate-900'
-          }`}
+            }`}
         >
           <Bell size={15} /> Alert Channels
         </button>
 
         <button
           onClick={() => setActiveTab('security')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-heading font-extrabold text-xs uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'security'
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-heading font-extrabold text-xs uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${activeTab === 'security'
               ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 ring-1 ring-white/20'
               : 'text-slate-400 hover:text-white hover:bg-slate-900'
-          }`}
+            }`}
         >
           <ShieldCheck size={15} /> Security & Telemetry
         </button>
@@ -522,7 +518,7 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
       {/* ─── Tab 1: Personal Credentials & Identity Form ─────────────────────────── */}
       {activeTab === 'profile' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
+
           {/* Avatar Studio Card */}
           <div className="space-y-6">
             <MotionCard className="p-6 text-center" tilt={false}>
@@ -544,7 +540,7 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
                   )}
                 </div>
 
-                <label 
+                <label
                   title="Upload New Photo"
                   className="absolute -bottom-2 -right-2 p-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl shadow-xl flex items-center justify-center cursor-pointer transition-all transform hover:scale-105"
                 >
@@ -594,7 +590,7 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
               <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pb-2 border-b border-white/10">
                 Verification Metadata
               </h5>
-              
+
               <div className="flex justify-between items-center">
                 <span className="text-slate-400">Identity Tier:</span>
                 <span className="text-emerald-400 font-bold flex items-center gap-1">
@@ -641,7 +637,7 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
 
               <form onSubmit={handleSave} className="space-y-5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  
+
                   {/* Full Name */}
                   <div className="space-y-1.5">
                     <label className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
@@ -747,11 +743,10 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
                       onChange={(e) => setDepartment(e.target.value)}
                       placeholder="e.g. Computer Science, Student Affairs, Finance"
                       disabled={currentRole !== 'admin' && currentRole !== 'super admin' && currentRole !== 'officer'}
-                      className={`w-full px-4 py-3 rounded-xl border text-xs font-bold outline-none transition-all ${
-                        currentRole === 'admin' || currentRole === 'super admin' || currentRole === 'officer'
+                      className={`w-full px-4 py-3 rounded-xl border text-xs font-bold outline-none transition-all ${currentRole === 'admin' || currentRole === 'super admin' || currentRole === 'officer'
                           ? 'bg-slate-950 border-white/10 text-white focus:border-indigo-500'
                           : 'bg-slate-950/40 border-white/5 text-slate-500 cursor-not-allowed'
-                      }`}
+                        }`}
                     />
                   </div>
 
@@ -772,7 +767,7 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
 
                 {/* Save Bar */}
                 <div className="flex items-center justify-end pt-4 border-t border-white/10 gap-3">
-                  <AnimatedButton 
+                  <AnimatedButton
                     type="submit"
                     variant="glow"
                     size="md"
@@ -823,15 +818,14 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
                   const isCurrent = idx + 1 === currentLevelNum;
 
                   return (
-                    <div 
-                      key={lvl} 
-                      className={`p-2.5 rounded-xl border text-center transition-all ${
-                        isCurrent 
-                          ? 'bg-indigo-600/30 border-indigo-500 text-white font-bold ring-1 ring-indigo-400' 
-                          : isAchieved 
-                            ? 'bg-slate-900 border-white/10 text-slate-300' 
+                    <div
+                      key={lvl}
+                      className={`p-2.5 rounded-xl border text-center transition-all ${isCurrent
+                          ? 'bg-indigo-600/30 border-indigo-500 text-white font-bold ring-1 ring-indigo-400'
+                          : isAchieved
+                            ? 'bg-slate-900 border-white/10 text-slate-300'
                             : 'bg-slate-950/40 border-white/5 text-slate-600'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center justify-center mb-1">
                         {isAchieved ? <CheckCircle size={12} className="text-emerald-400" /> : <Lock size={12} className="text-slate-600" />}
@@ -850,18 +844,16 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {roleDetails?.features?.map((feat) => (
-                <div 
-                  key={feat.id} 
-                  className={`p-4 rounded-2xl border transition-all ${
-                    feat.enabled 
-                      ? 'bg-slate-900/70 border-white/10 hover:border-indigo-500/40' 
+                <div
+                  key={feat.id}
+                  className={`p-4 rounded-2xl border transition-all ${feat.enabled
+                      ? 'bg-slate-900/70 border-white/10 hover:border-indigo-500/40'
                       : 'bg-slate-950/50 border-white/5 opacity-40'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-start gap-3.5">
-                    <div className={`mt-0.5 w-6 h-6 rounded-xl flex items-center justify-center shrink-0 ${
-                      feat.enabled ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-500'
-                    }`}>
+                    <div className={`mt-0.5 w-6 h-6 rounded-xl flex items-center justify-center shrink-0 ${feat.enabled ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-500'
+                      }`}>
                       {feat.enabled ? <Check size={13} strokeWidth={3} /> : <Lock size={12} />}
                     </div>
                     <div>
@@ -899,11 +891,10 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
 
             <div className="space-y-4">
               {/* Channel 1: SMTP Email */}
-              <div 
+              <div
                 onClick={() => setNotificationsEnabled(!notificationsEnabled)}
-                className={`p-5 rounded-2xl border cursor-pointer flex items-center justify-between transition-all ${
-                  notificationsEnabled ? 'bg-indigo-600/10 border-indigo-500/30 shadow-lg shadow-indigo-600/5' : 'bg-slate-950 border-white/10'
-                }`}
+                className={`p-5 rounded-2xl border cursor-pointer flex items-center justify-between transition-all ${notificationsEnabled ? 'bg-indigo-600/10 border-indigo-500/30 shadow-lg shadow-indigo-600/5' : 'bg-slate-950 border-white/10'
+                  }`}
               >
                 <div className="flex items-center gap-4">
                   <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${notificationsEnabled ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
@@ -921,11 +912,10 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
               </div>
 
               {/* Channel 2: SMS Gateway */}
-              <div 
+              <div
                 onClick={() => setSmsNotificationsEnabled(!smsNotificationsEnabled)}
-                className={`p-5 rounded-2xl border cursor-pointer flex items-center justify-between transition-all ${
-                  smsNotificationsEnabled ? 'bg-cyan-600/10 border-cyan-500/30 shadow-lg shadow-cyan-600/5' : 'bg-slate-950 border-white/10'
-                }`}
+                className={`p-5 rounded-2xl border cursor-pointer flex items-center justify-between transition-all ${smsNotificationsEnabled ? 'bg-cyan-600/10 border-cyan-500/30 shadow-lg shadow-cyan-600/5' : 'bg-slate-950 border-white/10'
+                  }`}
               >
                 <div className="flex items-center gap-4">
                   <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${smsNotificationsEnabled ? 'bg-cyan-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
@@ -951,11 +941,10 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
                   <button
                     type="button"
                     onClick={() => setDigestFrequency('realtime')}
-                    className={`p-3 rounded-xl border text-left transition-all ${
-                      digestFrequency === 'realtime'
+                    className={`p-3 rounded-xl border text-left transition-all ${digestFrequency === 'realtime'
                         ? 'bg-indigo-600/20 border-indigo-500 text-white'
                         : 'bg-slate-900 border-white/5 text-slate-400 hover:text-white'
-                    }`}
+                      }`}
                   >
                     <span className="font-bold block text-sm">⚡ Real-time Instant</span>
                     <span className="text-[10px] text-slate-400">Trigger immediately upon status change</span>
@@ -964,11 +953,10 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
                   <button
                     type="button"
                     onClick={() => setDigestFrequency('digest')}
-                    className={`p-3 rounded-xl border text-left transition-all ${
-                      digestFrequency === 'digest'
+                    className={`p-3 rounded-xl border text-left transition-all ${digestFrequency === 'digest'
                         ? 'bg-indigo-600/20 border-indigo-500 text-white'
                         : 'bg-slate-900 border-white/5 text-slate-400 hover:text-white'
-                    }`}
+                      }`}
                   >
                     <span className="font-bold block text-sm">📅 Daily Digest</span>
                     <span className="text-[10px] text-slate-400">Combined summary report at 18:00</span>
@@ -977,7 +965,7 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
               </div>
 
               <div className="flex justify-end pt-2">
-                <AnimatedButton 
+                <AnimatedButton
                   onClick={handleSave}
                   variant="glow"
                   size="md"
@@ -995,7 +983,7 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
       {/* ─── Tab 4: Security, Active Sessions & Audit Telemetry ───────────────────── */}
       {activeTab === 'security' && (
         <div className="space-y-6">
-          
+
           {/* Security Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <GlassPanel className="p-6">
@@ -1003,9 +991,8 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
                 <ShieldCheck size={24} className={mfaEnabled ? 'text-emerald-400' : 'text-amber-400'} />
                 <h5 className="text-sm font-bold text-white">Two-Factor (2FA)</h5>
               </div>
-              <span className={`px-2.5 py-1 rounded-md text-xs font-mono font-bold inline-block mb-2 ${
-                mfaEnabled ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-              }`}>
+              <span className={`px-2.5 py-1 rounded-md text-xs font-mono font-bold inline-block mb-2 ${mfaEnabled ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                }`}>
                 {mfaEnabled ? 'ACTIVE (ENFORCED)' : 'OPTIONAL'}
               </span>
               <p className="text-xs text-slate-400">Extra layer of verification protecting login sessions.</p>
@@ -1150,7 +1137,7 @@ export const ProfilePage = ({ sessionUser, userProfile }) => {
                   <Key className="text-indigo-400" size={20} />
                   <h3 className="text-lg font-heading font-black text-white uppercase">Update Password</h3>
                 </div>
-                <button 
+                <button
                   onClick={() => setShowPasswordModal(false)}
                   className="p-1 rounded-lg text-slate-400 hover:text-white"
                 >

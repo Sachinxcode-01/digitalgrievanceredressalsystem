@@ -3,6 +3,7 @@ const router = express.Router();
 const { 
   triageGrievance, 
   suggestResolution, 
+  draftOfficialResolutionHandler,
   elevateBriefing, 
   summarizePerformance, 
   analyzeVision,
@@ -40,6 +41,10 @@ router.post('/transcribe-voice', authenticateToken, transcribeVoice);
 // @route   POST /api/v1/ai/suggest
 // @desc    AI-generated resolution draft (Restricted to admin / super admin)
 router.post('/suggest', authenticateToken, authorizeRoles('admin', 'super admin'), suggestResolution);
+
+// @route   POST /api/v1/ai/draft-resolution
+// @desc    AI-generated official policy resolution dossier & formal letter (Restricted to admin / super admin / officer)
+router.post('/draft-resolution', authenticateToken, authorizeRoles('admin', 'super admin', 'officer', 'staff'), draftOfficialResolutionHandler);
 
 // @route   POST /api/v1/ai/elevate
 // @desc    Brief a specialist for ticket elevation (Restricted to admin / super admin)

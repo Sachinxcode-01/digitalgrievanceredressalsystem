@@ -5,13 +5,14 @@ import {
   ChevronDown, Send, Loader2, RotateCcw, ShieldAlert, UserCheck,
   FileText, MessageSquare, Activity, Zap, Star, MapPin, Paperclip,
   RefreshCw, Download, Lock, Unlock, Edit3, Bot, ChevronRight,
-  TrendingUp, Calendar, Tag, Building2, Circle
+  TrendingUp, Calendar, Tag, Building2, Circle, Sparkles
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { grievanceService } from '../../services/grievanceService';
 import StatusBadge from '../../components/ui/StatusBadge';
 import UrgencyBadge from '../../components/ui/UrgencyBadge';
 import MultilingualTranslator from '../../components/ai/MultilingualTranslator';
+import AiResolutionCopilotModal from '../../components/ai/AiResolutionCopilotModal';
 import toast from 'react-hot-toast';
 
 // ─── Status Flow Configuration ───────────────────────────────────────────────
@@ -212,6 +213,7 @@ export const AdminGrievanceDetailsPage = ({ user, sessionUser }) => {
   const [assignDept, setAssignDept] = useState('');
   const [escalationReason, setEscalationReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [isCopilotOpen, setIsCopilotOpen] = useState(false);
 
   // ── Fetch ticket + timeline ────────────────────────────────────────────────
   const fetchData = async () => {
@@ -245,6 +247,21 @@ export const AdminGrievanceDetailsPage = ({ user, sessionUser }) => {
       await fetchData();
     } catch {
       toast.error('Failed to update status.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleApplyResolution = async ({ status, notes }) => {
+    setNewStatus(status);
+    setResolutionNotes(notes);
+    setSubmitting(true);
+    try {
+      await grievanceService.updateStatus(id, status, notes);
+      toast.success(`Ticket officially marked as ${status}!`);
+      await fetchData();
+    } catch {
+      toast.error('Failed to update status with AI resolution.');
     } finally {
       setSubmitting(false);
     }
@@ -352,6 +369,13 @@ export const AdminGrievanceDetailsPage = ({ user, sessionUser }) => {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsCopilotOpen(true)}
+            className="btn-primary flex items-center gap-1.5 text-xs shadow-md shadow-primary-bright/20 bg-linear-to-r from-primary-bright via-indigo-500 to-cyan-500 hover:opacity-95"
+          >
+            <Sparkles size={13} className="text-amber-300 animate-pulse" />
+            AI Resolution Copilot
+          </button>
           <button
             onClick={fetchData}
             className="btn-ghost flex items-center gap-1.5 text-xs"
@@ -785,10 +809,27 @@ export const AdminGrievanceDetailsPage = ({ user, sessionUser }) => {
             </div>
 
             {/* Quick Actions */}
-            <div className="bg-surface border border-border/80 rounded-xl p-5 shadow-sm">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+            <div className="bg-surface border border-border/80 rounded-xl p-5 shadow-sm space-y-3">
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                 <Star size={11} /> Quick Actions
               </h3>
+              
+              <button
+                onClick={() => setIsCopilotOpen(true)}
+                className="w-full flex items-center justify-between p-3.5 bg-linear-to-r from-primary-bright/15 via-cyan-500/10 to-indigo-500/15 border border-primary-bright/40 rounded-xl text-xs font-bold text-white hover:border-primary-bright transition-all group"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-primary-bright/20 border border-primary-bright/40 flex items-center justify-center text-amber-300">
+                    <Sparkles size={14} />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-bold text-foreground">Launch Gemini Resolution Copilot</p>
+                    <p className="text-[10px] text-muted-foreground">Draft policy sign-off letter & action checklist</p>
+                  </div>
+                </div>
+                <ChevronRight size={14} className="text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-transform" />
+              </button>
+
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { label: 'Mark Resolved', icon: CheckCircle2, action: () => { setNewStatus('Resolved'); setActiveTab('actions'); }, color: 'text-success hover:bg-success/10 border-success/20' },
@@ -813,6 +854,14 @@ export const AdminGrievanceDetailsPage = ({ user, sessionUser }) => {
           </div>
         </div>
       )}
+
+      {/* AI Resolution Copilot Modal */}
+      <AiResolutionCopilotModal
+        isOpen={isCopilotOpen}
+        onClose={() => setIsCopilotOpen(false)}
+        ticket={ticket}
+        onApplyResolution={handleApplyResolution}
+      />
 
     </div>
   );
