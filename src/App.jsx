@@ -19,6 +19,7 @@ const ProfilePage = React.lazy(() => import('./pages/profile/ProfilePage').then(
 const PublicStatusPage = React.lazy(() => import('./pages/public/PublicTrackingPage').then(m => ({ default: m.PublicStatusPage })));
 const LandingPage = React.lazy(() => import('./pages/public/LandingPage').then(m => ({ default: m.LandingPage })));
 const StatusPage = React.lazy(() => import('./pages/public/StatusPage').then(m => ({ default: m.StatusPage })));
+const PublicTransparencyPage = React.lazy(() => import('./pages/public/PublicTransparencyPage').then(m => ({ default: m.PublicTransparencyPage })));
 const AdminHealthPage = React.lazy(() => import('./pages/analytics/AdminHealthPage').then(m => ({ default: m.AdminHealthPage })));
 
 // --- New Clerk Auth & Settings Pages ---
@@ -148,6 +149,9 @@ function AppContent() {
               <Route path="/public-status" element={<PublicStatusPage />} />
               <Route path="/track" element={<Navigate to="/public-status" replace />} />
               <Route path="/status" element={<StatusPage />} />
+              <Route path="/transparency" element={<PublicTransparencyPage />} />
+              <Route path="/leaderboard" element={<PublicTransparencyPage />} />
+              <Route path="/scorecard" element={<PublicTransparencyPage />} />
               
               {/* Auth Gates */}
               <Route path="/sso-callback" element={<SsoCallbackPage />} />

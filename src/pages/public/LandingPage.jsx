@@ -5,7 +5,7 @@ import {
   MessageSquare, Mail, MapPin, Sparkles, Cpu, Layers, Lock, KeyRound, Bot, 
   Clock, Search, LayoutDashboard, BarChart3, UploadCloud, Bell, FileSpreadsheet, 
   History, Users, Building2, School, Home, Building, HelpCircle, AlertCircle,
-  TrendingUp, Database, Code2, Server, Terminal, Check, Mic
+  TrendingUp, Database, Code2, Server, Terminal, Check, Mic, Trophy
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../app/providers/AuthProvider';
@@ -165,6 +165,12 @@ export const LandingPage = () => {
             <Link to="/admin-login">
               <MotionButton variant="outline" size="lg" leftIcon={ShieldCheck}>
                 Admin Login
+              </MotionButton>
+            </Link>
+
+            <Link to="/transparency">
+              <MotionButton variant="outline" size="lg" leftIcon={Trophy} className="border-amber-500/40 text-amber-300 hover:bg-amber-500/10">
+                Trust Leaderboard
               </MotionButton>
             </Link>
 
