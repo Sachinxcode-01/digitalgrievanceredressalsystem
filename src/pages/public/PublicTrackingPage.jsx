@@ -7,6 +7,7 @@ import { apiClient } from '../../api/apiClient';
 import StatusBadge from '../../components/ui/StatusBadge';
 import SlaRiskBadge from '../../components/ui/SlaRiskBadge';
 import GrievanceWorkflowTimeline from '../../components/grievances/GrievanceWorkflowTimeline';
+import CommunityPetitionWidget from '../../components/grievances/CommunityPetitionWidget';
 import MultilingualTranslator from '../../components/ai/MultilingualTranslator';
 import toast from 'react-hot-toast';
 
@@ -273,6 +274,12 @@ export const PublicStatusPage = () => {
                     <p className="text-[9px] font-mono text-slate-400">Scan to Verify Authentic Copy</p>
                   </div>
                 </div>
+
+                {/* Community Petition & +1 Cluster Endorsement */}
+                <CommunityPetitionWidget 
+                  grievance={ticket} 
+                  onUpvoteSuccess={(updated) => setTicket(updated)} 
+                />
 
                 <div className="p-4 bg-slate-950/60 rounded-2xl border border-white/10 space-y-3">
                   <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest block">Narrative Statement Log</span>

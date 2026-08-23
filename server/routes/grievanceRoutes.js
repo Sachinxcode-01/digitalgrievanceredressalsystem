@@ -10,7 +10,8 @@ const {
   getGrievanceTimeline,
   submitFeedback,
   deleteGrievance,
-  upvoteGrievance
+  upvoteGrievance,
+  getCommunityClusters
 } = require('../controllers/grievanceController');
 const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
 const { 
@@ -26,6 +27,10 @@ router.use(authenticateToken);
 // @route   GET /api/v1/grievances
 // @desc    Fetch all reported grievances (scoped to user, or global if admin)
 router.get('/', getAllGrievances);
+
+// @route   GET /api/v1/grievances/community-clusters
+// @desc    Fetch trending community cluster petitions
+router.get('/community-clusters', getCommunityClusters);
 
 // @route   POST /api/v1/grievances
 // @desc    Report a new grievance

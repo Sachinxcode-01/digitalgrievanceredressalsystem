@@ -14,6 +14,7 @@ import StatusBadge from '../../components/ui/StatusBadge';
 import UrgencyBadge from '../../components/ui/UrgencyBadge';
 import TimelineStep from '../../components/ui/TimelineStep';
 import { DeliveryTrackingWidget } from '../../components/grievances/DeliveryTrackingWidget';
+import CommunityPetitionWidget from '../../components/grievances/CommunityPetitionWidget';
 import { logSecurityEvent } from '../../lib/auditLogger';
 import MultilingualTranslator from '../../components/ai/MultilingualTranslator';
 import toast from 'react-hot-toast';
@@ -257,6 +258,13 @@ export const GrievanceDetailsPage = ({ user }) => {
         ticket={ticket}
         onCancel={() => setShowCancelModal(true)}
         onExportPdf={handleExportDossier}
+      />
+
+      {/* Community Petition & +1 Cluster Endorsement Widget */}
+      <CommunityPetitionWidget 
+        grievance={ticket} 
+        currentUserId={user?.id}
+        onUpvoteSuccess={(updated) => setTicket(updated)} 
       />
 
       {/* Tabs Menu Navigation */}

@@ -239,6 +239,23 @@ export const grievanceService = {
   },
 
   /**
+   * Fetch active trending community grievance clusters & petitions.
+   */
+  async getCommunityClusters(limit = 10) {
+    try {
+      const response = await apiClient.get(`/grievances/community-clusters?limit=${limit}`);
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (err) {
+      console.warn('[grievanceService.getCommunityClusters fallback]:', err.message);
+      const localData = getLocalGrievances();
+      return localData
+        .filter(g => !['Resolved', 'Closed', 'Rejected'].includes(g.status))
+        .sort((a, b) => (b.upvote_count || 0) - (a.upvote_count || 0))
+        .slice(0, limit);
+    }
+  },
+
+  /**
    * Upvote and subscribe to an existing community grievance.
    */
   async upvote(id) {
@@ -251,7 +268,8 @@ export const grievanceService = {
       const match = localData.find(g => g.id === id || g.ticket_id === id);
       if (match) {
         match.upvote_count = (match.upvote_count || 1) + 1;
-        if (match.upvote_count >= 5) match.urgency = 'High';
+        if (match.upvote_count >= 7) match.urgency = 'Critical';
+        else if (match.upvote_count >= 3) match.urgency = 'High';
         localStorage.setItem('resolvenow_local_grievances', JSON.stringify(localData));
         return { grievance: match, message: 'Upvoted locally', alreadyUpvoted: false };
       }

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Send, Sparkles, Loader2, Mic, MicOff, CheckCircle2, 
   MapPin, X, Plus, ArrowLeft, Paperclip, ClipboardList,
-  Copy, ArrowRight, Ticket
+  Copy, ArrowRight, Ticket, Flame, ThumbsUp
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../../lib/supabase';
@@ -49,6 +49,13 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
   const [bypassDuplicateCheck, setBypassDuplicateCheck] = useState(false);
+  const [communityPetitions, setCommunityPetitions] = useState([]);
+
+  useEffect(() => {
+    grievanceService.getCommunityClusters(15)
+      .then(data => setCommunityPetitions(data || []))
+      .catch(() => {});
+  }, []);
 
 
   useEffect(() => {
@@ -378,6 +385,64 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
                     required 
                   />
                 </div>
+
+                {/* Live Campus Outage / Collective Petition Match */}
+                {(() => {
+                  const match = communityPetitions.find(p => 
+                    (category && p.category?.toLowerCase() === category?.toLowerCase()) ||
+                    (title && p.title?.toLowerCase().includes(title.toLowerCase().trim())) ||
+                    (p.upvote_count >= 3 && p.category?.toLowerCase() === category?.toLowerCase())
+                  );
+                  if (!match) return null;
+                  return (
+                    <motion.div 
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-4 rounded-2xl bg-linear-to-r from-amber-500/15 via-orange-500/10 to-amber-500/15 border border-amber-500/30 space-y-2"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
+                          <Flame size={14} className="animate-pulse text-orange-400" />
+                          <span>Active Campus Petition in {match.category || 'this category'}</span>
+                        </div>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-mono font-bold">
+                          🔥 {match.upvote_count || 1} Supporters
+                        </span>
+                      </div>
+                      <p className="text-xs text-white font-bold truncate">
+                        "{match.title}"
+                      </p>
+                      <p className="text-[11px] text-slate-300">
+                        An open collective petition is already active. Endorsing it with <b>+1</b> multiplies urgency and alerts the Department Head directly!
+                      </p>
+                      <div className="flex items-center gap-2 pt-1 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const res = await grievanceService.upvote(match.id || match.ticket_id);
+                              toast.success(res.alreadyUpvoted ? 'You have already endorsed this petition.' : '🔥 Endorsed! You are subscribed to updates.');
+                              navigate(`/track?token=${match.ticket_id || match.id}`);
+                            } catch {
+                              toast.success('+1 recorded.');
+                            }
+                          }}
+                          className="px-3.5 py-1.5 rounded-xl bg-linear-to-r from-orange-500 to-amber-500 hover:opacity-90 text-white font-black text-xs flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
+                        >
+                          <Flame size={12} />
+                          <span>+1 I'm Facing This Too</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/track?token=${match.ticket_id || match.id}`)}
+                          className="px-3 py-1.5 rounded-xl bg-slate-900 border border-white/10 text-slate-300 hover:text-white text-xs font-bold transition-colors cursor-pointer"
+                        >
+                          View Milestone Tracking
+                        </button>
+                      </div>
+                    </motion.div>
+                  );
+                })()}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">

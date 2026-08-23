@@ -572,16 +572,48 @@ const grievanceService = {
     return { message: `Grievance ticket #${ticket.ticket_id} has been canceled and deleted successfully.`, id };
   },
 
+  async getCommunityClusters(limit = 10) {
+    return grievanceRepository.getCommunityClusters(limit);
+  },
+
   async upvoteGrievance(id, user, ip, userAgent) {
     const userId = user ? user.id : 'demo-user';
-    const result = await grievanceRepository.upvote(id, userId);
+    const userName = user ? (user.fullName || user.email || 'Student') : 'Student';
+    const result = await grievanceRepository.upvote(id, userId, userName);
+
+    if (!result.alreadyUpvoted) {
+      // Add timeline event
+      await grievanceRepository.addTimelineEvent({
+        grievance_id: id,
+        status: result.grievance.status || 'Active',
+        activity_type: 'community_upvote',
+        performed_by: userId,
+        notes: `Community Endorsement (+1): Issue endorsed by ${userName}. Total Supporters: ${result.grievance.upvote_count}.${result.escalated ? ` [Priority Elevated to ${result.grievance.urgency}]` : ''}`
+      });
+
+      // If cluster petition escalated, notify admin & department
+      if (result.escalated) {
+        emailService.sendGrievanceAssignedEmail(
+          'admin@resolvenow.system',
+          result.grievance.ticket_id || id,
+          `[🚨 CLUSTER PETITION - ${result.grievance.upvote_count} SUPPORTERS] ${result.grievance.title}`,
+          result.grievance.urgency,
+          result.grievance.department || 'Administration'
+        ).catch(() => {});
+      }
+    }
 
     await logAudit(
       userId,
       'GRIEVANCE_UPVOTED',
       ip,
       userAgent,
-      { grievance_id: id, upvote_count: result.grievance.upvote_count, alreadyUpvoted: result.alreadyUpvoted }
+      { 
+        grievance_id: id, 
+        upvote_count: result.grievance.upvote_count, 
+        alreadyUpvoted: result.alreadyUpvoted,
+        urgency: result.grievance.urgency
+      }
     );
 
     return result;

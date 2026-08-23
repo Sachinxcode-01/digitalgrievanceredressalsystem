@@ -137,6 +137,16 @@ const upvoteGrievance = async (req, res, next) => {
   }
 };
 
+const getCommunityClusters = async (req, res, next) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const clusters = await grievanceService.getCommunityClusters(limit);
+    res.json(clusters);
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getAllGrievances,
   createGrievance,
@@ -147,6 +157,8 @@ module.exports = {
   getGrievanceTimeline,
   submitFeedback,
   deleteGrievance,
-  upvoteGrievance
+  upvoteGrievance,
+  getCommunityClusters
 };
+
 

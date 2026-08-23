@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, AlertTriangle, Clock, CheckCircle, ArrowRight,
-  ChevronLeft, ChevronRight, Loader2, Download, ShieldCheck, Landmark, CheckSquare, Square
+  ChevronLeft, ChevronRight, Loader2, Download, ShieldCheck, Landmark, CheckSquare, Square, Flame
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { grievanceService } from '../../services/grievanceService';
@@ -70,6 +70,9 @@ export const AdminGrievancesPage = ({ user, sessionUser }) => {
       }
       if (activeQueue === 'escalated') {
         return ticket.escalated_at !== null && ticket.status !== 'Resolved';
+      }
+      if (activeQueue === 'petitions') {
+        return (ticket.upvote_count >= 2 || ticket.is_petition_cluster) && ticket.status !== 'Resolved';
       }
       if (activeQueue === 'resolved') {
         return ticket.status === 'Resolved';
@@ -170,8 +173,9 @@ export const AdminGrievancesPage = ({ user, sessionUser }) => {
 
   // KPIs
   const allCount = tickets.length;
-  const assignedCount = tickets.filter(t => t.assigned_to !== null && t.status !== 'Resolved').length;
-  const escalatedCount = tickets.filter(t => t.escalated_at !== null && t.status !== 'Resolved').length;
+  const assignedCount = tickets.filter(t => t.assigned_to && t.status !== 'Resolved').length;
+  const escalatedCount = tickets.filter(t => t.escalated_at && t.status !== 'Resolved').length;
+  const petitionsCount = tickets.filter(t => (t.upvote_count >= 2 || t.is_petition_cluster) && t.status !== 'Resolved').length;
   const resolvedCount = tickets.filter(t => t.status === 'Resolved').length;
 
   return (
@@ -195,9 +199,10 @@ export const AdminGrievancesPage = ({ user, sessionUser }) => {
       </div>
 
       {/* KPI Counters */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         {[
           { label: 'All Grievances', count: allCount, color: 'border-l-primary-bright text-primary-bright', tabId: 'all' },
+          { label: '🔥 Campus Petitions', count: petitionsCount, color: 'border-l-orange-500 text-orange-400', tabId: 'petitions' },
           { label: 'Assigned Review', count: assignedCount, color: 'border-l-secondary text-secondary', tabId: 'assigned' },
           { label: 'Escalated Warnings', count: escalatedCount, color: 'border-l-error text-error', tabId: 'escalated' },
           { label: 'Resolved Tickets', count: resolvedCount, color: 'border-l-success text-success', tabId: 'resolved' },
@@ -316,7 +321,13 @@ export const AdminGrievancesPage = ({ user, sessionUser }) => {
                       </td>
                       <td className="px-6 py-4 font-bold text-foreground">
                         <div className="flex items-center gap-2">
-                          <span className="truncate max-w-50">{ticket.title}</span>
+                          <span className="truncate max-w-45">{ticket.title}</span>
+                          {ticket.upvote_count >= 2 && (
+                            <span className="px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[9px] font-black uppercase flex items-center gap-0.5 shrink-0" title={`${ticket.upvote_count} student endorsements`}>
+                              <Flame size={10} />
+                              {ticket.upvote_count}
+                            </span>
+                          )}
                           <ArrowRight size={10} className="opacity-0 group-hover:opacity-100 group-hover:translate-x-1 text-primary-bright transition-all shrink-0" />
                         </div>
                       </td>

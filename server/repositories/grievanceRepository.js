@@ -480,7 +480,28 @@ const grievanceRepository = {
     return data || [];
   },
 
-  async upvote(id, userId) {
+  async getCommunityClusters(limit = 10) {
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('grievances')
+          .select('*')
+          .not('status', 'in', '("Resolved","Closed","Rejected")')
+          .order('upvote_count', { ascending: false })
+          .limit(limit);
+        if (!error && data) return data;
+      } catch (err) {
+        console.warn('[grievanceRepository.getCommunityClusters warning]:', err.message);
+      }
+    }
+
+    return inMemoryGrievances
+      .filter(g => !['Resolved', 'Closed', 'Rejected'].includes(g.status))
+      .sort((a, b) => (b.upvote_count || 0) - (a.upvote_count || 0))
+      .slice(0, limit);
+  },
+
+  async upvote(id, userId, userName = 'Student') {
     const item = await this.findById(id);
     if (!item) throw new Error('Grievance not found');
 
@@ -491,12 +512,37 @@ const grievanceRepository = {
 
     const newCount = (item.upvote_count || 0) + 1;
     const newUpvotedBy = userId ? [...upvotedBy, userId] : upvotedBy;
-    const newUrgency = newCount >= 5 && item.urgency !== 'High' ? 'High' : item.urgency;
+    
+    // Dynamic Urgency & Petition Cluster Escalation
+    let newUrgency = item.urgency;
+    if (newCount >= 7) {
+      newUrgency = 'Critical';
+    } else if (newCount >= 3 && item.urgency !== 'Critical') {
+      newUrgency = 'High';
+    }
+
+    // Dynamic SLA Tightening: Accelerate deadline for collective community petitions
+    let newSlaDueAt = item.sla_due_at;
+    const now = new Date();
+    if (newCount >= 10) {
+      const emergency12h = new Date(now.getTime() + 12 * 60 * 60 * 1000).toISOString();
+      if (!newSlaDueAt || new Date(newSlaDueAt) > new Date(emergency12h)) {
+        newSlaDueAt = emergency12h;
+      }
+    } else if (newCount >= 5) {
+      const urgent24h = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+      if (!newSlaDueAt || new Date(newSlaDueAt) > new Date(urgent24h)) {
+        newSlaDueAt = urgent24h;
+      }
+    }
 
     const updates = {
       upvote_count: newCount,
       upvoted_by: newUpvotedBy,
-      urgency: newUrgency
+      urgency: newUrgency,
+      sla_due_at: newSlaDueAt,
+      is_petition_cluster: newCount >= 3,
+      updated_at: now.toISOString()
     };
 
     if (supabase) {
@@ -508,7 +554,14 @@ const grievanceRepository = {
     }
 
     Object.assign(item, updates);
-    return { grievance: item, message: 'Grievance upvoted successfully', alreadyUpvoted: false };
+    return { 
+      grievance: item, 
+      message: newCount >= 3 
+        ? `Collective Petition Escalated! ${newCount} students have endorsed this issue.` 
+        : 'Grievance endorsed successfully.', 
+      alreadyUpvoted: false,
+      escalated: newCount === 3 || newCount === 7 || newCount === 10
+    };
   }
 };
 
