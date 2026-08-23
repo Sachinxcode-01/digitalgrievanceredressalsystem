@@ -185,10 +185,25 @@ const draftOfficialResolutionHandler = async (req, res) => {
   }
 };
 
+/**
+ * Predictive SLA Breach Intelligence & Bottleneck Heatmap forecast.
+ */
+const predictiveSlaForecastHandler = async (req, res) => {
+  const { tickets } = req.body;
+  try {
+    const forecast = await aiService.generatePredictiveSlaForecast(tickets || []);
+    res.json({ success: true, forecast });
+  } catch (err) {
+    console.error('Predictive SLA Forecast Error:', err);
+    res.status(500).json({ error: 'Failed to compute SLA breach predictions: ' + err.message });
+  }
+};
+
 module.exports = {
   triageGrievance,
   suggestResolution,
   draftOfficialResolutionHandler,
+  predictiveSlaForecastHandler,
   elevateBriefing,
   summarizePerformance,
   analyzeVision,

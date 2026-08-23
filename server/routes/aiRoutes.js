@@ -4,6 +4,7 @@ const {
   triageGrievance, 
   suggestResolution, 
   draftOfficialResolutionHandler,
+  predictiveSlaForecastHandler,
   elevateBriefing, 
   summarizePerformance, 
   analyzeVision,
@@ -45,6 +46,10 @@ router.post('/suggest', authenticateToken, authorizeRoles('admin', 'super admin'
 // @route   POST /api/v1/ai/draft-resolution
 // @desc    AI-generated official policy resolution dossier & formal letter (Restricted to admin / super admin / officer)
 router.post('/draft-resolution', authenticateToken, authorizeRoles('admin', 'super admin', 'officer', 'staff'), draftOfficialResolutionHandler);
+
+// @route   POST /api/v1/ai/sla-predictions
+// @desc    Predictive SLA Breach Intelligence & Bottleneck Heatmap (Restricted to admin / super admin / officer)
+router.post('/sla-predictions', authenticateToken, authorizeRoles('admin', 'super admin', 'officer'), predictiveSlaForecastHandler);
 
 // @route   POST /api/v1/ai/elevate
 // @desc    Brief a specialist for ticket elevation (Restricted to admin / super admin)

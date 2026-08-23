@@ -23,6 +23,7 @@ import SlaRiskBadge from '../../components/ui/SlaRiskBadge';
 import ResolutionVelocityChart from '../../components/charts/ResolutionVelocityChart';
 import GrievanceWorkflowTimeline from '../../components/grievances/GrievanceWorkflowTimeline';
 import SmartTriageAssistant from '../../components/ai/SmartTriageAssistant';
+import PredictiveSlaIntelligenceModal from '../../components/analytics/PredictiveSlaIntelligenceModal';
 
 import AnimatedPage from '../../components/ui/AnimatedPage';
 import CounterCard from '../../components/ui/CounterCard';
@@ -50,6 +51,7 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showPredictiveSlaModal, setShowPredictiveSlaModal] = useState(false);
 
   // Form States
   const [reassignOfficer, setReassignOfficer] = useState('');
@@ -289,6 +291,14 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
               title="Refresh Data"
             >
               <RefreshCw size={15} />
+            </button>
+
+            <button
+              onClick={() => setShowPredictiveSlaModal(true)}
+              className="px-3.5 py-2 rounded-xl bg-linear-to-r from-amber-500/20 via-orange-500/20 to-red-500/20 hover:from-amber-500/30 hover:to-orange-500/30 text-amber-300 border border-amber-500/40 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-lg shadow-amber-500/10 cursor-pointer"
+            >
+              <Zap size={14} className="text-amber-400 animate-pulse" />
+              <span className="hidden sm:inline">Predictive SLA Radar</span>
             </button>
 
             <AnimatedButton
@@ -760,6 +770,17 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Predictive SLA Breach Intelligence Radar Modal */}
+      <PredictiveSlaIntelligenceModal
+        isOpen={showPredictiveSlaModal}
+        onClose={() => setShowPredictiveSlaModal(false)}
+        tickets={tickets}
+        onTicketSelect={(t) => {
+          const match = tickets.find(ticket => ticket.id === t.id || ticket.ticket_id === t.ticket_id);
+          if (match) setSelectedTicket(match);
+        }}
+      />
 
     </AnimatedPage>
   );

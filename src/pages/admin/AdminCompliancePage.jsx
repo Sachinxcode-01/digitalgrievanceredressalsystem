@@ -4,12 +4,13 @@ import {
   Shield, ShieldAlert, ShieldCheck, Lock, FileDown, 
   Activity, AlertTriangle, AlertCircle, CheckCircle, 
   RefreshCw, Calendar, ArrowLeft, ArrowDown, Database,
-  Terminal, ShieldX
+  Terminal, ShieldX, Zap
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { apiClient } from '../../api/apiClient';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import PredictiveSlaIntelligenceModal from '../../components/analytics/PredictiveSlaIntelligenceModal';
 
 export const AdminCompliancePage = () => {
   const [stats, setStats] = useState(null);
@@ -18,6 +19,7 @@ export const AdminCompliancePage = () => {
   const [reportType, setReportType] = useState('compliance'); // 'compliance' | 'security' | 'audit'
   const [reportFormat, setReportFormat] = useState('csv'); // 'csv' | 'json'
   const [exporting, setExporting] = useState(false);
+  const [showPredictiveSlaModal, setShowPredictiveSlaModal] = useState(false);
 
   const fetchStats = async (showToast = false) => {
     if (showToast) setRefreshing(true);
@@ -130,14 +132,24 @@ export const AdminCompliancePage = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => fetchStats(true)}
-          disabled={refreshing}
-          className="btn-ghost flex items-center gap-2 border border-white/5 px-4 py-2 text-xs font-bold uppercase tracking-wider"
-        >
-          <RefreshCw size={14} className={refreshing ? 'animate-spin text-primary-bright' : ''} />
-          <span>Sync Diagnostics</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowPredictiveSlaModal(true)}
+            className="px-3.5 py-2 rounded-xl bg-linear-to-r from-amber-500/20 via-orange-500/20 to-red-500/20 hover:from-amber-500/30 hover:to-orange-500/30 text-amber-300 border border-amber-500/40 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-lg shadow-amber-500/10 cursor-pointer"
+          >
+            <Zap size={14} className="text-amber-400 animate-pulse" />
+            <span>SLA Breach Radar</span>
+          </button>
+
+          <button
+            onClick={() => fetchStats(true)}
+            disabled={refreshing}
+            className="btn-ghost flex items-center gap-2 border border-white/5 px-4 py-2 text-xs font-bold uppercase tracking-wider"
+          >
+            <RefreshCw size={14} className={refreshing ? 'animate-spin text-primary-bright' : ''} />
+            <span>Sync Diagnostics</span>
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -225,7 +237,7 @@ export const AdminCompliancePage = () => {
                 <p className="text-[10px] text-slate-500 mt-0.5">Quantity of security events tagged by triage level.</p>
               </div>
 
-              <div className="h-[220px] w-full mt-2">
+              <div className="h-55 w-full mt-2">
                 {getSeverityData().reduce((acc, row) => acc + row.count, 0) > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={getSeverityData()} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
@@ -264,7 +276,7 @@ export const AdminCompliancePage = () => {
                 <p className="text-[10px] text-slate-500 mt-0.5">Top event types detected in security logs.</p>
               </div>
 
-              <div className="h-[220px] w-full mt-2">
+              <div className="h-55 w-full mt-2">
                 {getEventTypeData().length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart layout="vertical" data={getEventTypeData()} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
@@ -427,6 +439,12 @@ export const AdminCompliancePage = () => {
           </div>
         </motion.div>
       )}
+
+      {/* Predictive SLA Breach Radar Modal */}
+      <PredictiveSlaIntelligenceModal
+        isOpen={showPredictiveSlaModal}
+        onClose={() => setShowPredictiveSlaModal(false)}
+      />
     </div>
   );
 };

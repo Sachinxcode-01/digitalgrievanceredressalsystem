@@ -470,6 +470,165 @@ Specified Policy Reference: ${policyReference || 'Institutional Grievance Standa
     return `High priority ${ticket.category} incident reported. Assigned to ${department} team for immediate verification and triage.`;
   },
 
+  async generatePredictiveSlaForecast(tickets = []) {
+    const now = new Date();
+    const openTickets = tickets.filter(t => !['Resolved', 'Closed', 'Rejected'].includes(t.status));
+
+    // Department grouping
+    const deptStats = {};
+    const riskCategories = {
+      imminentBreach: [], // < 4h
+      highRisk: [],       // 4h - 12h
+      elevatedRisk: [],   // 12h - 24h
+      onTrack: []         // > 24h
+    };
+
+    openTickets.forEach(ticket => {
+      const dept = ticket.department || ticket.category || 'General';
+      if (!deptStats[dept]) {
+        deptStats[dept] = {
+          name: dept,
+          totalOpen: 0,
+          criticalHigh: 0,
+          breached: 0,
+          imminent: 0,
+          avgFrustration: 0,
+          frustrationSum: 0
+        };
+      }
+
+      deptStats[dept].totalOpen += 1;
+      if (['High', 'Critical'].includes(ticket.urgency)) {
+        deptStats[dept].criticalHigh += 1;
+      }
+      deptStats[dept].frustrationSum += (ticket.frustration_index || 1);
+
+      // SLA timing calculation
+      const dueTime = ticket.sla_due_at ? new Date(ticket.sla_due_at).getTime() : (new Date(ticket.created_at).getTime() + 48 * 3600 * 1000);
+      const hoursRemaining = (dueTime - now.getTime()) / (1000 * 60 * 60);
+
+      const ticketRiskMeta = {
+        id: ticket.id,
+        ticket_id: ticket.ticket_id,
+        title: ticket.title,
+        department: dept,
+        urgency: ticket.urgency,
+        hoursRemaining: Math.round(hoursRemaining * 10) / 10,
+        upvote_count: ticket.upvote_count || 1,
+        assigned_to: ticket.assigned_to
+      };
+
+      if (hoursRemaining < 0) {
+        deptStats[dept].breached += 1;
+        riskCategories.imminentBreach.push({ ...ticketRiskMeta, status: 'Overdue / Breached' });
+      } else if (hoursRemaining <= 4) {
+        deptStats[dept].imminent += 1;
+        riskCategories.imminentBreach.push({ ...ticketRiskMeta, status: 'Imminent (<4h)' });
+      } else if (hoursRemaining <= 12) {
+        riskCategories.highRisk.push({ ...ticketRiskMeta, status: 'High Risk (4-12h)' });
+      } else if (hoursRemaining <= 24) {
+        riskCategories.elevatedRisk.push({ ...ticketRiskMeta, status: 'Elevated (12-24h)' });
+      } else {
+        riskCategories.onTrack.push({ ...ticketRiskMeta, status: 'On-Track (>24h)' });
+      }
+    });
+
+    // Compute Department Bottleneck & Velocity Matrix
+    const departmentHeatmap = Object.values(deptStats).map(d => {
+      d.avgFrustration = Math.round((d.frustrationSum / (d.totalOpen || 1)) * 10) / 10;
+      delete d.frustrationSum;
+
+      // Bottleneck health score (0-100 where 100 is best, 0 is choked)
+      const loadFactor = (d.totalOpen * 2) + (d.criticalHigh * 3) + (d.imminent * 5) + (d.breached * 8);
+      let bottleneckStatus = 'Optimal';
+      let healthScore = 95;
+
+      if (loadFactor >= 30 || d.breached >= 3) {
+        bottleneckStatus = 'Choked / Severe';
+        healthScore = Math.max(15, 50 - loadFactor);
+      } else if (loadFactor >= 15 || d.imminent >= 2) {
+        bottleneckStatus = 'Congested';
+        healthScore = Math.max(40, 75 - loadFactor);
+      } else if (loadFactor >= 8) {
+        bottleneckStatus = 'Moderate';
+        healthScore = 80;
+      }
+
+      return {
+        ...d,
+        healthScore,
+        bottleneckStatus,
+        velocityRisk: 100 - healthScore
+      };
+    }).sort((a, b) => b.velocityRisk - a.velocityRisk);
+
+    // Call Gemini AI for Executive Workload Rebalancing Advice
+    const systemPrompt = `You are a Senior SLA Operations Director and Predictive Analytics Specialist.
+Analyze the provided department workload and SLA risk metrics, and generate concise executive optimization recommendations.
+
+Return ONLY valid JSON matching this schema:
+{
+  "executiveDiagnosis": "A sharp 2-sentence executive diagnosis of current institutional resolution velocity and chief bottleneck areas.",
+  "recommendedRebalancingActions": [
+    {
+      "targetDepartment": "Department Name",
+      "actionType": "Officer Reallocation",
+      "recommendation": "Concrete tactical advice for this department",
+      "expectedSlaRecoveryHours": 4
+    }
+  ],
+  "preventativeSystemAdvice": "Strategic policy or resource upgrade to permanently eliminate the root cause."
+}`;
+
+    const prompt = `
+Current Time: ${now.toISOString()}
+Total Open Grievances: ${openTickets.length}
+Imminent Breaches (<4h): ${riskCategories.imminentBreach.length}
+High Risk (4-12h): ${riskCategories.highRisk.length}
+Department Breakdown: ${JSON.stringify(departmentHeatmap.slice(0, 6))}
+`;
+
+    let aiAdvice = null;
+    try {
+      const rawAi = await callAI(prompt, systemPrompt, 0.3);
+      aiAdvice = extractJson(rawAi);
+    } catch {
+      aiAdvice = null;
+    }
+
+    if (!aiAdvice) {
+      aiAdvice = {
+        executiveDiagnosis: `Overall institutional workload is operating at standard velocity, with ${riskCategories.imminentBreach.length} ticket(s) requiring immediate SLA intervention.`,
+        recommendedRebalancingActions: [
+          {
+            targetDepartment: departmentHeatmap[0]?.name || 'Facilities & Maintenance',
+            actionType: 'Officer Reallocation',
+            recommendation: 'Reassign secondary duty officers to clear imminent tickets before 4h deadline.',
+            expectedSlaRecoveryHours: 4
+          }
+        ],
+        preventativeSystemAdvice: 'Institute automated 12h pre-warning notifications for department coordinators.'
+      };
+    }
+
+    return {
+      timestamp: now.toISOString(),
+      totalOpenTickets: openTickets.length,
+      riskSummary: {
+        imminentBreachCount: riskCategories.imminentBreach.length,
+        highRiskCount: riskCategories.highRisk.length,
+        elevatedRiskCount: riskCategories.elevatedRisk.length,
+        onTrackCount: riskCategories.onTrack.length,
+        overallComplianceHealth: Math.round(
+          ((riskCategories.onTrack.length + riskCategories.elevatedRisk.length * 0.7) / (openTickets.length || 1)) * 100
+        )
+      },
+      departmentHeatmap,
+      highRiskTickets: [...riskCategories.imminentBreach, ...riskCategories.highRisk].slice(0, 15),
+      aiAdvice
+    };
+  },
+
   async generatePerformanceSummary(tickets) {
     if (!tickets || tickets.length === 0) return 'Not enough data for performance analysis.';
 
