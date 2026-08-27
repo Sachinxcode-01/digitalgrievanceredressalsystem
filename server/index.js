@@ -117,6 +117,9 @@ app.get('/api/health', async (req, res) => {
   });
 });
 
+const { requestIdMiddleware } = require('./middleware/requestIdMiddleware');
+app.use(requestIdMiddleware);
+
 // Import Routes
 const grievanceRoutes   = require('./routes/grievanceRoutes');
 const aiRoutes          = require('./routes/aiRoutes');
@@ -129,8 +132,10 @@ const emailTestRoutes   = require('./routes/emailTestRoutes');
 const publicRoutes      = require('./routes/publicRoutes');
 const uploadRoutes      = require('./routes/uploadRoutes');
 const messagingRoutes   = require('./routes/messagingRoutes');
+const healthRoutes      = require('./routes/healthRoutes');
 
 // 5. Versioned API Routing
+app.use('/api/v1/health', healthRoutes);
 app.use('/api/v1/grievances', grievanceRoutes);
 app.use('/api/v1/ai', aiRoutes);
 app.use('/api/v1/auth', authRoutes);
