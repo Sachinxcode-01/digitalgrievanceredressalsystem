@@ -11,22 +11,10 @@ const { clerkMiddleware } = require('@clerk/express');
 const { sanitizeInput } = require('./middleware/sanitizeMiddleware');
 
 
+const { validateBootSecurity } = require('./utils/envValidator');
+
 // Validate required environment variables on startup (except during tests)
-if (process.env.NODE_ENV !== 'test') {
-  const requiredEnvVars = [
-    'JWT_SECRET',
-    'SUPABASE_URL',
-    'SUPABASE_SERVICE_ROLE_KEY',
-    'GOOGLE_CLIENT_ID',
-    'GEMINI_API_KEY'
-  ];
-  const missingEnvVars = requiredEnvVars.filter((varName) => !process.env[varName]);
-  if (missingEnvVars.length > 0) {
-    console.error('❌ CRITICAL STARTUP ERROR: The following required environment variables are missing:');
-    missingEnvVars.forEach((varName) => console.error(`   - ${varName}`));
-    process.exit(1);
-  }
-}
+validateBootSecurity();
 
 const app = express();
 app.set('trust proxy', 1);

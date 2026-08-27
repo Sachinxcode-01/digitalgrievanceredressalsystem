@@ -171,7 +171,7 @@ router.post('/settings/maintenance/backup', authorizePermissions('manage_setting
 router.post('/settings/cron/check-slas', authorizePermissions('manage_settings'), checkSlaBreachesRoute);
 
 // --- 6. Executive Board Governance Digest ---
-router.get('/reports/executive-digest/preview', async (req, res, next) => {
+router.get('/reports/executive-digest/preview', authorizePermissions('view_analytics'), async (req, res, next) => {
   const reportService = require('../services/reportService');
   try {
     const digest = await reportService.generateExecutiveBoardDigest();
@@ -181,7 +181,7 @@ router.get('/reports/executive-digest/preview', async (req, res, next) => {
   }
 });
 
-router.post('/reports/executive-digest/email', async (req, res, next) => {
+router.post('/reports/executive-digest/email', authorizePermissions('view_analytics'), async (req, res, next) => {
   const reportService = require('../services/reportService');
   const emailService = require('../services/emailService');
   const { recipientEmail } = req.body;

@@ -180,9 +180,11 @@ router.get('/trust-scorecard', async (req, res, next) => {
   }
 });
 
+const { anonymousPasskeyLimiter, publicVerifyHashLimiter } = require('../middleware/rateLimiter');
+
 // @route   GET /api/v1/public/verify-hash
 // @desc    Anti-Tamper SHA-256 Merkle Audit Verification
-router.get('/verify-hash', async (req, res, next) => {
+router.get('/verify-hash', publicVerifyHashLimiter, async (req, res, next) => {
   const { hash, ticketKey } = req.query;
   const { verifyGrievanceHash } = require('../utils/cryptoUtil');
   try {
@@ -229,7 +231,7 @@ router.get('/verify-hash', async (req, res, next) => {
 
 // @route   POST /api/v1/public/anonymous/track
 // @desc    Whistleblower Passkey Anonymous Ticket Tracking
-router.post('/anonymous/track', async (req, res, next) => {
+router.post('/anonymous/track', anonymousPasskeyLimiter, async (req, res, next) => {
   const { ticketKey, secretPasskey } = req.body;
   const grievanceService = require('../services/grievanceService');
   try {
@@ -245,7 +247,7 @@ router.post('/anonymous/track', async (req, res, next) => {
 
 // @route   POST /api/v1/public/anonymous/message
 // @desc    Whistleblower Anonymous 2-Way Message Dispatch
-router.post('/anonymous/message', async (req, res, next) => {
+router.post('/anonymous/message', anonymousPasskeyLimiter, async (req, res, next) => {
   const { ticketKey, secretPasskey, messageText } = req.body;
   const grievanceService = require('../services/grievanceService');
   try {
