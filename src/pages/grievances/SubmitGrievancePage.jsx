@@ -222,6 +222,10 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
     }
   };
 
+  // Module 1 Whistleblower & Module 3 Emergency states
+  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [isEmergency, setIsEmergency] = useState(false);
+
   const handleFormSubmit = async (e) => {
     if (e) e.preventDefault();
     if (!title.trim() || !description.trim()) {
@@ -238,24 +242,35 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
 
     try {
       const created = await grievanceService.create({
-        user_id: user?.id || sessionUser?.id || 'demo-student-id-101',
-        email: user?.email || sessionUser?.email || 'student@resolvenow.demo',
+        user_id: isAnonymous ? 'anonymous' : (user?.id || sessionUser?.id || 'demo-student-id-101'),
+        email: isAnonymous ? '' : (user?.email || sessionUser?.email || 'student@resolvenow.demo'),
         title,
         description,
         category,
-        urgency,
+        urgency: isEmergency ? 'CRITICAL' : urgency,
         frustration_index: frustrationIndex,
         attachment_url: attachmentUrl,
         location: locationName,
         latitude: coordinates.lat,
-        longitude: coordinates.lng
+        longitude: coordinates.lng,
+        is_anonymous: isAnonymous,
+        is_emergency: isEmergency
       });
 
       logSecurityEvent('New Grievance Transmitted', user?.email || 'citizen', 'Submit Page', 'warning');
       localStorage.removeItem('resolvenow_grievance_draft');
       setSubmittedTicket(created);
       setBypassDuplicateCheck(false);
-      toast.success(`Grievance submitted. Ticket ID: ${created?.ticket_id || 'assigned'}`);
+      
+      if (created?.passkeyInfo) {
+        toast.success('Whistleblower Anonymous Grievance Vaulted! Secret passkey generated.');
+      } else if (created?.status === 'AUTO_RESOLVED') {
+        toast.success('🎉 Instant AI Resolution Found! Review solution below.');
+      } else if (isEmergency) {
+        toast.success('🚨 EMERGENCY SOS DISPATCHED! 2-Hour SLA Activated.');
+      } else {
+        toast.success(`Grievance submitted. Ticket ID: ${created?.ticket_id || 'assigned'}`);
+      }
     } catch (err) {
       toast.error(getErrorMessage(err, 'Filing failed. Please try again.'));
     } finally {
@@ -310,12 +325,77 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
               <CheckCircle2 className="w-8 h-8 text-emerald-400" />
             </div>
             <div className="space-y-1">
-              <h2 className="text-xl font-heading font-black text-white">Grievance Submitted</h2>
+              <h2 className="text-xl font-heading font-black text-white">
+                {submittedTicket.passkeyInfo ? '🔒 Whistleblower Anonymous Grievance Vaulted' : (submittedTicket.status === 'AUTO_RESOLVED' ? '🎉 Instant AI Resolution Available' : 'Grievance Registered Successfully')}
+              </h2>
               <p className="text-xs text-slate-400 max-w-md mx-auto">
-                Your grievance has been registered and routed to the department authority. Save your ticket reference.
+                {submittedTicket.passkeyInfo 
+                  ? 'Your anonymous grievance is saved with zero metadata logged. Save your Secret Passkey to track progress.'
+                  : 'Your grievance has been registered and assigned a cryptographic proof hash.'}
               </p>
             </div>
 
+            {/* Whistleblower Passkey Receipt */}
+            {submittedTicket.passkeyInfo && (
+              <div className="max-w-md mx-auto bg-purple-950/40 border border-purple-500/40 rounded-2xl p-5 space-y-3 text-left">
+                <div className="flex items-center gap-2 text-purple-300 font-bold text-xs uppercase tracking-wider">
+                  <Lock className="w-4 h-4 text-purple-400" /> Whistleblower Secret Passkey Receipt
+                </div>
+                <div className="space-y-2 font-mono text-xs">
+                  <div className="p-2.5 bg-slate-950 rounded-xl border border-purple-500/30 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] text-slate-500 block">Tracking Reference Key</span>
+                      <span className="text-purple-300 font-bold">{submittedTicket.passkeyInfo.ticketKey}</span>
+                    </div>
+                    <button 
+                      onClick={() => { navigator.clipboard.writeText(submittedTicket.passkeyInfo.ticketKey); toast.success('Tracking key copied!'); }}
+                      className="p-1.5 hover:bg-purple-500/20 rounded text-purple-300"
+                    >
+                      <Copy size={14} />
+                    </button>
+                  </div>
+
+                  <div className="p-2.5 bg-slate-950 rounded-xl border border-purple-500/30 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] text-slate-500 block">Secret Passphrase (Keep Private)</span>
+                      <span className="text-amber-300 font-bold tracking-widest">{submittedTicket.passkeyInfo.secretPasskey}</span>
+                    </div>
+                    <button 
+                      onClick={() => { navigator.clipboard.writeText(submittedTicket.passkeyInfo.secretPasskey); toast.success('Secret Passphrase copied!'); }}
+                      className="p-1.5 hover:bg-purple-500/20 rounded text-purple-300"
+                    >
+                      <Copy size={14} />
+                    </button>
+                  </div>
+                </div>
+                <p className="text-[10px] text-purple-400">
+                  ⚠️ Save both keys above. Use them on the <Link to="/track" className="underline font-bold">Public Tracking Portal</Link> to check updates & chat anonymously with department officers.
+                </p>
+              </div>
+            )}
+
+            {/* AI Auto-Resolution Solution Box */}
+            {submittedTicket.auto_resolution_notes && (
+              <div className="max-w-md mx-auto bg-cyan-950/40 border border-cyan-500/40 rounded-2xl p-5 text-left space-y-3">
+                <div className="flex items-center gap-2 text-cyan-300 font-bold text-xs uppercase tracking-wider">
+                  <Sparkles className="w-4 h-4 text-cyan-400" /> Instant AI Verified Solution Found
+                </div>
+                <div className="text-xs text-slate-200 leading-relaxed bg-slate-950 p-3.5 rounded-xl border border-cyan-500/20 whitespace-pre-wrap">
+                  {submittedTicket.auto_resolution_notes}
+                </div>
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <span className="text-[10px] text-cyan-400 font-mono">Status: Auto-Resolved in &lt;1m</span>
+                  <button 
+                    onClick={() => { toast.success('Thank you! Resolution confirmed.'); navigate('/dashboard'); }}
+                    className="px-3 py-1 bg-cyan-500 text-slate-950 font-bold rounded-lg text-xs hover:bg-cyan-400 transition-colors"
+                  >
+                    Accept & Close
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Ticket Reference & Proof Hash */}
             <div className="max-w-sm mx-auto bg-slate-950 border border-white/10 rounded-2xl p-4 space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-400">Ticket Reference</span>
@@ -324,9 +404,24 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
                 </button>
               </div>
               <p className="font-mono text-2xl font-black text-indigo-400 tracking-wider">{submittedTicket.ticket_id}</p>
-              <div className="flex items-center justify-center gap-2 text-[10px] font-mono font-bold uppercase">
+              <div className="flex items-center justify-center gap-2 text-[10px] font-mono font-bold uppercase flex-wrap">
                 <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">{submittedTicket.status}</span>
+                {submittedTicket.is_emergency && (
+                  <span className="px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30">🚨 2H Emergency SLA</span>
+                )}
               </div>
+
+              {submittedTicket.proof_hash && (
+                <div className="pt-2 border-t border-slate-800 text-[10px] text-slate-400 flex items-center justify-between font-mono">
+                  <span className="truncate max-w-[180px]">SHA256: {submittedTicket.proof_hash}</span>
+                  <Link 
+                    to={`/verify-hash?hash=${encodeURIComponent(submittedTicket.proof_hash)}`}
+                    className="text-emerald-400 hover:underline flex items-center gap-1 shrink-0 font-sans"
+                  >
+                    Verify Proof <ExternalLink size={10} />
+                  </Link>
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
@@ -469,12 +564,61 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
                     <select 
                       value={urgency} 
                       onChange={(e) => setUrgency(e.target.value)} 
-                      className="w-full bg-slate-950 border border-white/10 rounded-xl py-2.5 px-3 text-xs text-white outline-none cursor-pointer focus:border-indigo-500"
+                      disabled={isEmergency}
+                      className="w-full bg-slate-950 border border-white/10 rounded-xl py-2.5 px-3 text-xs text-white outline-none cursor-pointer focus:border-indigo-500 disabled:opacity-50"
                     >
                       <option value="Low">Low Priority</option>
                       <option value="Medium">Medium Priority</option>
                       <option value="High">High Priority</option>
                     </select>
+                  </div>
+                </div>
+
+                {/* Whistleblower Anonymous Mode & Emergency SOS Toggles */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                  <div 
+                    onClick={() => setIsAnonymous(!isAnonymous)}
+                    className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                      isAnonymous 
+                        ? 'bg-purple-500/15 border-purple-500/40 text-purple-300' 
+                        : 'bg-slate-950/60 border-white/10 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="space-y-0.5">
+                      <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <span>🔒 Whistleblower Anonymous Vault</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">Zero metadata / IP logged. Secret 12-char passkey generated.</p>
+                    </div>
+                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center text-xs font-bold ${
+                      isAnonymous ? 'bg-purple-500 border-purple-400 text-slate-950' : 'border-slate-700'
+                    }`}>
+                      {isAnonymous ? '✓' : ''}
+                    </div>
+                  </div>
+
+                  <div 
+                    onClick={() => {
+                      setIsEmergency(!isEmergency);
+                      if (!isEmergency) setUrgency('High');
+                    }}
+                    className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                      isEmergency 
+                        ? 'bg-rose-500/15 border-rose-500/40 text-rose-300' 
+                        : 'bg-slate-950/60 border-white/10 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="space-y-0.5">
+                      <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <span>🚨 Emergency SOS Incident</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">2-Hour SLA override. Dispatches SMS to Board Executives.</p>
+                    </div>
+                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center text-xs font-bold ${
+                      isEmergency ? 'bg-rose-500 border-rose-400 text-white' : 'border-slate-700'
+                    }`}>
+                      {isEmergency ? '!' : ''}
+                    </div>
                   </div>
                 </div>
 

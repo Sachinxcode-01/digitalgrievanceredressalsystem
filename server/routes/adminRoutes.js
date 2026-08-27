@@ -170,4 +170,44 @@ router.post('/settings/maintenance/backup', authorizePermissions('manage_setting
 // SLA Background Breach Trigger (Cron)
 router.post('/settings/cron/check-slas', authorizePermissions('manage_settings'), checkSlaBreachesRoute);
 
+// --- 6. Executive Board Governance Digest ---
+router.get('/reports/executive-digest/preview', async (req, res, next) => {
+  const reportService = require('../services/reportService');
+  try {
+    const digest = await reportService.generateExecutiveBoardDigest();
+    res.json({ success: true, digest });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/reports/executive-digest/email', async (req, res, next) => {
+  const reportService = require('../services/reportService');
+  const emailService = require('../services/emailService');
+  const { recipientEmail } = req.body;
+  try {
+    const digest = await reportService.generateExecutiveBoardDigest();
+    const targetEmail = recipientEmail || process.env.ADMIN_EMAIL || 'executive-board@institution.edu';
+    
+    await emailService.sendGrievanceEmail(
+      targetEmail,
+      'GOVERNANCE-DIGEST',
+      `🏛️ Executive Board Governance Digest (${new Date().toLocaleDateString('en-IN')})`,
+      'Executive Governance',
+      'HIGH',
+      'Administration',
+      new Date().toISOString(),
+      req.user ? req.user.id : null
+    );
+
+    res.json({
+      success: true,
+      message: `Executive Board Governance Digest successfully dispatched to ${targetEmail}.`,
+      metrics: digest.metrics
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

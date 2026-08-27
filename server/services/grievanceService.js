@@ -1,6 +1,9 @@
 const grievanceRepository = require('../repositories/grievanceRepository');
 const userRepository = require('../repositories/userRepository');
 const emailService = require('./emailService');
+const messagingService = require('./messagingService');
+const aiService = require('./aiService');
+const { generateGrievanceHash, generateAnonymousPasskey, verifyGrievanceHash } = require('../utils/cryptoUtil');
 const { logAudit } = require('./auditService');
 
 /**
@@ -88,14 +91,18 @@ const grievanceService = {
       }
     }
 
-    // SLA hours mapping
-    const priority = grievanceData.urgency || 'Medium';
-    let slaHours = priority === 'High' ? 24 : priority === 'Medium' ? 72 : 120;
+    // Emergency SOS SLA mapping
+    const isEmergency = Boolean(grievanceData.is_emergency || grievanceData.isEmergency || grievanceData.urgency === 'CRITICAL');
+    const priority = isEmergency ? 'CRITICAL' : (grievanceData.urgency || 'Medium');
+    
+    let slaHours = isEmergency ? 2 : (priority === 'High' ? 24 : priority === 'Medium' ? 72 : 120);
     try {
-      const rules = await grievanceRepository.getSlaRules();
-      const matchingRule = rules.find(r => r.category === deptName && r.priority === priority);
-      if (matchingRule) {
-        slaHours = matchingRule.resolution_time_hours;
+      if (!isEmergency) {
+        const rules = await grievanceRepository.getSlaRules();
+        const matchingRule = rules.find(r => r.category === deptName && r.priority === priority);
+        if (matchingRule) {
+          slaHours = matchingRule.resolution_time_hours;
+        }
       }
     } catch (err) {
       console.warn('SLA rules mapping failed, applying defaults:', err.message);
@@ -103,12 +110,42 @@ const grievanceService = {
 
     const slaDueAt = new Date(Date.now() + slaHours * 60 * 60 * 1000).toISOString();
 
+    // Whistleblower Anonymous Passkey check
+    let passkeyInfo = null;
+    let finalTicketId = ticketId;
+    if (grievanceData.is_anonymous || grievanceData.isAnonymous) {
+      passkeyInfo = generateAnonymousPasskey();
+      finalTicketId = passkeyInfo.ticketKey;
+    }
+
+    // SHA-256 Cryptographic Audit Hash
+    const proofHash = generateGrievanceHash({
+      ticket_key: finalTicketId,
+      subject: grievanceData.title,
+      description: grievanceData.description,
+      category: category,
+      created_at: new Date().toISOString()
+    });
+
+    // AI Knowledge Base Auto-Resolution Evaluation
+    const kbMatch = await aiService.matchKnowledgeBaseAutoResolution({
+      subject: grievanceData.title,
+      description: grievanceData.description
+    });
+
     const statusInput = grievanceData.status || 'Submitted';
-    const finalStatus = statusInput === 'Draft' ? 'Draft' : (assignedOfficerId ? 'Assigned' : 'Submitted');
+    let finalStatus = statusInput === 'Draft' ? 'Draft' : (assignedOfficerId ? 'Assigned' : 'Submitted');
+    
+    if (kbMatch && kbMatch.isAutoResolved) {
+      finalStatus = 'AUTO_RESOLVED';
+    } else if (isEmergency) {
+      finalStatus = 'EMERGENCY_SOS';
+    }
+
     const finalAssignee = finalStatus === 'Draft' ? null : assignedOfficerId;
 
     const newGrievance = await grievanceRepository.create({
-      ticket_id: ticketId,
+      ticket_id: finalTicketId,
       user_id: finalUserId,
       title: grievanceData.title,
       description: grievanceData.description,
@@ -122,8 +159,25 @@ const grievanceService = {
       longitude: grievanceData.longitude,
       status: finalStatus,
       assigned_to: finalAssignee,
-      sla_due_at: slaDueAt
+      sla_due_at: slaDueAt,
+      is_emergency: isEmergency,
+      is_anonymous: Boolean(passkeyInfo),
+      secret_passkey: passkeyInfo ? passkeyInfo.secretPasskey : null,
+      proof_hash: proofHash,
+      auto_resolution_notes: kbMatch.isAutoResolved ? kbMatch.solutionNotes : null
     });
+
+    // Attach passkey details for Whistleblower client response
+    if (passkeyInfo) {
+      newGrievance.passkeyInfo = passkeyInfo;
+    }
+
+    // Trigger Emergency Broadcast if emergency SOS
+    if (isEmergency) {
+      messagingService.dispatchEmergencyBroadcast(newGrievance).catch(err => {
+        console.warn('[Emergency SOS Dispatch Warning]:', err.message);
+      });
+    }
 
     // Timeline event — record registration and how the ticket was routed.
     const routingNote = finalStatus === 'Draft'
@@ -617,6 +671,55 @@ const grievanceService = {
     );
 
     return result;
+  },
+
+  /**
+   * Retrieve anonymous grievance by ticketKey and secretPasskey
+   */
+  async getAnonymousGrievanceByPasskey(ticketKey, secretPasskey) {
+    if (!ticketKey || !secretPasskey) {
+      const err = new Error('Ticket reference key and secret passkey are required.');
+      err.status = 400;
+      throw err;
+    }
+
+    const ticket = await grievanceRepository.findByTicketId(ticketKey);
+    if (!ticket) {
+      const err = new Error('Anonymous grievance not found.');
+      err.status = 404;
+      throw err;
+    }
+
+    if (ticket.secret_passkey && ticket.secret_passkey !== secretPasskey) {
+      const err = new Error('Invalid secret passkey for this anonymous grievance.');
+      err.status = 403;
+      throw err;
+    }
+
+    return ticket;
+  },
+
+  /**
+   * Add anonymous Q&A message between whistleblower and department officer
+   */
+  async addAnonymousMessage(ticketKey, secretPasskey, senderRole, messageText) {
+    const ticket = await this.getAnonymousGrievanceByPasskey(ticketKey, secretPasskey);
+
+    const timelineEvent = await grievanceRepository.addTimelineEvent({
+      grievance_id: ticket.id,
+      status: ticket.status || 'Active',
+      activity_type: 'anonymous_message',
+      performed_by: senderRole === 'whistleblower' ? 'Anonymous Whistleblower' : 'Department Officer',
+      notes: `💬 [${senderRole === 'whistleblower' ? 'Whistleblower' : 'Officer'}]: ${messageText}`
+    });
+
+    return {
+      success: true,
+      ticketId: ticket.ticket_id,
+      messageText,
+      senderRole,
+      timelineEvent
+    };
   }
 };
 

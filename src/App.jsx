@@ -20,6 +20,7 @@ const PublicStatusPage = React.lazy(() => import('./pages/public/PublicTrackingP
 const LandingPage = React.lazy(() => import('./pages/public/LandingPage').then(m => ({ default: m.LandingPage })));
 const StatusPage = React.lazy(() => import('./pages/public/StatusPage').then(m => ({ default: m.StatusPage })));
 const PublicTransparencyPage = React.lazy(() => import('./pages/public/PublicTransparencyPage').then(m => ({ default: m.PublicTransparencyPage })));
+const PublicHashVerificationPage = React.lazy(() => import('./pages/public/PublicHashVerificationPage'));
 const AdminHealthPage = React.lazy(() => import('./pages/analytics/AdminHealthPage').then(m => ({ default: m.AdminHealthPage })));
 
 // --- New Clerk Auth & Settings Pages ---
@@ -152,6 +153,8 @@ function AppContent() {
               <Route path="/transparency" element={<PublicTransparencyPage />} />
               <Route path="/leaderboard" element={<PublicTransparencyPage />} />
               <Route path="/scorecard" element={<PublicTransparencyPage />} />
+              <Route path="/verify-hash" element={<PublicHashVerificationPage />} />
+              <Route path="/hash-inspector" element={<PublicHashVerificationPage />} />
               
               {/* Auth Gates */}
               <Route path="/sso-callback" element={<SsoCallbackPage />} />

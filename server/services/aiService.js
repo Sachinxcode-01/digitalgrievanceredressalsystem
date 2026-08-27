@@ -938,8 +938,59 @@ Respond ONLY with JSON:
       language_detected: 'English',
       title_suggestion: 'Voice Recorded Grievance'
     };
+  },
+
+  /**
+   * Evaluate narrative grievance against standard institutional Knowledge Base rules
+   * for automatic sub-1-minute resolution.
+   */
+  async matchKnowledgeBaseAutoResolution({ subject = '', description = '' }) {
+    const text = `${subject} ${description}`.toLowerCase();
+
+    // Standard Knowledge Base Policy Catalog
+    const kbCatalog = [
+      {
+        keywords: ['wifi', 'wi-fi', 'internet', 'password reset', 'portal login', 'eduroam', 'network login'],
+        solution: '🔐 **IT Support Instant Auto-Resolution**: To reset your campus Wi-Fi or Student Portal password: 1) Visit https://portal.institution.edu/reset 2) Enter your Institutional Roll Number 3) Verify the 6-digit OTP sent to your registered phone number. Your credentials will sync across campus Access Points within 5 minutes.',
+        category: 'IT Support'
+      },
+      {
+        keywords: ['library fine', 'return book', 'library card', 'due date', 'overdue fee'],
+        solution: '📚 **Library Services Auto-Resolution**: Overdue library fines under ₹100 can be paid directly via the online portal. To return physical books outside working hours, use the 24/7 Book Drop Box located at the Central Library entrance. Receipt will generate automatically within 2 hours.',
+        category: 'Academic'
+      },
+      {
+        keywords: ['fee receipt', 'tuition receipt', 'challan download', 'payment receipt'],
+        solution: '💳 **Finance Department Auto-Resolution**: Official tax-compliant fee receipts are available immediately in your Student Profile under "Financial Documents". You can download the stamped PDF directly without visiting the accounts office.',
+        category: 'Financial'
+      },
+      {
+        keywords: ['id card', 'lost id', 'reissue id', 'identity card'],
+        solution: '🪪 **Administrative Auto-Resolution**: To replace a lost or damaged Student ID Card: 1) File a digital reissue request at the Admin Block Room 102 2) Upload a passport-size photo on your profile 3) Pick up your temporary barcode pass immediately from the security gate.',
+        category: 'Social Welfare'
+      }
+    ];
+
+    for (const item of kbCatalog) {
+      const match = item.keywords.some(kw => text.includes(kw));
+      if (match) {
+        return {
+          isAutoResolved: true,
+          confidence: 92,
+          category: item.category,
+          solutionNotes: item.solution,
+          resolvedAt: new Date().toISOString()
+        };
+      }
+    }
+
+    return {
+      isAutoResolved: false,
+      confidence: 35,
+      category: null,
+      solutionNotes: null
+    };
   }
 };
 
 module.exports = aiService;
-

@@ -76,8 +76,72 @@ export const PublicStatusPage = () => {
     fetchTicketDetails(ticketId);
   };
 
+  const [trackingMode, setTrackingMode] = useState('standard'); // 'standard' | 'whistleblower'
+  const [anonPasskey, setAnonPasskey] = useState('');
+  const [anonMessage, setAnonMessage] = useState('');
+  const [isSubmittingAnonMsg, setIsSubmittingAnonMsg] = useState(false);
+  const [anonChatMessages, setAnonChatMessages] = useState([]);
+
+  const handleWhistleblowerTrack = async (e) => {
+    if (e) e.preventDefault();
+    if (!ticketId || !anonPasskey) {
+      toast.error('Whistleblower Tracking Reference Key and Secret Passkey required.');
+      return;
+    }
+    setLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch('/api/v1/public/anonymous/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticketKey: ticketId.trim(), secretPasskey: anonPasskey.trim() })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setTicket(data.ticket);
+        toast.success('Whistleblower Vault unlocked successfully.');
+      } else {
+        setError(data.error || 'Invalid Whistleblower tracking reference or secret passkey.');
+      }
+    } catch {
+      setError('Whistleblower vault verification unavailable.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendAnonMessage = async (e) => {
+    e.preventDefault();
+    if (!anonMessage.trim()) return;
+    setIsSubmittingAnonMsg(true);
+    try {
+      const res = await fetch('/api/v1/public/anonymous/message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ticketKey: ticket.ticket_id,
+          secretPasskey: anonPasskey || ticket.secret_passkey,
+          messageText: anonMessage
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success('Anonymous note delivered to department officer.');
+        setAnonChatMessages(prev => [...prev, { sender: 'Whistleblower', text: anonMessage, time: 'Just now' }]);
+        setAnonMessage('');
+      } else {
+        toast.error(data.error || 'Could not send message.');
+      }
+    } catch {
+      toast.error('Network error. Retry message.');
+    } finally {
+      setIsSubmittingAnonMsg(false);
+    }
+  };
+
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/public-status?ticket=${ticket.ticket_id}`;
+    const url = `${window.location.origin}/track?ticket=${ticket.ticket_id}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     toast.success('Public tracking link copied!');

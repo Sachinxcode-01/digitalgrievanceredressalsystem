@@ -263,6 +263,43 @@ const messagingService = {
       message: 'Inbound mobile action processed successfully.',
       replyLog
     };
+  },
+
+  /**
+   * Dispatch Emergency SOS Broadcast to executive administration & security officers
+   */
+  async dispatchEmergencyBroadcast(ticket) {
+    const sosLog = {
+      channel: 'EMERGENCY_SOS_BROADCAST',
+      recipient: 'Executive Board & Campus Security',
+      ticketId: ticket.ticket_id || ticket.id,
+      eventType: 'emergency_sos',
+      body: `🚨 EMERGENCY SOS INCIDENT ALARM! Ticket #${ticket.ticket_id || ticket.id} regarding "${ticket.subject || ticket.title}" requires IMMEDIATE 2-HOUR ESCALATION! Location/Dept: ${ticket.department || 'General'}`,
+      status: 'CRITICAL_DISPATCHED',
+      deliveredAt: new Date().toISOString()
+    };
+    addLog(sosLog);
+
+    // Also dispatch SMS & WhatsApp
+    await this.dispatchMessage({
+      channel: 'all',
+      recipient: '+91 99999 00000 (Executive Safety Line)',
+      ticket: {
+        ticket_id: ticket.ticket_id || ticket.id,
+        title: `🚨 EMERGENCY SOS: ${ticket.subject || ticket.title}`,
+        category: ticket.category,
+        urgency: 'CRITICAL',
+        department: ticket.department,
+        status: 'EMERGENCY_SOS'
+      },
+      eventType: 'escalated',
+      customNote: '🚨 CRITICAL SAFETY EMERGENCY SOS TRIGGERED! 2-Hour SLA Countdown Activated.'
+    });
+
+    return {
+      success: true,
+      sosLog
+    };
   }
 };
 
