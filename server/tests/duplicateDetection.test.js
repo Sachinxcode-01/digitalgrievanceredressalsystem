@@ -111,4 +111,42 @@ describe('AI Duplicate Grievance Detection & Upvoting Engine', () => {
       expect(res.grievance.urgency).toBe('High');
     });
   });
+
+  describe('AiCircuitBreaker Resiliency', () => {
+    const { AiCircuitBreaker, CircuitState } = require('../utils/aiCircuitBreaker');
+
+    it('should start in CLOSED state and record success', async () => {
+      const breaker = new AiCircuitBreaker({ failureThreshold: 2 });
+      expect(breaker.getState()).toBe(CircuitState.CLOSED);
+
+      const result = await breaker.execute(
+        async () => 'ai-success-response',
+        () => 'fallback'
+      );
+      expect(result).toBe('ai-success-response');
+      expect(breaker.getState()).toBe(CircuitState.CLOSED);
+    });
+
+    it('should trip to OPEN state after reaching failure threshold and execute fast fallback', async () => {
+      const breaker = new AiCircuitBreaker({ failureThreshold: 2, resetTimeoutMs: 500 });
+      
+      // Attempt 1 fails
+      await breaker.execute(async () => { throw new Error('AI 429 Quota Limit'); }, () => 'fallback-1');
+      expect(breaker.getState()).toBe(CircuitState.CLOSED);
+
+      // Attempt 2 fails -> trips to OPEN
+      const fallbackResult = await breaker.execute(async () => { throw new Error('AI 503 Outage'); }, () => 'heuristic-fallback');
+      expect(fallbackResult).toBe('heuristic-fallback');
+      expect(breaker.getState()).toBe(CircuitState.OPEN);
+
+      // Subsequent call in OPEN state returns fallback immediately without executing AI function
+      let aiExecuted = false;
+      const fastResult = await breaker.execute(
+        async () => { aiExecuted = true; return 'should-not-run'; },
+        () => 'immediate-fast-path'
+      );
+      expect(aiExecuted).toBe(false);
+      expect(fastResult).toBe('immediate-fast-path');
+    });
+  });
 });

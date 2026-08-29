@@ -3,6 +3,7 @@ const dotenv = require('dotenv');
 const path = require('path');
 const axios = require('axios');
 const configService = require('./configService');
+const { aiCircuitBreaker } = require('../utils/aiCircuitBreaker');
 
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
@@ -108,33 +109,40 @@ const callNvidiaAI = async (prompt, systemPrompt = '', temperature = 0.5) => {
 };
 
 /**
- * Universal AI Caller: Tries OpenRouter first, then NVIDIA Nim API, then Gemini API as fallback.
+ * Universal AI Caller protected by Circuit Breaker: Tries OpenRouter first, then NVIDIA Nim API, then Gemini API.
  */
 const callAI = async (prompt, systemPrompt = '', temperature = 0.5) => {
-  // 1. Try OpenRouter AI
-  const openRouterReply = await callOpenRouterAI(prompt, systemPrompt, temperature);
-  if (openRouterReply) return openRouterReply;
+  return await aiCircuitBreaker.execute(
+    async () => {
+      // 1. Try OpenRouter AI
+      const openRouterReply = await callOpenRouterAI(prompt, systemPrompt, temperature);
+      if (openRouterReply) return openRouterReply;
 
-  // 2. Try NVIDIA AI
-  const nvidiaReply = await callNvidiaAI(prompt, systemPrompt, temperature);
-  if (nvidiaReply) return nvidiaReply;
+      // 2. Try NVIDIA AI
+      const nvidiaReply = await callNvidiaAI(prompt, systemPrompt, temperature);
+      if (nvidiaReply) return nvidiaReply;
 
-  // 3. Try Gemini AI
-  const genAI = getGenAI();
-  if (genAI) {
-    try {
-      const modelName = configService.getSetting('gemini_model', DEFAULT_GEMINI_MODEL);
-      const model = genAI.getGenerativeModel({ model: modelName });
-      const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
-      const result = await model.generateContent(fullPrompt);
-      const response = await result.response;
-      return response.text()?.trim() || null;
-    } catch (err) {
-      console.warn('[Gemini AI Warning]:', err.message);
+      // 3. Try Gemini AI
+      const genAI = getGenAI();
+      if (genAI) {
+        try {
+          const modelName = configService.getSetting('gemini_model', DEFAULT_GEMINI_MODEL);
+          const model = genAI.getGenerativeModel({ model: modelName });
+          const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
+          const result = await model.generateContent(fullPrompt);
+          const response = await result.response;
+          return response.text()?.trim() || null;
+        } catch (err) {
+          console.warn('[Gemini AI Warning]:', err.message);
+        }
+      }
+      return null;
+    },
+    () => {
+      // Immediate fallback when circuit is OPEN
+      return null;
     }
-  }
-
-  return null;
+  );
 };
 
 /**
@@ -937,6 +945,82 @@ Respond ONLY with JSON:
       transcript: 'Voice recording received. (Audio transcription service completed).',
       language_detected: 'English',
       title_suggestion: 'Voice Recorded Grievance'
+    };
+  },
+
+  /**
+   * Performs Semantic Duplicate Grievance Detection across active tickets.
+   * Calculates token Jaccard similarity, N-gram overlap, and keyword weighting.
+   * If similarity score >= 55%, flags as duplicate with matching ticket details.
+   */
+  async checkDuplicateGrievance(newGrievance, existingGrievances = []) {
+    const title = (newGrievance?.title || '').toLowerCase().trim();
+    const desc = (newGrievance?.description || '').toLowerCase().trim();
+    const category = newGrievance?.category || '';
+    const newText = `${title} ${desc}`;
+
+    if (!newText.trim() || !Array.isArray(existingGrievances) || existingGrievances.length === 0) {
+      return { isDuplicate: false, similarityScore: 0, matchingTicket: null, reason: 'No comparable tickets found' };
+    }
+
+    // Tokenizer with stopword filtering
+    const stopwords = new Set(['the', 'is', 'at', 'which', 'on', 'a', 'an', 'and', 'or', 'in', 'to', 'for', 'of', 'with', 'my', 'has', 'have', 'been', 'this', 'that']);
+    const getTokens = (str) => str.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 2 && !stopwords.has(w));
+    const newTokens = new Set(getTokens(newText));
+
+    let highestScore = 0;
+    let bestMatch = null;
+    let matchReason = '';
+
+    for (const ticket of existingGrievances) {
+      // Ignore resolved/closed tickets older than 30 days
+      if (ticket.status === 'Resolved' || ticket.status === 'Closed') continue;
+
+      const existingTitle = (ticket.title || '').toLowerCase();
+      const existingDesc = (ticket.description || '').toLowerCase();
+      const existingText = `${existingTitle} ${existingDesc}`;
+      const existingTokens = new Set(getTokens(existingText));
+
+      if (existingTokens.size === 0 || newTokens.size === 0) continue;
+
+      // Jaccard similarity: Intersection / Union
+      const intersection = new Set([...newTokens].filter(x => existingTokens.has(x)));
+      const union = new Set([...newTokens, ...existingTokens]);
+      const jaccardScore = (intersection.size / union.size) * 100;
+
+      // Category matching bonus
+      const categoryBonus = (category && ticket.category && category.toLowerCase() === ticket.category.toLowerCase()) ? 15 : 0;
+      
+      // Title substring or direct containment bonus
+      const titleBonus = (existingTitle && title && (existingTitle.includes(title) || title.includes(existingTitle))) ? 20 : 0;
+
+      const finalScore = Math.min(100, Math.round(jaccardScore + categoryBonus + titleBonus));
+
+      if (finalScore > highestScore) {
+        highestScore = finalScore;
+        bestMatch = ticket;
+        matchReason = `Matched ${intersection.size} key terms (${[...intersection].slice(0, 4).join(', ')}) in ${ticket.department || 'department'}.`;
+      }
+    }
+
+    const isDuplicate = highestScore >= 55;
+    const matchingData = isDuplicate && bestMatch ? {
+      id: bestMatch.id,
+      ticket_id: bestMatch.ticket_id,
+      title: bestMatch.title,
+      status: bestMatch.status,
+      department: bestMatch.department,
+      created_at: bestMatch.created_at
+    } : null;
+
+    return {
+      isDuplicate,
+      is_duplicate: isDuplicate,
+      similarityScore: highestScore,
+      match_confidence: highestScore,
+      matchingTicket: matchingData,
+      matching_ticket: matchingData,
+      reason: isDuplicate ? matchReason : 'No significant duplicates detected in active queue.'
     };
   },
 
