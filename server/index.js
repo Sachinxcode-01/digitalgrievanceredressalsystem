@@ -134,7 +134,8 @@ const uploadRoutes      = require('./routes/uploadRoutes');
 const messagingRoutes   = require('./routes/messagingRoutes');
 const healthRoutes      = require('./routes/healthRoutes');
 
-// 5. Versioned API Routing
+// 5. Versioned API Routing & Observability
+app.use('/metrics', healthRoutes);
 app.use('/api/v1/health', healthRoutes);
 app.use('/api/v1/grievances', grievanceRoutes);
 app.use('/api/v1/ai', aiRoutes);
@@ -233,20 +234,48 @@ if (supabaseClient) {
 }
 
 const configService = require('./services/configService');
+let serverInstance = null;
 
-configService.init().then(() => {
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n========================================`);
-    console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📡 Digital Grievance API v1 is online`);
-    console.log(`========================================\n`);
+if (process.env.NODE_ENV !== 'test') {
+  configService.init().then(() => {
+    serverInstance = app.listen(PORT, '0.0.0.0', () => {
+      console.log(`\n========================================`);
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`📡 Digital Grievance API v1 is online`);
+      console.log(`📊 Prometheus Metrics available at /metrics`);
+      console.log(`========================================\n`);
+    });
+  }).catch(err => {
+    console.error('❌ Server failed to start due to config errors:', err);
+    serverInstance = app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 Server running on port ${PORT} (fallback mode)`);
+    });
   });
-}).catch(err => {
-  console.error('❌ Server failed to start due to config errors:', err);
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Server running on port ${PORT} (fallback mode)`);
-  });
-});
+}
 
-// Nodemon port conflict resolution trigger
+// Graceful Process Lifecycle & Signal Handling
+const gracefulShutdown = (signal) => {
+  console.log(`\n🛑 [Graceful Shutdown] Received ${signal}. Draining connections...`);
+  if (serverInstance) {
+    serverInstance.close(() => {
+      console.log('✅ [Graceful Shutdown] HTTP listener closed cleanly.');
+      process.exit(0);
+    });
+
+    const forceTimer = setTimeout(() => {
+      console.error('⚠️ [Graceful Shutdown] Forced exit after 10s drainage timeout.');
+      process.exit(1);
+    }, 10000);
+    if (forceTimer && typeof forceTimer.unref === 'function') {
+      forceTimer.unref();
+    }
+  } else {
+    process.exit(0);
+  }
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+module.exports = app;
 

@@ -41,5 +41,9 @@ COPY server ./server
 # Expose server listener port
 EXPOSE 5000
 
+# Container Healthcheck Probe
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:5000/api/v1/health/liveness', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); })"
+
 # Start Express server
 CMD ["npm", "start"]
