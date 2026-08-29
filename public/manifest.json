@@ -1,20 +1,49 @@
 {
   "short_name": "ResolveNow",
-  "name": "Digital grievance Redressal System",
+  "name": "ResolveNow - Digital Grievance Redressal System",
+  "description": "Enterprise institutional grievance triage, AI tracking, and transparent resolution platform.",
+  "id": "/",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#4361ee",
+  "background_color": "#000814",
+  "categories": ["education", "productivity", "utilities"],
   "icons": [
     {
-      "src": "logo_192.png",
+      "src": "/logo_192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any maskable"
     },
     {
-      "src": "logo_512.png",
+      "src": "/logo_512.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any maskable"
     }
   ],
-  "start_url": ".",
-  "display": "standalone",
-  "theme_color": "#4361ee",
-  "background_color": "#000814"
+  "shortcuts": [
+    {
+      "name": "File a Grievance",
+      "short_name": "Submit",
+      "description": "Quickly submit a new grievance ticket",
+      "url": "/submit",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Track Grievance Status",
+      "short_name": "Track",
+      "description": "Track live resolution status of your tickets",
+      "url": "/public-status",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "User Dashboard",
+      "short_name": "Dashboard",
+      "description": "View all your filed tickets and notifications",
+      "url": "/dashboard",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    }
+  ]
 }

@@ -1,5 +1,5 @@
-const CACHE_NAME = 'resolvenow-v2.0-cache-v1';
-const ASSETS_TO_CACHE = [
+const CACHE_NAME = 'resolvenow-v2.1-cache-v1';
+const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
@@ -9,16 +9,16 @@ const ASSETS_TO_CACHE = [
   '/offline.html'
 ];
 
-// Install Event
+// Install Event — Pre-cache critical core shell
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
+      return cache.addAll(STATIC_ASSETS);
     }).then(() => self.skipWaiting())
   );
 });
 
-// Activate Event
+// Activate Event — Clean up stale previous caches
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) => {
@@ -33,33 +33,52 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// Fetch Event
+// Fetch Event — Stale-While-Revalidate for app shell & Cache-First for static fonts/images
 self.addEventListener('fetch', (e) => {
-  // Only handle local origin HTTP/S requests
-  if (!e.request.url.startsWith(self.location.origin)) return;
+  const url = new URL(e.request.url);
 
-  // Bypass backend API calls
-  if (e.request.url.includes('/api/')) return;
+  // 1. Bypass backend API and realtime sockets
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/socket.io') || url.hostname.includes('supabase.co')) {
+    return;
+  }
 
-  e.respondWith(
-    caches.match(e.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Return cache but update in background (Stale-While-Revalidate)
-        fetch(e.request)
+  // 2. Cache-First for Google Fonts and static media
+  if (url.hostname.includes('fonts.googleapis.com') || url.hostname.includes('fonts.gstatic.com') || url.pathname.match(/\.(png|jpg|jpeg|svg|webp|woff2?)$/i)) {
+    e.respondWith(
+      caches.match(e.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(e.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(e.request, copy));
+          }
+          return networkResponse;
+        }).catch(() => caches.match('/favicon.svg'));
+      })
+    );
+    return;
+  }
+
+  // 3. Stale-While-Revalidate for local app assets
+  if (url.origin === self.location.origin) {
+    e.respondWith(
+      caches.match(e.request).then((cachedResponse) => {
+        const fetchPromise = fetch(e.request)
           .then((networkResponse) => {
-            if (networkResponse.status === 200) {
-              caches.open(CACHE_NAME).then((cache) => cache.put(e.request, networkResponse));
+            if (networkResponse && networkResponse.status === 200) {
+              const copy = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(e.request, copy));
             }
+            return networkResponse;
           })
-          .catch(() => {});
-        return cachedResponse;
-      }
+          .catch(() => {
+            if (e.request.mode === 'navigate') {
+              return caches.match('/offline.html');
+            }
+          });
 
-      return fetch(e.request).catch(() => {
-        if (e.request.mode === 'navigate') {
-          return caches.match('/offline.html');
-        }
-      });
-    })
-  );
+        return cachedResponse || fetchPromise;
+      })
+    );
+  }
 });
