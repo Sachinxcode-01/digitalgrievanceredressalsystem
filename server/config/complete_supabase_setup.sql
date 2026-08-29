@@ -89,6 +89,12 @@ CREATE TABLE IF NOT EXISTS public.grievances (
     latitude NUMERIC(10, 8),
     longitude NUMERIC(11, 8),
     attachment_url TEXT,
+    proof_hash TEXT,
+    secret_passkey TEXT,
+    is_emergency BOOLEAN DEFAULT FALSE,
+    admin_comment TEXT,
+    upvote_count INT DEFAULT 1,
+    upvoted_by TEXT[] DEFAULT '{}',
     resolution_notes TEXT,
     resolved_at TIMESTAMP WITH TIME ZONE,
     escalated_at TIMESTAMP WITH TIME ZONE,
@@ -99,6 +105,16 @@ CREATE TABLE IF NOT EXISTS public.grievances (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- Idempotent column upgrades in case table was created previously
+ALTER TABLE IF EXISTS public.grievances ADD COLUMN IF NOT EXISTS proof_hash TEXT;
+ALTER TABLE IF EXISTS public.grievances ADD COLUMN IF NOT EXISTS secret_passkey TEXT;
+ALTER TABLE IF EXISTS public.grievances ADD COLUMN IF NOT EXISTS is_emergency BOOLEAN DEFAULT FALSE;
+ALTER TABLE IF EXISTS public.grievances ADD COLUMN IF NOT EXISTS admin_comment TEXT;
+ALTER TABLE IF EXISTS public.grievances ADD COLUMN IF NOT EXISTS upvote_count INT DEFAULT 1;
+ALTER TABLE IF EXISTS public.grievances ADD COLUMN IF NOT EXISTS upvoted_by TEXT[] DEFAULT '{}';
+ALTER TABLE IF EXISTS public.grievances ADD COLUMN IF NOT EXISTS sla_due_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE IF EXISTS public.grievances ADD COLUMN IF NOT EXISTS frustration_index INT DEFAULT 1;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 6. GRIEVANCE TIMELINE TABLE
