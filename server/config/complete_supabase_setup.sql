@@ -221,19 +221,37 @@ ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.attachments ENABLE ROW LEVEL SECURITY;
 
 -- Allow authentications / public read for safe tracking
+DROP POLICY IF EXISTS grievances_read_policy ON public.grievances;
 CREATE POLICY grievances_read_policy ON public.grievances FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS grievances_insert_policy ON public.grievances;
 CREATE POLICY grievances_insert_policy ON public.grievances FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS grievances_update_policy ON public.grievances;
 CREATE POLICY grievances_update_policy ON public.grievances FOR UPDATE USING (true);
 
+DROP POLICY IF EXISTS timeline_read_policy ON public.grievance_timeline;
 CREATE POLICY timeline_read_policy ON public.grievance_timeline FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS timeline_insert_policy ON public.grievance_timeline;
 CREATE POLICY timeline_insert_policy ON public.grievance_timeline FOR INSERT WITH CHECK (true);
 
+DROP POLICY IF EXISTS profiles_read_policy ON public.user_profiles;
 CREATE POLICY profiles_read_policy ON public.user_profiles FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS profiles_write_policy ON public.user_profiles;
 CREATE POLICY profiles_write_policy ON public.user_profiles FOR ALL USING (true);
 
+DROP POLICY IF EXISTS notifications_user_policy ON public.notifications;
 CREATE POLICY notifications_user_policy ON public.notifications FOR ALL USING (true);
+
+DROP POLICY IF EXISTS feedback_policy ON public.feedback;
 CREATE POLICY feedback_policy ON public.feedback FOR ALL USING (true);
+
+DROP POLICY IF EXISTS audit_policy ON public.audit_logs;
 CREATE POLICY audit_policy ON public.audit_logs FOR ALL USING (true);
+
+DROP POLICY IF EXISTS attachments_policy ON public.attachments;
 CREATE POLICY attachments_policy ON public.attachments FOR ALL USING (true);
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -243,5 +261,8 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('attachments', 'attachments', true)
 ON CONFLICT (id) DO NOTHING;
 
+DROP POLICY IF EXISTS "Public Read Attachments" ON storage.objects;
 CREATE POLICY "Public Read Attachments" ON storage.objects FOR SELECT USING (bucket_id = 'attachments');
+
+DROP POLICY IF EXISTS "Authenticated Insert Attachments" ON storage.objects;
 CREATE POLICY "Authenticated Insert Attachments" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'attachments');
