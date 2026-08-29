@@ -14,6 +14,7 @@ const {
   getCommunityClusters
 } = require('../controllers/grievanceController');
 const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
+const { grievanceSubmissionLimiter } = require('../middleware/rateLimiter');
 const { 
   validateCreateGrievance, 
   validateUpdateGrievanceStatus, 
@@ -34,7 +35,7 @@ router.get('/community-clusters', getCommunityClusters);
 
 // @route   POST /api/v1/grievances
 // @desc    Report a new grievance
-router.post('/', validateCreateGrievance, createGrievance);
+router.post('/', grievanceSubmissionLimiter, validateCreateGrievance, createGrievance);
 
 // @route   GET /api/v1/grievances/:id
 // @desc    Fetch a single grievance by ID

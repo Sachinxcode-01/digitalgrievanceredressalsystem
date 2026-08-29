@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
+const path = require('path');
 const supabase = require('../config/supabase');
 const { authenticateToken } = require('../middleware/authMiddleware');
+const { fileSignatureMiddleware, sanitizeFileName } = require('../utils/fileSignatureValidator');
 
 const storage = multer.memoryStorage();
 const upload = multer({
@@ -26,7 +28,7 @@ const upload = multer({
 });
 
 // @route   POST /api/v1/uploads
-// @desc    Upload file attachment to Supabase Storage bucket 'attachments'
+// @desc    Upload file attachment to Supabase Storage bucket 'attachments' with magic byte validation
 router.post('/', authenticateToken, (req, res, next) => {
   upload.single('file')(req, res, (err) => {
     if (err) {
@@ -37,7 +39,7 @@ router.post('/', authenticateToken, (req, res, next) => {
     }
     next();
   });
-}, async (req, res, next) => {
+}, fileSignatureMiddleware, async (req, res, next) => {
   try {
     const file = req.file;
     if (!file) {
@@ -45,7 +47,8 @@ router.post('/', authenticateToken, (req, res, next) => {
     }
 
     const userId = req.user?.id || 'anon';
-    const fileExt = file.originalname.split('.').pop();
+    const rawName = file.sanitizedOriginalName || sanitizeFileName(file.originalname);
+    const fileExt = path.extname(rawName).replace('.', '') || file.mimetype.split('/')[1] || 'bin';
     const fileName = `attach_${userId}_${Date.now()}.${fileExt}`;
     const filePath = `user_${userId}/${fileName}`;
 
@@ -66,7 +69,7 @@ router.post('/', authenticateToken, (req, res, next) => {
           return res.json({
             publicUrl: data.publicUrl,
             filePath,
-            name: file.originalname,
+            name: rawName,
             size: file.size,
             mimetype: file.mimetype
           });
@@ -83,7 +86,7 @@ router.post('/', authenticateToken, (req, res, next) => {
     res.json({
       publicUrl: dataUrl,
       filePath: `local/${fileName}`,
-      name: file.originalname,
+      name: rawName,
       size: file.size,
       mimetype: file.mimetype
     });
@@ -108,7 +111,7 @@ const avatarUpload = multer({
 });
 
 // @route   POST /api/v1/uploads/profile-image
-// @desc    Upload user profile image avatar to Supabase Storage
+// @desc    Upload user profile image avatar to Supabase Storage with magic byte validation
 router.post('/profile-image', authenticateToken, (req, res, next) => {
   avatarUpload.single('file')(req, res, (err) => {
     if (err) {
@@ -119,13 +122,14 @@ router.post('/profile-image', authenticateToken, (req, res, next) => {
     }
     next();
   });
-}, async (req, res, next) => {
+}, fileSignatureMiddleware, async (req, res, next) => {
   try {
     const file = req.file;
     if (!file) return res.status(400).json({ error: 'No avatar file provided.' });
 
     const userId = req.user?.id || 'anon';
-    const fileExt = file.originalname.split('.').pop();
+    const rawName = file.sanitizedOriginalName || sanitizeFileName(file.originalname);
+    const fileExt = path.extname(rawName).replace('.', '') || 'jpg';
     const fileName = `avatar_${userId}_${Date.now()}.${fileExt}`;
     const filePath = `avatars/${fileName}`;
 
@@ -137,7 +141,7 @@ router.post('/profile-image', authenticateToken, (req, res, next) => {
 
         if (!uploadError) {
           const { data } = supabase.storage.from('attachments').getPublicUrl(filePath);
-          return res.json({ publicUrl: data.publicUrl, filePath });
+          return res.json({ publicUrl: data.publicUrl, filePath, name: rawName });
         }
       } catch (err) {
         console.warn('[Avatar upload fallback]:', err.message);
@@ -146,7 +150,7 @@ router.post('/profile-image', authenticateToken, (req, res, next) => {
 
     const base64 = file.buffer.toString('base64');
     const dataUrl = `data:${file.mimetype};base64,${base64}`;
-    res.json({ publicUrl: dataUrl, filePath });
+    res.json({ publicUrl: dataUrl, filePath, name: rawName });
   } catch (err) {
     next(err);
   }

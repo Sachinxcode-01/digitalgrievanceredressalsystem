@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const grievanceRepository = require('../repositories/grievanceRepository');
+const { publicApiLimiter } = require('../middleware/rateLimiter');
+
+router.use(publicApiLimiter);
 
 // @route   GET /api/v1/public/track/:ticketId
 // @desc    Public unauthenticated ticket progress tracker lookup

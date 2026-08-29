@@ -432,4 +432,46 @@ describe('ResolveNow Security Hardening Verification Tests', () => {
       expect(registerCall[1].p_role).toEqual('student');
     });
   });
+
+  describe('Zero-Trust Binary File Signature & Filename Sanitization', () => {
+    const { validateFileSignature, sanitizeFileName, SIGNATURES } = require('../utils/fileSignatureValidator');
+
+    it('should validate genuine PDF file buffer by magic bytes', () => {
+      const validPdfBuffer = Buffer.from([0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x34]); // %PDF-1.4
+      const result = validateFileSignature(validPdfBuffer, 'application/pdf');
+      expect(result.valid).toBe(true);
+      expect(result.detectedType).toBe('application/pdf');
+    });
+
+    it('should reject spoofed PDF file (e.g. bash script with .pdf MIME)', () => {
+      const fakePdfBuffer = Buffer.from('#!/bin/bash\necho "exploit"\n');
+      const result = validateFileSignature(fakePdfBuffer, 'application/pdf');
+      expect(result.valid).toBe(false);
+      expect(result.reason).toContain('does not match genuine PDF header signature');
+    });
+
+    it('should validate genuine PNG file buffer', () => {
+      const validPngBuffer = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00]);
+      const result = validateFileSignature(validPngBuffer, 'image/png');
+      expect(result.valid).toBe(true);
+      expect(result.detectedType).toBe('image/png');
+    });
+
+    it('should reject spoofed image with invalid headers', () => {
+      const fakeImgBuffer = Buffer.from('<script>alert("xss")</script>');
+      const result = validateFileSignature(fakeImgBuffer, 'image/png');
+      expect(result.valid).toBe(false);
+    });
+
+    it('should sanitize dangerous filenames and strip path traversal', () => {
+      const dangerous1 = '../../../../etc/passwd';
+      expect(sanitizeFileName(dangerous1)).toBe('passwd');
+
+      const dangerous2 = '..\\..\\windows\\system32\\cmd.exe';
+      expect(sanitizeFileName(dangerous2)).not.toContain('..');
+
+      const nullByteAttack = 'test\0malicious.php.pdf';
+      expect(sanitizeFileName(nullByteAttack)).not.toContain('\0');
+    });
+  });
 });
