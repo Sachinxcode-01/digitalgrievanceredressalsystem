@@ -17,6 +17,7 @@
     "pm2:logs": "pm2 logs digital-grievance-system",
     "lint": "eslint .",
     "test": "jest server/tests",
+    "preflight": "node scripts/preflight-check.js",
     "preview": "vite preview"
   },
   "dependencies": {
