@@ -766,32 +766,55 @@ Department Breakdown: ${JSON.stringify(departmentHeatmap.slice(0, 6))}
   /**
    * AI Duplicate Detection Engine
    * Compares incoming grievance draft against active grievances to identify duplicates.
+   * Leverages LLM analysis when available with fast deterministic Jaccard token overlap fallback.
    */
-  async checkDuplicateGrievance({ title, description, category }, existingGrievances = []) {
+  async checkDuplicateGrievance(input, existingGrievances = []) {
+    const title = (input?.title || '').trim();
+    const description = (input?.description || '').trim();
+    const category = (input?.category || 'General').trim();
+
     if (!title && !description) {
-      return { is_duplicate: false, match_confidence: 0, matching_ticket: null, reason: 'Insufficient text for duplicate analysis.' };
+      return { 
+        isDuplicate: false, 
+        is_duplicate: false, 
+        similarityScore: 0, 
+        match_confidence: 0, 
+        matchingTicket: null, 
+        matching_ticket: null, 
+        reason: 'Insufficient text for duplicate analysis.' 
+      };
     }
 
-    const candidateTickets = existingGrievances
-      .filter(g => g.status !== 'Resolved' && g.status !== 'Closed')
-      .slice(0, 15);
+    const candidateTickets = (existingGrievances || [])
+      .filter(g => g && g.status !== 'Resolved' && g.status !== 'Closed')
+      .slice(0, 20);
 
     if (candidateTickets.length === 0) {
-      return { is_duplicate: false, match_confidence: 0, matching_ticket: null, reason: 'No active tickets found for comparison.' };
+      return { 
+        isDuplicate: false, 
+        is_duplicate: false, 
+        similarityScore: 0, 
+        match_confidence: 0, 
+        matchingTicket: null, 
+        matching_ticket: null, 
+        reason: 'No active tickets found for comparison.' 
+      };
     }
 
-    const systemPrompt = `You are an expert AI Grievance Triage & Duplicate Resolution Engine for an institutional grievance system.
+    // Try AI-powered semantic matching first
+    try {
+      const systemPrompt = `You are an expert AI Grievance Triage & Duplicate Resolution Engine for an institutional grievance system.
 Compare the user's NEW grievance submission against the list of EXISTING active tickets.
-Determine if the NEW grievance describes the SAME underlying incident/issue as any existing ticket (e.g. Wi-Fi down in same block, water leak in same building, grade verification delay for same semester).`;
+Determine if the NEW grievance describes the SAME underlying incident/issue as any existing ticket.`;
 
-    const formattedCandidates = candidateTickets.map((t, idx) => 
-      `[${idx + 1}] Ticket ID: ${t.ticket_id || t.id} | Category: ${t.category || 'General'} | Title: "${t.title}" | Description: "${t.description}"`
-    ).join('\n');
+      const formattedCandidates = candidateTickets.map((t, idx) => 
+        `[${idx + 1}] Ticket ID: ${t.ticket_id || t.id} | Category: ${t.category || 'General'} | Title: "${t.title}" | Description: "${t.description}"`
+      ).join('\n');
 
-    const prompt = `NEW SUBMISSION:
+      const prompt = `NEW SUBMISSION:
 Title: "${title}"
 Description: "${description}"
-Category: "${category || 'General'}"
+Category: "${category}"
 
 EXISTING ACTIVE TICKETS:
 ${formattedCandidates}
@@ -807,43 +830,66 @@ Respond ONLY with valid JSON in this exact structure:
   "reason": "1-sentence explanation of why it is or is not a duplicate"
 }`;
 
-    const rawResponse = await callAI(prompt, systemPrompt, 0.1);
-    const parsed = extractJson(rawResponse);
+      const rawResponse = await callAI(prompt, systemPrompt, 0.1);
+      const parsed = extractJson(rawResponse);
 
-    if (parsed && typeof parsed.is_duplicate === 'boolean') {
-      const matched = candidateTickets.find(t => t.ticket_id === parsed.matching_ticket_id || t.id === parsed.matching_ticket_id);
-      return {
-        is_duplicate: parsed.is_duplicate && parsed.match_confidence >= 65,
-        match_confidence: parsed.match_confidence || 0,
-        matching_ticket: matched || (parsed.is_duplicate ? candidateTickets[0] : null),
-        reason: parsed.reason || 'Semantic similarity analysis completed.'
-      };
+      if (parsed && typeof parsed.is_duplicate === 'boolean') {
+        const matched = candidateTickets.find(t => t.ticket_id === parsed.matching_ticket_id || t.id === parsed.matching_ticket_id);
+        const isDupe = parsed.is_duplicate && (parsed.match_confidence || 0) >= 60;
+        const matchingTicket = matched || (isDupe ? candidateTickets[0] : null);
+
+        return {
+          isDuplicate: isDupe,
+          is_duplicate: isDupe,
+          similarityScore: parsed.match_confidence || 0,
+          match_confidence: parsed.match_confidence || 0,
+          matchingTicket: isDupe ? matchingTicket : null,
+          matching_ticket: isDupe ? matchingTicket : null,
+          reason: parsed.reason || 'Semantic similarity analysis completed.'
+        };
+      }
+    } catch (err) {
+      console.warn('AI duplicate detection warning — falling back to deterministic heuristics:', err.message);
     }
 
-    // Heuristics fallback (Keyword / Token overlap)
-    const newTokens = `${title} ${description}`.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(/\s+/).filter(w => w.length > 3);
-    let bestMatch = null;
+    // Heuristics fallback (Token Jaccard + Category matching)
+    const stopwords = new Set(['the', 'is', 'at', 'which', 'on', 'a', 'an', 'and', 'or', 'in', 'to', 'for', 'of', 'with', 'my', 'has', 'have', 'been', 'this', 'that']);
+    const getTokens = (str) => (str || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 2 && !stopwords.has(w));
+    const newTokens = new Set(getTokens(`${title} ${description}`));
+
     let highestScore = 0;
+    let bestMatch = null;
+    let matchReason = '';
 
     for (const ticket of candidateTickets) {
-      const candidateTokens = `${ticket.title} ${ticket.description}`.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(/\s+/).filter(w => w.length > 3);
-      const overlap = newTokens.filter(w => candidateTokens.includes(w));
-      const score = Math.round((overlap.length * 2 / (newTokens.length + candidateTokens.length)) * 100);
+      const existingTokens = new Set(getTokens(`${ticket.title || ''} ${ticket.description || ''}`));
+      if (existingTokens.size === 0 || newTokens.size === 0) continue;
 
-      if (score > highestScore) {
-        highestScore = score;
+      const intersection = new Set([...newTokens].filter(x => existingTokens.has(x)));
+      const union = new Set([...newTokens, ...existingTokens]);
+      const jaccardScore = (intersection.size / union.size) * 100;
+
+      const categoryBonus = (category && ticket.category && category.toLowerCase() === ticket.category.toLowerCase()) ? 15 : 0;
+      const titleBonus = (ticket.title && title && (ticket.title.toLowerCase().includes(title.toLowerCase()) || title.toLowerCase().includes(ticket.title.toLowerCase()))) ? 20 : 0;
+
+      const finalScore = Math.min(100, Math.round(jaccardScore + categoryBonus + titleBonus));
+
+      if (finalScore > highestScore) {
+        highestScore = finalScore;
         bestMatch = ticket;
+        matchReason = `Matched key terms (${[...intersection].slice(0, 4).join(', ')}) with existing ticket ${ticket.ticket_id || ticket.id}.`;
       }
     }
 
-    const isDuplicate = highestScore >= 35;
+    const isDuplicate = highestScore >= 50;
     return {
+      isDuplicate,
       is_duplicate: isDuplicate,
-      match_confidence: Math.min(Math.round(highestScore * 1.8), 95),
+      similarityScore: highestScore,
+      match_confidence: highestScore,
+      matchingTicket: isDuplicate ? bestMatch : null,
       matching_ticket: isDuplicate ? bestMatch : null,
-      reason: isDuplicate 
-        ? `High keyword & semantic overlap detected with existing ticket ${bestMatch?.ticket_id}.`
-        : 'No duplicate grievances detected.'
+      reason: isDuplicate ? matchReason : 'No duplicate grievances detected.'
     };
   },
 
@@ -945,82 +991,6 @@ Respond ONLY with JSON:
       transcript: 'Voice recording received. (Audio transcription service completed).',
       language_detected: 'English',
       title_suggestion: 'Voice Recorded Grievance'
-    };
-  },
-
-  /**
-   * Performs Semantic Duplicate Grievance Detection across active tickets.
-   * Calculates token Jaccard similarity, N-gram overlap, and keyword weighting.
-   * If similarity score >= 55%, flags as duplicate with matching ticket details.
-   */
-  async checkDuplicateGrievance(newGrievance, existingGrievances = []) {
-    const title = (newGrievance?.title || '').toLowerCase().trim();
-    const desc = (newGrievance?.description || '').toLowerCase().trim();
-    const category = newGrievance?.category || '';
-    const newText = `${title} ${desc}`;
-
-    if (!newText.trim() || !Array.isArray(existingGrievances) || existingGrievances.length === 0) {
-      return { isDuplicate: false, similarityScore: 0, matchingTicket: null, reason: 'No comparable tickets found' };
-    }
-
-    // Tokenizer with stopword filtering
-    const stopwords = new Set(['the', 'is', 'at', 'which', 'on', 'a', 'an', 'and', 'or', 'in', 'to', 'for', 'of', 'with', 'my', 'has', 'have', 'been', 'this', 'that']);
-    const getTokens = (str) => str.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 2 && !stopwords.has(w));
-    const newTokens = new Set(getTokens(newText));
-
-    let highestScore = 0;
-    let bestMatch = null;
-    let matchReason = '';
-
-    for (const ticket of existingGrievances) {
-      // Ignore resolved/closed tickets older than 30 days
-      if (ticket.status === 'Resolved' || ticket.status === 'Closed') continue;
-
-      const existingTitle = (ticket.title || '').toLowerCase();
-      const existingDesc = (ticket.description || '').toLowerCase();
-      const existingText = `${existingTitle} ${existingDesc}`;
-      const existingTokens = new Set(getTokens(existingText));
-
-      if (existingTokens.size === 0 || newTokens.size === 0) continue;
-
-      // Jaccard similarity: Intersection / Union
-      const intersection = new Set([...newTokens].filter(x => existingTokens.has(x)));
-      const union = new Set([...newTokens, ...existingTokens]);
-      const jaccardScore = (intersection.size / union.size) * 100;
-
-      // Category matching bonus
-      const categoryBonus = (category && ticket.category && category.toLowerCase() === ticket.category.toLowerCase()) ? 15 : 0;
-      
-      // Title substring or direct containment bonus
-      const titleBonus = (existingTitle && title && (existingTitle.includes(title) || title.includes(existingTitle))) ? 20 : 0;
-
-      const finalScore = Math.min(100, Math.round(jaccardScore + categoryBonus + titleBonus));
-
-      if (finalScore > highestScore) {
-        highestScore = finalScore;
-        bestMatch = ticket;
-        matchReason = `Matched ${intersection.size} key terms (${[...intersection].slice(0, 4).join(', ')}) in ${ticket.department || 'department'}.`;
-      }
-    }
-
-    const isDuplicate = highestScore >= 55;
-    const matchingData = isDuplicate && bestMatch ? {
-      id: bestMatch.id,
-      ticket_id: bestMatch.ticket_id,
-      title: bestMatch.title,
-      status: bestMatch.status,
-      department: bestMatch.department,
-      created_at: bestMatch.created_at
-    } : null;
-
-    return {
-      isDuplicate,
-      is_duplicate: isDuplicate,
-      similarityScore: highestScore,
-      match_confidence: highestScore,
-      matchingTicket: matchingData,
-      matching_ticket: matchingData,
-      reason: isDuplicate ? matchReason : 'No significant duplicates detected in active queue.'
     };
   },
 
