@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { grievanceService } from '../../services/grievanceService';
+import { supabase } from '../../lib/supabase';
+import { useRealtimeConnection } from '../../hooks/useRealtimeConnection';
 import StatusBadge from '../../components/ui/StatusBadge';
 import UrgencyBadge from '../../components/ui/UrgencyBadge';
 import toast from 'react-hot-toast';
@@ -40,8 +42,34 @@ export const AdminGrievancesPage = ({ user, sessionUser }) => {
     }
   };
 
+  useRealtimeConnection(() => {
+    fetchGlobalTickets();
+  });
+
   useEffect(() => {
     fetchGlobalTickets();
+
+    const channel = supabase
+      .channel('admin-grievances-live-sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'grievances' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setTickets((prev) => [payload.new, ...prev.filter(t => t.id !== payload.new.id)]);
+            toast.success(`Incoming ticket #${payload.new.ticket_id} received.`);
+          } else if (payload.eventType === 'UPDATE') {
+            setTickets((prev) => prev.map(t => t.id === payload.new.id ? payload.new : t));
+          } else if (payload.eventType === 'DELETE') {
+            setTickets((prev) => prev.filter(t => t.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const getPriorityScore = (ticket) => {

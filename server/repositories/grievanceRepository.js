@@ -1,4 +1,5 @@
 const supabase = require('../config/supabase');
+const { withDbRetry } = require('../utils/dbRetry');
 
 const inMemoryGrievances = [
   {
@@ -57,15 +58,18 @@ const grievanceRepository = {
   async getAll(userId = null) {
     if (supabase) {
       try {
-        let query = supabase
-          .from('grievances')
-          .select('*')
-          .order('created_at', { ascending: false });
+        const { data, error } = await withDbRetry(async () => {
+          let query = supabase
+            .from('grievances')
+            .select('*')
+            .order('created_at', { ascending: false });
 
-        if (userId) {
-          query = query.eq('user_id', userId);
-        }
-        const { data, error } = await query;
+          if (userId) {
+            query = query.eq('user_id', userId);
+          }
+          return await query;
+        });
+
         if (!error && Array.isArray(data) && data.length > 0) {
           return data;
         }
@@ -84,11 +88,13 @@ const grievanceRepository = {
     const isUuid = typeof id === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id);
     if (supabase && isUuid) {
       try {
-        const { data, error } = await supabase
-          .from('grievances')
-          .select('*')
-          .eq('id', id)
-          .maybeSingle();
+        const { data, error } = await withDbRetry(async () => {
+          return await supabase
+            .from('grievances')
+            .select('*')
+            .eq('id', id)
+            .maybeSingle();
+        });
         if (!error && data) return data;
       } catch (err) {
         console.debug('[grievanceRepository.findById warning]:', err.message);
@@ -100,11 +106,13 @@ const grievanceRepository = {
   async findByTicketId(ticketId) {
     if (supabase) {
       try {
-        const { data, error } = await supabase
-          .from('grievances')
-          .select('id, ticket_id')
-          .eq('ticket_id', ticketId)
-          .maybeSingle();
+        const { data, error } = await withDbRetry(async () => {
+          return await supabase
+            .from('grievances')
+            .select('id, ticket_id')
+            .eq('ticket_id', ticketId)
+            .maybeSingle();
+        });
         if (!error && data) return data;
       } catch (err) {
         console.debug('[grievanceRepository.findByTicketId warning]:', err.message);
@@ -136,10 +144,12 @@ const grievanceRepository = {
 
     if (supabase) {
       try {
-        const { data, error } = await supabase
-          .from('grievances')
-          .insert([sanitizedPayload])
-          .select();
+        const { data, error } = await withDbRetry(async () => {
+          return await supabase
+            .from('grievances')
+            .insert([sanitizedPayload])
+            .select();
+        });
         if (!error && data && data.length > 0) {
           inMemoryGrievances.unshift(data[0]);
           return data[0];
