@@ -203,9 +203,17 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON public.users(email);
 CREATE INDEX IF NOT EXISTS idx_users_clerk ON public.users(clerk_user_id);
 CREATE INDEX IF NOT EXISTS idx_grievances_user ON public.grievances(user_id);
 CREATE INDEX IF NOT EXISTS idx_grievances_ticket ON public.grievances(ticket_id);
+CREATE INDEX IF NOT EXISTS idx_grievances_proof_hash ON public.grievances(proof_hash);
 CREATE INDEX IF NOT EXISTS idx_grievances_status ON public.grievances(status);
-CREATE INDEX IF NOT EXISTS idx_grievance_timeline_g ON public.grievance_timeline(grievance_id);
-CREATE INDEX IF NOT EXISTS idx_notifications_user ON public.notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_grievances_priority_queue ON public.grievances(status, urgency, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_grievances_sla_due ON public.grievances(sla_due_at, status);
+CREATE INDEX IF NOT EXISTS idx_grievances_fts ON public.grievances USING gin(to_tsvector('english', coalesce(title, '') || ' ' || coalesce(description, '')));
+CREATE INDEX IF NOT EXISTS idx_timeline_grievance ON public.grievance_timeline(grievance_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_comments_grievance ON public.ticket_comments(grievance_id, created_at ASC);
+CREATE INDEX IF NOT EXISTS idx_feedback_grievance ON public.feedback(grievance_id, rating);
+CREATE INDEX IF NOT EXISTS idx_attachments_grievance ON public.attachments(grievance_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON public.notifications(user_id, created_at DESC) WHERE is_read = false;
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user_action ON public.audit_logs(user_id, action, created_at DESC);
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- ROW LEVEL SECURITY (RLS) POLICIES
