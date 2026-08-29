@@ -922,6 +922,64 @@ const clearDeadLetterQueue = async (req, res, next) => {
   }
 };
 
+/**
+ * Real-time Database Diagnostics & Table Row Counts
+ * GET /api/v1/admin/database/diagnostics
+ */
+const getDatabaseDiagnostics = async (req, res, next) => {
+  try {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database service unavailable' });
+    }
+
+    const tables = [
+      'system_settings',
+      'users',
+      'user_profiles',
+      'grievances',
+      'grievance_timeline',
+      'ticket_comments',
+      'attachments',
+      'notifications',
+      'feedback',
+      'audit_logs',
+      'system_alerts'
+    ];
+
+    const tableStats = {};
+    let totalRecords = 0;
+
+    await Promise.all(
+      tables.map(async (table) => {
+        try {
+          const { count, error } = await supabase
+            .from(table)
+            .select('*', { count: 'exact', head: true });
+          
+          if (!error) {
+            tableStats[table] = count || 0;
+            totalRecords += (count || 0);
+          } else {
+            tableStats[table] = 0;
+          }
+        } catch {
+          tableStats[table] = 0;
+        }
+      })
+    );
+
+    res.json({
+      status: 'ONLINE',
+      timestamp: new Date().toISOString(),
+      totalCoreTables: tables.length,
+      totalRecords,
+      tableStats
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   broadcastToAll,
   getHealthMetrics,
@@ -943,6 +1001,7 @@ module.exports = {
   getQueueMetrics,
   getDeadLetterJobs,
   replayDeadLetterJob,
-  clearDeadLetterQueue
+  clearDeadLetterQueue,
+  getDatabaseDiagnostics
 };
 

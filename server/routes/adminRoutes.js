@@ -21,7 +21,8 @@ const {
   getQueueMetrics,
   getDeadLetterJobs,
   replayDeadLetterJob,
-  clearDeadLetterQueue
+  clearDeadLetterQueue,
+  getDatabaseDiagnostics
 } = require('../controllers/adminController');
 const { authenticateToken, authorizeRoles, authorizePermissions } = require('../middleware/authMiddleware');
 const { 
@@ -219,5 +220,8 @@ router.get('/queue/metrics', authorizePermissions('view_analytics'), getQueueMet
 router.get('/queue/dead-letter', authorizePermissions('manage_settings'), getDeadLetterJobs);
 router.post('/queue/dead-letter/:id/replay', authorizePermissions('manage_settings'), replayDeadLetterJob);
 router.delete('/queue/dead-letter', authorizePermissions('manage_settings'), clearDeadLetterQueue);
+
+// --- 8. Database Disaster Recovery & Diagnostics ---
+router.get('/database/diagnostics', authorizePermissions('view_analytics'), getDatabaseDiagnostics);
 
 module.exports = router;
