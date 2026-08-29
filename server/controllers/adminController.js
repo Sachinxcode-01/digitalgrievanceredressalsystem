@@ -866,6 +866,62 @@ const getPermissions = async (req, res, next) => {
   }
 };
 
+/**
+ * Get Notification Queue telemetry & health metrics
+ * GET /api/v1/admin/queue/metrics
+ */
+const getQueueMetrics = async (req, res, next) => {
+  try {
+    const notificationQueue = require('../services/notificationQueue');
+    res.json(notificationQueue.getMetrics());
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Get quarantined Dead-Letter Queue (DLQ) jobs
+ * GET /api/v1/admin/queue/dead-letter
+ */
+const getDeadLetterJobs = async (req, res, next) => {
+  try {
+    const notificationQueue = require('../services/notificationQueue');
+    res.json(notificationQueue.getDeadLetterJobs());
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Replay a dead-letter job
+ * POST /api/v1/admin/queue/dead-letter/:id/replay
+ */
+const replayDeadLetterJob = async (req, res, next) => {
+  try {
+    const notificationQueue = require('../services/notificationQueue');
+    const result = notificationQueue.replayDeadLetterJob(req.params.id);
+    if (!result.success) {
+      return res.status(404).json(result);
+    }
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Clear the dead-letter queue
+ * DELETE /api/v1/admin/queue/dead-letter
+ */
+const clearDeadLetterQueue = async (req, res, next) => {
+  try {
+    const notificationQueue = require('../services/notificationQueue');
+    res.json(notificationQueue.clearDeadLetterQueue());
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   broadcastToAll,
   getHealthMetrics,
@@ -883,6 +939,10 @@ module.exports = {
   createRole,
   updateRole,
   deleteRole,
-  getPermissions
+  getPermissions,
+  getQueueMetrics,
+  getDeadLetterJobs,
+  replayDeadLetterJob,
+  clearDeadLetterQueue
 };
 

@@ -17,7 +17,11 @@ const {
   createRole,
   updateRole,
   deleteRole,
-  getPermissions
+  getPermissions,
+  getQueueMetrics,
+  getDeadLetterJobs,
+  replayDeadLetterJob,
+  clearDeadLetterQueue
 } = require('../controllers/adminController');
 const { authenticateToken, authorizeRoles, authorizePermissions } = require('../middleware/authMiddleware');
 const { 
@@ -209,5 +213,11 @@ router.post('/reports/executive-digest/email', authorizePermissions('view_analyt
     next(err);
   }
 });
+
+// --- 7. Notification Queue & Dead-Letter Management ---
+router.get('/queue/metrics', authorizePermissions('view_analytics'), getQueueMetrics);
+router.get('/queue/dead-letter', authorizePermissions('manage_settings'), getDeadLetterJobs);
+router.post('/queue/dead-letter/:id/replay', authorizePermissions('manage_settings'), replayDeadLetterJob);
+router.delete('/queue/dead-letter', authorizePermissions('manage_settings'), clearDeadLetterQueue);
 
 module.exports = router;

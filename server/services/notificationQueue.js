@@ -1,15 +1,27 @@
 const notificationRepository = require('../repositories/notificationRepository');
 
 /**
- * Enterprise Notification Queue Service
+ * Enterprise Notification Queue Service with Dead-Letter Queue (DLQ)
  * Handles buffering and resilient retrying of emails/SMS with exponential backoff.
  * Logs execution, errors, and delivery metrics in PostgreSQL.
  */
 class NotificationQueue {
-  constructor() {
+  constructor(options = {}) {
     this.queue = [];
+    this.deadLetterQueue = [];
     this.activeWorkers = 0;
-    this.maxConcurrency = 10;
+    this.maxConcurrency = options.maxConcurrency || 10;
+    this.maxDeadLetterSize = options.maxDeadLetterSize || 100;
+
+    // Telemetry counters
+    this.metrics = {
+      totalEnqueued: 0,
+      totalProcessed: 0,
+      totalFailed: 0,
+      totalRetried: 0,
+      totalDeadLettered: 0,
+      startedAt: new Date().toISOString()
+    };
   }
 
   /**
@@ -29,12 +41,16 @@ class NotificationQueue {
       maxRetries,
       attempt: 0,
       baseDelayMs,
-      dbLogId: null
+      dbLogId: null,
+      enqueuedAt: new Date().toISOString(),
+      lastError: null
     };
     
     this.queue.push(job);
-    console.log(`[Notification Queue] Job ${job.id} [${type}] enqueued.`);
+    this.metrics.totalEnqueued++;
+    console.log(`[Notification Queue] Job ${job.id} [${type}] enqueued. (Queue size: ${this.queue.length})`);
     this.processQueue();
+    return job.id;
   }
 
   /**
@@ -46,7 +62,8 @@ class NotificationQueue {
       id: 'JOB_' + Math.random().toString(36).substring(7).toUpperCase(),
     };
     this.queue.push(job);
-    console.log(`[Notification Queue] Job ${job.id} [${job.type}] re-enqueued for retry.`);
+    this.metrics.totalRetried++;
+    console.log(`[Notification Queue] Job ${job.id} [${job.type}] re-enqueued for retry attempt ${job.attempt + 1}.`);
     this.processQueue();
   }
 
@@ -68,7 +85,7 @@ class NotificationQueue {
   }
 
   /**
-   * Processes an individual job.
+   * Processes an individual job with error capture and exponential retry.
    */
   async processJob(job) {
     try {
@@ -79,9 +96,9 @@ class NotificationQueue {
         if (!job.dbLogId) {
           try {
             const data = await notificationRepository.insertEmailLog({
-              recipient: job.payload.to || 'unknown',
-              subject: job.payload.subject || 'No Subject',
-              event_type: job.payload.type || 'UNKNOWN',
+              recipient: job.payload?.to || 'unknown',
+              subject: job.payload?.subject || 'No Subject',
+              event_type: job.payload?.type || 'UNKNOWN',
               status: 'pending',
               attempts: job.attempt,
               max_attempts: job.maxRetries
@@ -110,7 +127,9 @@ class NotificationQueue {
       console.log(`[Notification Queue] Executing Job ${job.id} (Attempt ${job.attempt}/${job.maxRetries})`);
       
       // Execute the dispatch task
-      await job.taskFn();
+      if (typeof job.taskFn === 'function') {
+        await job.taskFn();
+      }
       
       // 2. Mark enqueued log as sent
       if (job.dbLogId) {
@@ -124,8 +143,11 @@ class NotificationQueue {
         }
       }
       
+      this.metrics.totalProcessed++;
       console.log(`[Notification Queue] Job ${job.id} dispatched successfully.`);
     } catch (err) {
+      job.lastError = err.message;
+      this.metrics.totalFailed++;
       console.error(`[Notification Queue] Job ${job.id} failed: ${err.message}`);
       
       const isPermanentFailure = job.attempt >= job.maxRetries;
@@ -155,10 +177,110 @@ class NotificationQueue {
           retryTimer.unref();
         }
       } else {
-        console.error(`[Notification Queue] CRITICAL: Job ${job.id} exceeded maximum retries. Discarding job.`, job.payload);
+        // Move to Dead-Letter Queue (DLQ) for administrative inspection & replay
+        this.metrics.totalDeadLettered++;
+        const dlqEntry = {
+          ...job,
+          failedAt: new Date().toISOString(),
+          finalError: err.message
+        };
+
+        this.deadLetterQueue.unshift(dlqEntry);
+        if (this.deadLetterQueue.length > this.maxDeadLetterSize) {
+          this.deadLetterQueue.pop();
+        }
+
+        console.error(
+          `[Notification Queue] 💀 CRITICAL: Job ${job.id} moved to Dead-Letter Queue (DLQ) after ${job.attempt} failed attempts. ` +
+          `Recipient: ${job.payload?.to || 'unknown'}, Error: "${err.message}"`
+        );
       }
     }
   }
+
+  /**
+   * Retrieves all quarantined dead-letter jobs.
+   */
+  getDeadLetterJobs() {
+    return this.deadLetterQueue.map(job => ({
+      id: job.id,
+      type: job.type,
+      recipient: job.payload?.to || job.payload?.phone || 'unknown',
+      subject: job.payload?.subject || 'N/A',
+      attempts: job.attempt,
+      maxRetries: job.maxRetries,
+      enqueuedAt: job.enqueuedAt,
+      failedAt: job.failedAt,
+      finalError: job.finalError
+    }));
+  }
+
+  /**
+   * Replays a quarantined dead-letter job by re-enqueuing with reset attempts.
+   * @param {string} jobId
+   */
+  replayDeadLetterJob(jobId) {
+    const idx = this.deadLetterQueue.findIndex(j => j.id === jobId);
+    if (idx === -1) {
+      return { success: false, message: `Job ${jobId} not found in Dead-Letter Queue.` };
+    }
+
+    const [job] = this.deadLetterQueue.splice(idx, 1);
+    job.attempt = 0;
+    job.lastError = null;
+    this.enqueue(job.type, job.payload, job.taskFn, job.maxRetries, job.baseDelayMs);
+
+    return {
+      success: true,
+      message: `Job ${jobId} successfully re-enqueued for dispatch.`,
+      jobId: job.id
+    };
+  }
+
+  /**
+   * Clears the Dead-Letter Queue.
+   */
+  clearDeadLetterQueue() {
+    const count = this.deadLetterQueue.length;
+    this.deadLetterQueue = [];
+    return { success: true, clearedCount: count };
+  }
+
+  /**
+   * Returns live diagnostic metrics for admin dashboard telemetry.
+   */
+  getMetrics() {
+    return {
+      activeWorkers: this.activeWorkers,
+      queuedJobsCount: this.queue.length,
+      deadLetterCount: this.deadLetterQueue.length,
+      maxConcurrency: this.maxConcurrency,
+      metrics: { ...this.metrics }
+    };
+  }
+
+  /**
+   * Reset internal queue state (useful for test suites).
+   */
+  reset() {
+    this.queue = [];
+    this.deadLetterQueue = [];
+    this.activeWorkers = 0;
+    this.metrics = {
+      totalEnqueued: 0,
+      totalProcessed: 0,
+      totalFailed: 0,
+      totalRetried: 0,
+      totalDeadLettered: 0,
+      startedAt: new Date().toISOString()
+    };
+  }
 }
 
-module.exports = new NotificationQueue();
+// Global singleton instance
+const notificationQueue = new NotificationQueue({
+  maxConcurrency: 10,
+  maxDeadLetterSize: 200
+});
+
+module.exports = notificationQueue;
