@@ -118,7 +118,10 @@ app.get('/api/health', async (req, res) => {
 });
 
 const { requestIdMiddleware } = require('./middleware/requestIdMiddleware');
+const { httpLoggerMiddleware } = require('./utils/logger');
+
 app.use(requestIdMiddleware);
+app.use(httpLoggerMiddleware);
 
 // Import Routes
 const grievanceRoutes   = require('./routes/grievanceRoutes');
