@@ -5,6 +5,7 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
 const { clerkMiddleware } = require('@clerk/express');
@@ -57,7 +58,10 @@ app.use(
   })
 );
 
-// 2. CORS setup (supporting credentials/cookies with whitelist validation)
+// 2. HTTP Response Compression (Gzip / Deflate)
+app.use(compression());
+
+// 3. CORS setup (supporting credentials/cookies with whitelist validation)
 const corsOptions = require('./config/corsConfig');
 app.use(cors(corsOptions));
 
@@ -154,9 +158,17 @@ app.use('/api/v1/uploads', uploadRoutes);
 app.use('/api/v1/messaging', messagingRoutes);
 
 
-// --- Production/Deployment: Serve frontend ---
+// --- Production/Deployment: Serve frontend with optimized caching ---
 const distPath = path.join(__dirname, '../dist');
-app.use(express.static(distPath));
+app.use(express.static(distPath, {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html') || filePath.endsWith('sw.js') || filePath.endsWith('manifest.json')) {
+      res.setHeader('Cache-Control', 'no-cache');
+    } else if (filePath.includes('assets')) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    }
+  }
+}));
 
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api')) {
@@ -164,6 +176,7 @@ app.get('*', (req, res) => {
   }
   
   const indexPath = path.join(distPath, 'index.html');
+  res.setHeader('Cache-Control', 'no-cache');
   res.sendFile(indexPath, (err) => {
     if (err) {
       res.status(404).send('Frontend not built. Run "npm run build" first.');
