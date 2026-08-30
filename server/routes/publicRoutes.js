@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const grievanceRepository = require('../repositories/grievanceRepository');
+const cacheManager = require('../utils/cacheManager');
 const { publicApiLimiter } = require('../middleware/rateLimiter');
 
 router.use(publicApiLimiter);
@@ -9,6 +10,13 @@ router.use(publicApiLimiter);
 // @desc    Public unauthenticated ticket progress tracker lookup
 router.get('/track/:ticketId', async (req, res, next) => {
   const { ticketId } = req.params;
+  const cacheKey = `public:track:${ticketId}`;
+
+  const cached = cacheManager.get(cacheKey);
+  if (cached) {
+    return res.json(cached);
+  }
+
   try {
     const rawTicket = await grievanceRepository.findByTicketId(ticketId) || await grievanceRepository.findById(ticketId);
     
@@ -27,12 +35,16 @@ router.get('/track/:ticketId', async (req, res, next) => {
       department: rawTicket.department || 'Facilities & Maintenance',
       urgency: rawTicket.urgency || 'Medium',
       status: rawTicket.status || 'Submitted',
+      escalation_tier: rawTicket.escalation_tier || null,
+      appeal_status: rawTicket.appeal_status || null,
+      rating: rawTicket.rating || null,
       created_at: rawTicket.created_at,
       sla_due_at: rawTicket.sla_due_at,
       resolution_notes: rawTicket.resolution_notes || null,
       resolved_at: rawTicket.resolved_at || null
     };
 
+    cacheManager.set(cacheKey, safeData, 60 * 1000); // 1 min TTL
     res.json(safeData);
   } catch (err) {
     next(err);

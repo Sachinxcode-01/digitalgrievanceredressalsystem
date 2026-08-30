@@ -6,7 +6,7 @@ const grievanceService = require('../services/grievanceService');
  */
 const getAllGrievances = async (req, res, next) => {
   try {
-    const data = await grievanceService.getAllGrievances(req.user, req.query.user_id);
+    const data = await grievanceService.getAllGrievances(req.user, req.query.user_id, req.query.department);
     res.json(data);
   } catch (err) {
     next(err);
@@ -68,10 +68,41 @@ const assignGrievance = async (req, res, next) => {
  * Escalate a grievance ticket.
  */
 const escalateGrievance = async (req, res, next) => {
+  const { reason, target_tier } = req.body;
+  try {
+    const updatedTicket = await grievanceService.escalateGrievance(req.params.id, reason, req.user, req.ip, req.headers['user-agent'], target_tier);
+    res.json(updatedTicket);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Handle citizen dispute / appeal submission for a resolved grievance.
+ */
+const appealGrievance = async (req, res, next) => {
   const { reason } = req.body;
   try {
-    const updatedTicket = await grievanceService.escalateGrievance(req.params.id, reason, req.user, req.ip, req.headers['user-agent']);
+    const updatedTicket = await grievanceService.appealGrievance(
+      req.params.id,
+      reason,
+      req.user,
+      req.ip,
+      req.headers['user-agent']
+    );
     res.json(updatedTicket);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Trigger batch check for SLA breaches across all pending tickets.
+ */
+const checkSLABreaches = async (req, res, next) => {
+  try {
+    const result = await grievanceService.checkSLABreaches(req.ip, req.headers['user-agent']);
+    res.json(result);
   } catch (err) {
     next(err);
   }
@@ -93,7 +124,7 @@ const getGrievanceTimeline = async (req, res, next) => {
  * Handle user feedback and satisfaction rating submission.
  */
 const submitFeedback = async (req, res, next) => {
-  const { rating, feedback_comments } = req.body;
+  const { rating, feedback_comments, feedback_tags } = req.body;
   try {
     const updatedTicket = await grievanceService.submitFeedback(
       req.params.id,
@@ -101,7 +132,8 @@ const submitFeedback = async (req, res, next) => {
       feedback_comments,
       req.user,
       req.ip,
-      req.headers['user-agent']
+      req.headers['user-agent'],
+      feedback_tags
     );
     res.json(updatedTicket);
   } catch (err) {
@@ -154,6 +186,8 @@ module.exports = {
   updateGrievanceStatus,
   assignGrievance,
   escalateGrievance,
+  appealGrievance,
+  checkSLABreaches,
   getGrievanceTimeline,
   submitFeedback,
   deleteGrievance,

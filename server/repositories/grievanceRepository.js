@@ -55,7 +55,7 @@ const inMemoryGrievances = [
 
 
 const grievanceRepository = {
-  async getAll(userId = null) {
+  async getAll(userId = null, department = null) {
     if (supabase) {
       try {
         const { data, error } = await withDbRetry(async () => {
@@ -66,6 +66,9 @@ const grievanceRepository = {
 
           if (userId) {
             query = query.eq('user_id', userId);
+          }
+          if (department) {
+            query = query.eq('department', department);
           }
           return await query;
         });
@@ -78,10 +81,14 @@ const grievanceRepository = {
       }
     }
 
+    let results = inMemoryGrievances;
     if (userId) {
-      return inMemoryGrievances.filter(g => !g.user_id || g.user_id === userId || userId.startsWith('demo-'));
+      results = results.filter(g => !g.user_id || g.user_id === userId || userId.startsWith('demo-'));
     }
-    return inMemoryGrievances;
+    if (department) {
+      results = results.filter(g => g.department === department);
+    }
+    return results;
   },
 
   async findById(id) {
@@ -127,7 +134,9 @@ const grievanceRepository = {
       'status', 'admin_comment', 'location', 'latitude', 'longitude',
       'attachment_url', 'department', 'assigned_to', 'resolution_notes',
       'resolved_at', 'escalated_at', 'escalated_reason', 'sla_due_at',
-      'rating', 'feedback_comments', 'upvote_count', 'upvoted_by'
+      'rating', 'feedback_comments', 'feedback_tags', 'sentiment_score',
+      'appeal_reason', 'appeal_date', 'appeal_status', 'escalation_tier',
+      'tier_escalated_at', 'escalated_to', 'upvote_count', 'upvoted_by'
     ];
 
     const sanitizedPayload = {
@@ -170,7 +179,9 @@ const grievanceRepository = {
       'admin_comment', 'location', 'latitude', 'longitude', 'attachment_url',
       'department', 'assigned_to', 'resolution_notes', 'resolved_at',
       'escalated_at', 'escalated_reason', 'sla_due_at', 'rating',
-      'feedback_comments', 'updated_at'
+      'feedback_comments', 'feedback_tags', 'sentiment_score',
+      'appeal_reason', 'appeal_date', 'appeal_status', 'escalation_tier',
+      'tier_escalated_at', 'escalated_to', 'updated_at'
     ];
 
     const sanitizedUpdates = {};

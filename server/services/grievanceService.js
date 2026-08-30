@@ -3,6 +3,7 @@ const userRepository = require('../repositories/userRepository');
 const emailService = require('./emailService');
 const messagingService = require('./messagingService');
 const aiService = require('./aiService');
+const cacheManager = require('../utils/cacheManager');
 const { generateGrievanceHash, generateAnonymousPasskey, verifyGrievanceHash } = require('../utils/cryptoUtil');
 const { logAudit } = require('./auditService');
 
@@ -31,17 +32,32 @@ async function generateUniqueTicketId() {
 }
 
 const grievanceService = {
-  async getAllGrievances(user, queryUserId = null) {
+  async getAllGrievances(user, queryUserId = null, queryDepartment = null) {
     let scopedUserId = null;
-    if (user.role !== 'admin' && user.role !== 'super admin') {
-      scopedUserId = user.id;
-    } else if (queryUserId) {
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-      if (uuidRegex.test(queryUserId) || queryUserId.startsWith('demo-') || queryUserId.startsWith('user_')) {
-        scopedUserId = queryUserId;
+    let scopedDepartment = null;
+
+    const isAdmin = user.role === 'admin' || user.role === 'super admin';
+    const isOfficer = user.role === 'officer' || user.role === 'faculty' || user.role === 'staff';
+
+    if (isAdmin) {
+      if (queryUserId) {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        if (uuidRegex.test(queryUserId) || queryUserId.startsWith('demo-') || queryUserId.startsWith('user_')) {
+          scopedUserId = queryUserId;
+        }
       }
+      if (queryDepartment) {
+        scopedDepartment = queryDepartment;
+      }
+    } else if (isOfficer) {
+      // Officers view department-specific grievances or their own assignments
+      scopedDepartment = user.department || queryDepartment || null;
+    } else {
+      // Students and general citizens are strictly isolated to their own grievances
+      scopedUserId = user.id;
     }
-    return grievanceRepository.getAll(scopedUserId);
+
+    return grievanceRepository.getAll(scopedUserId, scopedDepartment);
   },
 
   async createGrievance(grievanceData, user, ip, userAgent) {
@@ -460,20 +476,37 @@ const grievanceService = {
     return updatedTicket;
   },
 
-  async escalateGrievance(id, reason, user, ip, userAgent) {
+  async escalateGrievance(id, reason, user, ip, userAgent, targetTier = null) {
     const ticket = await grievanceRepository.findById(id);
     if (!ticket) {
       throw new Error('Grievance not found');
     }
 
+    const currentTier = targetTier || (ticket.escalation_tier === 'Tier 2' ? 'Tier 3' : (ticket.escalation_tier === 'Tier 1' ? 'Tier 2' : 'Tier 1'));
+    let tierTitle = 'Tier 1 (Handling Officer)';
+    let escalatedToRole = 'Officer Supervisor';
+
+    if (currentTier === 'Tier 2' || currentTier === 'Tier 2 (HOD Review)') {
+      tierTitle = 'Tier 2 (Department Head / HOD)';
+      escalatedToRole = 'Department Head';
+    } else if (currentTier === 'Tier 3' || currentTier === 'Critical Breach (Tier 3 - Ombudsman)') {
+      tierTitle = 'Tier 3 (Institutional Ombudsman / Director)';
+      escalatedToRole = 'Ombudsman';
+    }
+
     const updates = {
       status: 'Escalated',
+      escalation_tier: tierTitle,
+      tier_escalated_at: new Date().toISOString(),
+      escalated_to: escalatedToRole,
       escalated_at: new Date().toISOString(),
-      escalated_reason: reason || 'SLA Threshold Breach',
+      escalated_reason: reason || `SLA Breach Escalated to ${tierTitle}`,
       updated_at: new Date().toISOString()
     };
 
     const updatedTicket = await grievanceRepository.update(id, updates);
+    cacheManager.invalidate(`public:track:${ticket.ticket_id}`);
+    cacheManager.invalidate(`public:track:${ticket.id}`);
 
     // Timeline event
     await grievanceRepository.addTimelineEvent({
@@ -481,11 +514,16 @@ const grievanceService = {
       status: 'Escalated',
       activity_type: 'escalation',
       performed_by: user ? user.id : null,
-      notes: `Ticket escalated: ${reason || 'SLA Breach'}`
+      notes: `[SLA Multi-Tier Matrix] Ticket escalated to ${tierTitle}. Reason: ${reason || 'SLA Threshold Breach'}`
     });
 
     // Escalation alert email
-    emailService.sendEscalatedGrievanceAlertEmail(ticket.ticket_id, ticket.title, ticket.category, ticket.frustration_index || 5).catch(console.error);
+    emailService.sendEscalatedGrievanceAlertEmail(
+      ticket.ticket_id, 
+      `[${tierTitle}] ${ticket.title}`, 
+      ticket.category, 
+      ticket.frustration_index || 7
+    ).catch(console.error);
 
     // Audit log
     await logAudit(
@@ -493,35 +531,118 @@ const grievanceService = {
       `GRIEVANCE_ESCALATION`, 
       ip, 
       userAgent, 
-      { ticket_id: ticket.ticket_id, reason }
+      { ticket_id: ticket.ticket_id, tier: tierTitle, reason }
     );
 
     // System Alert
     await grievanceRepository.addSystemAlert({
       type: 'GRIEVANCE_ESCALATION',
-      message: `CRITICAL: Ticket ${ticket.ticket_id} escalated!`,
-      priority: 'high',
-      metadata: { ticket_id: ticket.ticket_id, reason }
+      message: `CRITICAL: Ticket ${ticket.ticket_id} escalated to ${tierTitle}!`,
+      priority: currentTier.includes('Tier 3') ? 'high' : 'normal',
+      metadata: { ticket_id: ticket.ticket_id, tier: tierTitle, reason }
     });
 
     return updatedTicket;
   },
 
   async checkSLABreaches(ip, userAgent) {
-    const now = new Date().toISOString();
-    const overdue = await grievanceRepository.getOverdueGrievances(now);
-    if (overdue.length === 0) return { count: 0 };
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const overdue = await grievanceRepository.getOverdueGrievances(nowIso);
+    if (overdue.length === 0) return { count: 0, details: [] };
 
     let count = 0;
+    const details = [];
+
     for (const ticket of overdue) {
       try {
-        await this.escalateGrievance(ticket.id, 'Automatic SLA Breach Escalation', null, ip, userAgent);
+        const slaDue = ticket.sla_due_at ? new Date(ticket.sla_due_at) : new Date(ticket.created_at);
+        const overdueHours = (now.getTime() - slaDue.getTime()) / (1000 * 60 * 60);
+
+        let targetTier = 'Tier 1';
+        if (overdueHours > 96) {
+          targetTier = 'Tier 3';
+        } else if (overdueHours > 48) {
+          targetTier = 'Tier 2';
+        }
+
+        const reason = `Auto SLA Multi-Tier Breach: Overdue by ${Math.round(overdueHours)} hours. Transferred to ${targetTier}.`;
+        await this.escalateGrievance(ticket.id, reason, null, ip, userAgent, targetTier);
         count++;
+        details.push({ ticket_id: ticket.ticket_id, overdueHours: Math.round(overdueHours), tier: targetTier });
       } catch (err) {
         console.error(`SLA auto-escalation failed for ticket ${ticket.ticket_id}:`, err.message);
       }
     }
-    return { count };
+    return { count, details };
+  },
+
+  /**
+   * Citizen Appeal & Dispute Mechanism
+   * Allows citizens/students to dispute a closed/resolved ticket.
+   */
+  async appealGrievance(id, appealReason, user, ip, userAgent) {
+    const ticket = await grievanceRepository.findById(id);
+    if (!ticket) {
+      const err = new Error('Grievance ticket not found.');
+      err.status = 404;
+      throw err;
+    }
+
+    // Ownership or admin check
+    const isOwner = ticket.user_id === user.id || (user.email && ticket.email === user.email);
+    const isAdmin = user.role === 'admin' || user.role === 'super admin';
+    if (!isOwner && !isAdmin) {
+      const err = new Error('Access Denied: You are not authorized to appeal this grievance.');
+      err.status = 403;
+      throw err;
+    }
+
+    if (!appealReason || typeof appealReason !== 'string' || appealReason.trim().length < 5) {
+      const err = new Error('A detailed justification (at least 5 characters) is required to file an appeal.');
+      err.status = 400;
+      throw err;
+    }
+
+    const updates = {
+      status: 'Disputed',
+      appeal_reason: appealReason.trim(),
+      appeal_date: new Date().toISOString(),
+      appeal_status: 'Pending Review',
+      escalation_tier: 'Tier 2 (HOD Dispute Review)',
+      updated_at: new Date().toISOString()
+    };
+
+    const updatedTicket = await grievanceRepository.update(id, updates);
+    cacheManager.invalidate(`public:track:${ticket.ticket_id}`);
+    cacheManager.invalidate(`public:track:${ticket.id}`);
+
+    // Timeline event
+    await grievanceRepository.addTimelineEvent({
+      grievance_id: id,
+      status: 'Disputed',
+      activity_type: 'appeal',
+      performed_by: user.id,
+      notes: `Citizen Appeal Registered: "${appealReason.trim()}". Ticket escalated to Department Head for dispute resolution.`
+    });
+
+    // Alert Admin and Assigned Officer
+    await grievanceRepository.addSystemAlert({
+      type: 'GRIEVANCE_APPEAL',
+      message: `DISPUTE: Ticket #${ticket.ticket_id} has been appealed by citizen.`,
+      priority: 'high',
+      metadata: { ticket_id: ticket.ticket_id, reason: appealReason.trim(), appeal_by: user.id }
+    });
+
+    await logAudit(
+      user.id,
+      'GRIEVANCE_APPEAL_SUBMITTED',
+      ip,
+      userAgent,
+      { ticket_id: ticket.ticket_id, appeal_reason: appealReason }
+    );
+
+    return updatedTicket;
   },
 
   async getGrievanceTimeline(id, user) {
@@ -546,7 +667,7 @@ const grievanceService = {
     return grievanceRepository.getTimeline(id);
   },
 
-  async submitFeedback(id, rating, comments, user, ip, userAgent) {
+  async submitFeedback(id, rating, comments, user, ip, userAgent, feedbackTags = []) {
     const ticket = await grievanceRepository.findById(id);
     if (!ticket) {
       throw new Error('Grievance not found');
@@ -558,14 +679,22 @@ const grievanceService = {
       throw err;
     }
 
+    const numericRating = Math.max(1, Math.min(5, parseInt(rating, 10) || 5));
+    // Automated CSAT sentiment score: 4-5 is positive (+1), 3 is neutral (0), 1-2 is negative (-1)
+    let sentimentScore = numericRating >= 4 ? 1 : (numericRating === 3 ? 0 : -1);
+
     const updates = {
-      rating: parseInt(rating, 10),
-      feedback_comments: comments,
+      rating: numericRating,
+      feedback_comments: comments || '',
+      feedback_tags: Array.isArray(feedbackTags) ? feedbackTags : [],
+      sentiment_score: sentimentScore,
       status: 'Closed',
       updated_at: new Date().toISOString()
     };
 
     const updatedTicket = await grievanceRepository.update(id, updates);
+    cacheManager.invalidate(`public:track:${ticket.ticket_id}`);
+    cacheManager.invalidate(`public:track:${ticket.id}`);
 
     // Timeline event
     await grievanceRepository.addTimelineEvent({
@@ -573,7 +702,7 @@ const grievanceService = {
       status: 'Closed',
       activity_type: 'feedback',
       performed_by: user.id,
-      notes: `Feedback submitted: Rating ${rating}/5. Comments: ${comments || 'None'}. Ticket closed.`
+      notes: `CSAT Feedback submitted: Rating ${numericRating}/5. Tags: ${(updates.feedback_tags || []).join(', ') || 'None'}. Comments: ${comments || 'None'}. Ticket closed.`
     });
 
     // Audit Log
@@ -582,7 +711,7 @@ const grievanceService = {
       'GRIEVANCE_FEEDBACK_SUBMITTED',
       ip,
       userAgent,
-      { ticket_id: ticket.ticket_id, rating, comments }
+      { ticket_id: ticket.ticket_id, rating: numericRating, sentiment: sentimentScore, comments }
     );
 
     return updatedTicket;

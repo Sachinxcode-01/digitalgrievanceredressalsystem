@@ -7,6 +7,8 @@ const {
   updateGrievanceStatus,
   assignGrievance,
   escalateGrievance,
+  appealGrievance,
+  checkSLABreaches,
   getGrievanceTimeline,
   submitFeedback,
   deleteGrievance,
@@ -33,6 +35,10 @@ router.get('/', getAllGrievances);
 // @desc    Fetch trending community cluster petitions
 router.get('/community-clusters', getCommunityClusters);
 
+// @route   POST /api/v1/grievances/sla/breach-check
+// @desc    Execute batch SLA multi-tier breach check and auto-escalation
+router.post('/sla/breach-check', authorizeRoles('admin', 'super admin', 'officer', 'staff'), checkSLABreaches);
+
 // @route   POST /api/v1/grievances
 // @desc    Report a new grievance
 router.post('/', grievanceSubmissionLimiter, validateCreateGrievance, createGrievance);
@@ -46,7 +52,6 @@ router.get('/:id', getGrievanceById);
 router.post('/:id/upvote', upvoteGrievance);
 
 // @route   DELETE /api/v1/grievances/:id
-
 // @desc    Cancel/delete a pending grievance
 router.delete('/:id', deleteGrievance);
 
@@ -64,6 +69,10 @@ router.put('/:id/assign', authorizeRoles('admin', 'super admin'), validateAssign
 // @route   PUT /api/v1/grievances/:id/escalate
 // @desc    Escalate grievance ticket
 router.put('/:id/escalate', validateEscalateGrievance, escalateGrievance);
+
+// @route   POST /api/v1/grievances/:id/appeal
+// @desc    Dispute/Appeal a resolved grievance ticket
+router.post('/:id/appeal', appealGrievance);
 
 // @route   GET /api/v1/grievances/:id/timeline
 // @desc    Fetch timeline log for a grievance
