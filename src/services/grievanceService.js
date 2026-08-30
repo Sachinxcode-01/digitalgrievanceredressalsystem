@@ -206,14 +206,26 @@ export const grievanceService = {
   /**
    * Submit satisfaction feedback rating and comments for a resolved grievance.
    */
-  async submitFeedback(id, rating, comments) {
+  async submitFeedback(id, rating, comments, feedbackTags = []) {
     try {
-      const response = await apiClient.post(`/grievances/${id}/feedback`, { rating, feedback_comments: comments });
+      const response = await apiClient.post(`/grievances/${id}/feedback`, { 
+        rating, 
+        feedback_comments: comments,
+        feedback_tags: feedbackTags
+      });
       return response.data;
     } catch (err) {
       console.warn('Backend feedback submit fallback:', err.message);
       return this.updateStatus(id, 'Closed', comments);
     }
+  },
+
+  /**
+   * Submit citizen dispute / appeal for a resolved grievance.
+   */
+  async appeal(id, reason) {
+    const response = await apiClient.post(`/grievances/${id}/appeal`, { reason });
+    return response.data;
   },
 
   /**

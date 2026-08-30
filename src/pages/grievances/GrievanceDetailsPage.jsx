@@ -34,7 +34,13 @@ export const GrievanceDetailsPage = ({ user }) => {
   // Feedback states
   const [feedbackRating, setFeedbackRating] = useState(5);
   const [feedbackComments, setFeedbackComments] = useState('');
+  const [feedbackTags, setFeedbackTags] = useState([]);
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+
+  // Appeal / Dispute states
+  const [showAppealModal, setShowAppealModal] = useState(false);
+  const [appealReason, setAppealReason] = useState('');
+  const [isSubmittingAppeal, setIsSubmittingAppeal] = useState(false);
 
   // Cancel Modal
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -168,13 +174,33 @@ export const GrievanceDetailsPage = ({ user }) => {
     e.preventDefault();
     setIsSubmittingFeedback(true);
     try {
-      await grievanceService.submitFeedback(ticket.id, feedbackRating, feedbackComments);
+      await grievanceService.submitFeedback(ticket.id, feedbackRating, feedbackComments, feedbackTags);
       toast.success('Thank you! Your feedback rating has been submitted.');
       fetchTicketDetails();
     } catch (err) {
       toast.error('Feedback submission failed.');
     } finally {
       setIsSubmittingFeedback(false);
+    }
+  };
+
+  const handleAppealSubmit = async (e) => {
+    e.preventDefault();
+    if (!appealReason || appealReason.trim().length < 5) {
+      toast.error('Please enter a valid reason for appeal (min 5 characters).');
+      return;
+    }
+    setIsSubmittingAppeal(true);
+    try {
+      await grievanceService.appeal(ticket.id, appealReason.trim());
+      toast.success('Formal dispute appeal submitted. Transferred to Department Head for review.');
+      setShowAppealModal(false);
+      setAppealReason('');
+      fetchTicketDetails();
+    } catch (err) {
+      toast.error(err.response?.data?.error || err.message || 'Appeal submission failed.');
+    } finally {
+      setIsSubmittingAppeal(false);
     }
   };
 
@@ -488,12 +514,41 @@ export const GrievanceDetailsPage = ({ user }) => {
                     <div className="p-4 rounded-xl bg-background/80 border border-border text-xs text-foreground font-medium italic whitespace-pre-wrap leading-relaxed">
                       "{ticket.resolution_notes || 'Resolved satisfactorily according to institutional guidelines.'}"
                     </div>
+
+                    {/* Dispute / Appeal Resolution CTA */}
+                    {ticket.status !== 'Disputed' && (
+                      <div className="pt-2 flex items-center justify-between border-t border-emerald-500/20">
+                        <div>
+                          <p className="text-xs font-bold text-foreground">Dissatisfied with this resolution?</p>
+                          <p className="text-[10px] text-muted-foreground">You have the right to file a formal dispute appeal to the Department Head / Ombudsman.</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowAppealModal(true)}
+                          className="px-3.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold transition-all cursor-pointer"
+                        >
+                          Dispute & Appeal
+                        </button>
+                      </div>
+                    )}
                   </div>
+
+                  {ticket.status === 'Disputed' && (
+                    <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 space-y-2">
+                      <div className="flex items-center gap-2 text-amber-400 font-bold text-xs">
+                        <AlertCircle size={16} />
+                        <span>Formal Dispute Under Review ({ticket.escalation_tier || 'Tier 2 - HOD Review'})</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Citizen Appeal Reason: <strong className="text-foreground">"{ticket.appeal_reason}"</strong>
+                      </p>
+                    </div>
+                  )}
 
                   {/* 5-Star Feedback Rating Box */}
                   <form onSubmit={handleSubmitFeedback} className="bg-background/50 border border-border rounded-2xl p-5 space-y-4">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
-                      Submit Redressal Satisfaction Rating
+                      Submit Redressal Satisfaction Rating (CSAT)
                     </h4>
                     <div className="flex items-center gap-2">
                       {[1, 2, 3, 4, 5].map((star) => (
@@ -512,6 +567,32 @@ export const GrievanceDetailsPage = ({ user }) => {
                       <span className="text-xs font-mono font-bold text-amber-400 ml-2">{feedbackRating} / 5 Stars</span>
                     </div>
 
+                    {/* Tag Pills */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Satisfaction Tags</label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {['Fast Resolution', 'Helpful Staff', 'Polite Communication', 'High Quality Work', 'Needs Follow-up', 'Delayed Response'].map((tag) => {
+                          const isSelected = feedbackTags.includes(tag);
+                          return (
+                            <button
+                              key={tag}
+                              type="button"
+                              onClick={() => {
+                                setFeedbackTags(prev => isSelected ? prev.filter(t => t !== tag) : [...prev, tag]);
+                              }}
+                              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer border ${
+                                isSelected 
+                                  ? 'bg-primary text-primary-foreground border-primary' 
+                                  : 'bg-muted/40 hover:bg-muted text-muted-foreground border-border'
+                              }`}
+                            >
+                              {tag}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
                     <textarea
                       rows={3}
                       placeholder="Optional feedback comments regarding resolution speed and officer response..."
@@ -526,7 +607,7 @@ export const GrievanceDetailsPage = ({ user }) => {
                       className="btn-primary px-5 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-2 cursor-pointer"
                     >
                       {isSubmittingFeedback ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                      <span>Submit Feedback</span>
+                      <span>Submit Feedback & Close</span>
                     </button>
                   </form>
                 </div>
@@ -589,6 +670,60 @@ export const GrievanceDetailsPage = ({ user }) => {
 
         </AnimatePresence>
       </div>
+
+      {/* Appeal / Dispute Modal */}
+      <AnimatePresence>
+        {showAppealModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-surface border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 text-left"
+            >
+              <div className="flex items-center gap-3 text-amber-400">
+                <AlertCircle size={24} />
+                <h3 className="text-lg font-heading font-black uppercase tracking-tight text-foreground">
+                  File Dispute Appeal
+                </h3>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Provide a detailed justification for disputing the resolution of ticket <strong className="text-foreground">#{ticket.ticket_id}</strong>. This will escalate the ticket directly to the Department Head / Ombudsman.
+              </p>
+              
+              <form onSubmit={handleAppealSubmit} className="space-y-4">
+                <textarea
+                  rows={4}
+                  required
+                  placeholder="Explain why the resolution was incomplete or unsatisfactory (minimum 5 characters)..."
+                  value={appealReason}
+                  onChange={(e) => setAppealReason(e.target.value)}
+                  className="w-full bg-background border border-border rounded-xl p-3 text-xs text-foreground outline-none focus:border-amber-400 resize-none"
+                />
+
+                <div className="flex items-center justify-end gap-3 pt-2 border-t border-border/60">
+                  <button 
+                    type="button"
+                    onClick={() => setShowAppealModal(false)}
+                    disabled={isSubmittingAppeal}
+                    className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    disabled={isSubmittingAppeal}
+                    className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold rounded-xl flex items-center gap-2 cursor-pointer"
+                  >
+                    {isSubmittingAppeal ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                    <span>Submit Appeal</span>
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Cancel Modal */}
       <AnimatePresence>
