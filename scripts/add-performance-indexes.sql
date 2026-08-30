@@ -12,11 +12,21 @@ ALTER TABLE IF EXISTS public.grievances ADD COLUMN IF NOT EXISTS upvoted_by TEXT
 ALTER TABLE IF EXISTS public.grievances ADD COLUMN IF NOT EXISTS admin_comment TEXT;
 ALTER TABLE IF EXISTS public.grievances ADD COLUMN IF NOT EXISTS sla_due_at TIMESTAMP WITH TIME ZONE;
 ALTER TABLE IF EXISTS public.grievances ADD COLUMN IF NOT EXISTS frustration_index INT DEFAULT 1;
+ALTER TABLE IF EXISTS public.grievances ADD COLUMN IF NOT EXISTS appeal_status TEXT;
+ALTER TABLE IF EXISTS public.grievances ADD COLUMN IF NOT EXISTS appeal_reason TEXT;
+ALTER TABLE IF EXISTS public.grievances ADD COLUMN IF NOT EXISTS appeal_date TIMESTAMP WITH TIME ZONE;
+ALTER TABLE IF EXISTS public.grievances ADD COLUMN IF NOT EXISTS escalation_tier TEXT;
+ALTER TABLE IF EXISTS public.grievances ADD COLUMN IF NOT EXISTS tier_escalated_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE IF EXISTS public.grievances ADD COLUMN IF NOT EXISTS escalated_to TEXT;
+ALTER TABLE IF EXISTS public.grievances ADD COLUMN IF NOT EXISTS feedback_tags TEXT[] DEFAULT '{}';
+ALTER TABLE IF EXISTS public.grievances ADD COLUMN IF NOT EXISTS sentiment_score INT DEFAULT 0;
 
 -- 1. High-frequency Grievance & Cryptographic Hash Lookups
 CREATE INDEX IF NOT EXISTS idx_grievances_ticket_id ON public.grievances(ticket_id);
 CREATE INDEX IF NOT EXISTS idx_grievances_proof_hash ON public.grievances(proof_hash);
 CREATE INDEX IF NOT EXISTS idx_grievances_secret_passkey ON public.grievances(secret_passkey) WHERE secret_passkey IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_grievances_appeal_status ON public.grievances(appeal_status) WHERE appeal_status IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_grievances_escalation_tier ON public.grievances(escalation_tier) WHERE escalation_tier IS NOT NULL;
 
 -- 2. Emergency SOS & SLA Breach Monitoring Indexes
 CREATE INDEX IF NOT EXISTS idx_grievances_is_emergency ON public.grievances(is_emergency) WHERE is_emergency = TRUE;
