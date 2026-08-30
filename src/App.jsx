@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from './app/providers/AuthProvider';
 import { ProtectedRoute } from './app/routes/ProtectedRoute';
 import { RoleGuard } from './app/routes/RoleGuard';
 import { OfflineBanner } from './components/ui/OfflineBanner';
+import { AccessibilityDock } from './components/ui/AccessibilityDock';
 
 // --- Lazy Load Pages for Code Splitting ---
 const LoginPage = React.lazy(() => import('./pages/auth/LoginPage').then(m => ({ default: m.LoginPage })));
@@ -145,6 +146,7 @@ function AppContent() {
       <ErrorBoundary>
         <Router>
           <OfflineBanner />
+          <AccessibilityDock />
           <Suspense fallback={<PageLoader />}>
             <Routes>
               {/* Public Roots */}

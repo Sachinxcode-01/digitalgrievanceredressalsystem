@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase';
 import { apiClient } from '../../api/apiClient';
 import StatusBadge from '../../components/ui/StatusBadge';
 import SlaRiskBadge from '../../components/ui/SlaRiskBadge';
+import SlaRadialCountdown from '../../components/ui/SlaRadialCountdown';
 import GrievanceWorkflowTimeline from '../../components/grievances/GrievanceWorkflowTimeline';
 import CommunityPetitionWidget from '../../components/grievances/CommunityPetitionWidget';
 import MobileNotificationSimulatorModal from '../../components/notifications/MobileNotificationSimulatorModal';
@@ -302,10 +303,11 @@ export const PublicStatusPage = () => {
                     <h2 className="text-2xl font-mono text-indigo-400 font-bold tracking-wider">{ticket.ticket_id}</h2>
                   </div>
                   <div className="flex flex-col sm:items-end gap-2 shrink-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap sm:justify-end">
                       <SlaRiskBadge createdAt={ticket.created_at} slaDueAt={ticket.sla_due_at} status={ticket.status} compact={true} />
                       <StatusBadge status={ticket.status} />
                     </div>
+                    <SlaRadialCountdown createdAt={ticket.created_at} slaDueAt={ticket.sla_due_at} status={ticket.status} size={76} strokeWidth={5} />
                     <p className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">Filing Date: {new Date(ticket.created_at).toLocaleDateString()}</p>
                   </div>
                 </div>

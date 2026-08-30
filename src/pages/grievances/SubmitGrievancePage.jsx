@@ -22,6 +22,7 @@ import SmartTriageAssistant from '../../components/ai/SmartTriageAssistant';
 import DuplicateGrievanceModal from '../../components/ai/DuplicateGrievanceModal';
 import MultilingualTranslator from '../../components/ai/MultilingualTranslator';
 import VoiceStudioModal from '../../components/ai/VoiceStudioModal';
+import FileUploadZone from '../../components/ui/FileUploadZone';
 
 export const SubmitGrievancePage = ({ user, sessionUser }) => {
   const currentUser = user || sessionUser;
@@ -413,7 +414,7 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
 
               {submittedTicket.proof_hash && (
                 <div className="pt-2 border-t border-slate-800 text-[10px] text-slate-400 flex items-center justify-between font-mono">
-                  <span className="truncate max-w-[180px]">SHA256: {submittedTicket.proof_hash}</span>
+                  <span className="truncate max-w-45">SHA256: {submittedTicket.proof_hash}</span>
                   <Link 
                     to={`/verify-hash?hash=${encodeURIComponent(submittedTicket.proof_hash)}`}
                     className="text-emerald-400 hover:underline flex items-center gap-1 shrink-0 font-sans"
@@ -729,40 +730,22 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
                   }}
                 />
 
-                {/* Attachment */}
-                <div className="space-y-1">
+                {/* Evidence Attachment Drag and Drop Zone */}
+                <div className="space-y-1.5">
                   <label className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-400">
-                    Evidence Attachment (Max 5MB)
+                    Supporting Evidence & Documents
                   </label>
-                  
-                  {attachmentUrl ? (
-                    <div className="p-3 bg-slate-950 border border-white/10 rounded-xl flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-xs">
-                        <Paperclip size={14} className="text-indigo-400 shrink-0" />
-                        <span className="text-white font-medium truncate">{attachment?.name || 'File Attached'}</span>
-                      </div>
-                      <button 
-                        type="button" 
-                        onClick={handleClearAttachment}
-                        className="text-slate-400 hover:text-rose-400 p-1"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="relative overflow-hidden rounded-xl border border-dashed border-white/10 hover:border-indigo-500/40 bg-slate-950/60 p-4 flex flex-col items-center justify-center cursor-pointer text-center">
-                      <input 
-                        type="file" 
-                        onChange={handleFileChange}
-                        className="absolute inset-0 opacity-0 cursor-pointer z-10" 
-                      />
-                      <div className="flex flex-col items-center gap-1.5 text-slate-400 hover:text-white">
-                        <Plus size={20} />
-                        <span className="text-xs font-semibold">Upload supporting document, PDF, or screenshot</span>
-                        <span className="text-[9px] text-slate-500 font-mono">Max file size 5MB</span>
-                      </div>
-                    </div>
-                  )}
+                  <FileUploadZone 
+                    selectedFile={attachment}
+                    onFileSelect={(file) => {
+                      if (!file) {
+                        setAttachment(null);
+                        setAttachmentUrl('');
+                      } else {
+                        handleFileChange({ target: { files: [file] } });
+                      }
+                    }}
+                  />
                 </div>
 
                 <div className="flex items-center gap-4 pt-4 border-t border-white/10">

@@ -22,6 +22,7 @@ import { DeliveryTrackingWidget } from '../../components/grievances/DeliveryTrac
 
 import AnimatedPage from '../../components/ui/AnimatedPage';
 import CounterCard from '../../components/ui/CounterCard';
+import BentoStatCard from '../../components/ui/BentoStatCard';
 import GlassPanel from '../../components/ui/GlassPanel';
 import MotionCard from '../../components/ui/MotionCard';
 import AnimatedButton from '../../components/ui/AnimatedButton';
@@ -445,14 +446,55 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
         </div>
       </GlassPanel>
 
-      {/* 2. KPI Cards Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        <CounterCard title="Total Filed" value={totalCount} icon={Ticket} iconColor="text-indigo-400" />
-        <CounterCard title="Pending" value={pendingCount} icon={Clock} iconColor="text-amber-400" />
-        <CounterCard title="In Progress" value={inProgressCount} icon={Activity} iconColor="text-cyan-400" />
-        <CounterCard title="Resolved" value={resolvedCount} icon={CheckCircle2} iconColor="text-emerald-400" />
-        <CounterCard title="Escalated" value={escalatedCount} icon={AlertTriangle} iconColor="text-rose-400" />
-        <CounterCard title="SLA Overdue" value={overdueCount} icon={AlertCircle} iconColor="text-red-500" />
+      {/* 2. Bento KPI Cards Grid with Reactive Mouse Glows */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
+        <BentoStatCard 
+          title="Total Filed" 
+          value={totalCount} 
+          subtitle="All complaints" 
+          icon={Ticket} 
+          accentColor="indigo" 
+        />
+        <BentoStatCard 
+          title="Pending" 
+          value={pendingCount} 
+          subtitle="Awaiting triage" 
+          icon={Clock} 
+          accentColor="amber" 
+          beacon={pendingCount > 0} 
+        />
+        <BentoStatCard 
+          title="In Progress" 
+          value={inProgressCount} 
+          subtitle="Under active review" 
+          icon={Activity} 
+          accentColor="cyan" 
+          beacon={inProgressCount > 0} 
+        />
+        <BentoStatCard 
+          title="Resolved" 
+          value={resolvedCount} 
+          subtitle="Redressed & closed" 
+          icon={CheckCircle2} 
+          accentColor="emerald" 
+          trend={totalCount > 0 ? { value: `${Math.round((resolvedCount / Math.max(1, totalCount)) * 100)}% rate`, isPositive: true } : null}
+        />
+        <BentoStatCard 
+          title="Escalated" 
+          value={escalatedCount} 
+          subtitle="Tier 2 / HOD level" 
+          icon={AlertTriangle} 
+          accentColor="rose" 
+          beacon={escalatedCount > 0} 
+        />
+        <BentoStatCard 
+          title="SLA Overdue" 
+          value={overdueCount} 
+          subtitle="Breached timeframe" 
+          icon={AlertCircle} 
+          accentColor="rose" 
+          beacon={overdueCount > 0} 
+        />
       </div>
 
       {/* 3. Recharts & Insights Grid */}

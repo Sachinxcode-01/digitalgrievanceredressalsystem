@@ -22,6 +22,7 @@ import { webPushService } from '../../services/webPushService';
 
 import AnimatedPage from '../../components/ui/AnimatedPage';
 import CounterCard from '../../components/ui/CounterCard';
+import BentoStatCard from '../../components/ui/BentoStatCard';
 import GlassPanel from '../../components/ui/GlassPanel';
 import MotionCard from '../../components/ui/MotionCard';
 import AnimatedButton from '../../components/ui/AnimatedButton';
@@ -306,35 +307,38 @@ export const OfficerDashboardPage = ({ sessionUser, userProfile, onLogout }) => 
           </div>
         </div>
 
-        {/* Officer KPI Stats Bar */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <CounterCard
-            title="Active Deliveries"
-            count={activeInTransit}
+        {/* Officer KPI Stats Bar with Reactive Mouse Glows */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+          <BentoStatCard
+            title="Active Workload"
+            value={activeInTransit}
+            subtitle="Under active investigation"
             icon={Clock}
-            color="primary"
-            description="Under investigation / active"
+            accentColor="indigo"
+            beacon={activeInTransit > 0}
           />
-          <CounterCard
+          <BentoStatCard
             title="SLA Critical (<24h)"
-            count={slaCriticalCount}
+            value={slaCriticalCount}
+            subtitle="Impending breach deadline"
             icon={AlertTriangle}
-            color="error"
-            description="Impending resolution deadline"
+            accentColor="rose"
+            beacon={slaCriticalCount > 0}
           />
-          <CounterCard
-            title="Pending Citizen Input"
-            count={pendingCitizen}
+          <BentoStatCard
+            title="Citizen Discussions"
+            value={pendingCitizen}
+            subtitle="Awaiting reply / input"
             icon={MessageSquare}
-            color="warning"
-            description="Awaiting response"
+            accentColor="amber"
           />
-          <CounterCard
+          <BentoStatCard
             title="Redressal Rate"
-            count={`${resolutionRate}%`}
+            value={`${resolutionRate}%`}
+            subtitle={`${resolvedCount} resolved cases`}
             icon={CheckCircle2}
-            color="success"
-            description={`${resolvedCount} resolved cases`}
+            accentColor="emerald"
+            trend={{ value: `${resolvedCount} closed`, isPositive: true }}
           />
         </div>
 

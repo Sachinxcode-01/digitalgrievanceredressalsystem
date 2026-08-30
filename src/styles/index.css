@@ -429,6 +429,66 @@ html[data-font-scale="accessibility"] {
   box-shadow: var(--shadow-z3);
 }
 
+/* Bento Mouse-Follower Glow */
+.bento-glow-card {
+  position: relative;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 1.25rem;
+  overflow: hidden;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.bento-glow-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.35), 0 0 20px 2px rgba(99, 102, 241, 0.12);
+}
+
+.bento-glow-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  border-radius: inherit;
+  background: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(99, 102, 241, 0.12), transparent 40%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.bento-glow-card:hover::before {
+  opacity: 1;
+}
+
+/* Luminous Timeline Connecting Beam */
+@keyframes beam-flow {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+
+.luminous-beam-track {
+  position: relative;
+  overflow: hidden;
+}
+
+.luminous-beam-track::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 100%;
+  background: linear-gradient(180deg, transparent, rgba(59, 130, 246, 0.8), rgba(99, 102, 241, 0.9), transparent);
+  animation: beam-flow 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* HUD Pill Navigation */
+.hud-pill {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6), 0 0 25px 0 rgba(99, 102, 241, 0.15);
+}
+
 /* Respect reduced-motion preferences */
 @media (prefers-reduced-motion: reduce) {
   .glass-card,
@@ -437,11 +497,14 @@ html[data-font-scale="accessibility"] {
   .animate-float,
   .sla-pulse-red,
   .sla-pulse-amber,
-  .tilt-card-3d {
+  .tilt-card-3d,
+  .bento-glow-card {
     transition: none !important;
     animation: none !important;
     transform: none !important;
   }
-  .btn-premium::after { display: none; }
+  .btn-premium::after,
+  .luminous-beam-track::after,
+  .bento-glow-card::before { display: none !important; }
 }
 
