@@ -31,6 +31,7 @@ import GlassPanel from '../../components/ui/GlassPanel';
 import MotionCard from '../../components/ui/MotionCard';
 import AnimatedButton from '../../components/ui/AnimatedButton';
 import LoadingSkeleton from '../../components/ui/LoadingSkeleton';
+import ExecutiveHealthSummaryCard from '../../components/ui/ExecutiveHealthSummaryCard';
 
 export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
   const [tickets, setTickets] = useState([]);
@@ -313,7 +314,10 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
         </div>
       </GlassPanel>
 
-      {/* 2. KPI Cards Grid */}
+      {/* 2. Executive At-A-Glance Cockpit & CSAT Sentiment */}
+      <ExecutiveHealthSummaryCard tickets={tickets} departments={departments} />
+
+      {/* 3. KPI Cards Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <CounterCard title="Total Complaints" value={totalCount} icon={Ticket} iconColor="text-indigo-400" />
         <CounterCard title="Pending Queue" value={pendingCount} icon={Clock} iconColor="text-amber-400" />
