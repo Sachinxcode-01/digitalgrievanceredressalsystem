@@ -11,6 +11,7 @@ import { RoleGuard } from './app/routes/RoleGuard';
 import { OfflineBanner } from './components/ui/OfflineBanner';
 import { AccessibilityDock } from './components/ui/AccessibilityDock';
 import { CommandPalette } from './components/ui/CommandPalette';
+import { AiOmbudsmanWidget } from './components/ui/AiOmbudsmanWidget';
 
 // --- Lazy Load Pages for Code Splitting ---
 const LoginPage = React.lazy(() => import('./pages/auth/LoginPage').then(m => ({ default: m.LoginPage })));
@@ -149,6 +150,7 @@ function AppContent() {
           <OfflineBanner />
           <AccessibilityDock />
           <CommandPalette />
+          <AiOmbudsmanWidget />
           <Suspense fallback={<PageLoader />}>
             <Routes>
               {/* Public Roots */}
