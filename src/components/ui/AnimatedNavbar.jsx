@@ -96,6 +96,20 @@ export const AnimatedNavbar = ({ user }) => {
 
           {/* Auth Action Buttons & Notifications */}
           <div className="hidden md:flex items-center gap-2">
+            {/* Quick Command Palette Trigger */}
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
+              className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/90 border border-white/10 hover:border-indigo-500/40 text-slate-400 hover:text-slate-200 text-xs font-mono transition-all cursor-pointer shadow-xs"
+              title="Press Ctrl + K to search"
+            >
+              <Search size={13} className="text-indigo-400" />
+              <span className="text-[11px]">Search...</span>
+              <kbd className="px-1.5 py-0.2 rounded bg-slate-800 border border-white/10 text-[9px] font-bold text-slate-400">
+                Ctrl K
+              </kbd>
+            </button>
+
             {user ? (
               <>
                 <NotificationCenter user={user} />
