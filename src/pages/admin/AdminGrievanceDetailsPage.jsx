@@ -644,9 +644,35 @@ export const AdminGrievanceDetailsPage = ({ user, sessionUser }) => {
                 </div>
               </div>
               <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 block mb-1.5">
-                  Resolution / Internal Notes
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 block">
+                    Resolution / Internal Notes
+                  </label>
+                </div>
+
+                {/* 1-Click Canned Resolution Templates */}
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {[
+                    { label: '🔧 Repair Done', text: 'On-site technical inspection completed. Faulty hardware/fixtures were replaced and verified operational.' },
+                    { label: '📶 Network Restored', text: 'IT infrastructure switches and access points were reconfigured. Latency and signal levels are now verified normal.' },
+                    { label: '📑 Records Verified', text: 'Official verification completed with Academic Controller Office. Records updated in university portal.' },
+                    { label: '💳 Fee Balance Adjusted', text: 'Finance accounts team audited payment invoice and credit balance was adjusted in student fee ledger.' }
+                  ].map((tmpl, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setResolutionNotes(tmpl.text);
+                        if (newStatus !== 'Resolved') setNewStatus('Resolved');
+                        toast.success(`Template applied: ${tmpl.label}`);
+                      }}
+                      className="px-2 py-0.5 rounded-md bg-background border border-border/70 hover:border-emerald-500/50 hover:bg-emerald-500/10 text-[10px] font-medium text-foreground transition-all cursor-pointer"
+                    >
+                      {tmpl.label}
+                    </button>
+                  ))}
+                </div>
+
                 <textarea
                   value={resolutionNotes}
                   onChange={e => setResolutionNotes(e.target.value)}

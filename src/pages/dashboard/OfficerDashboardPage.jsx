@@ -559,6 +559,31 @@ export const OfficerDashboardPage = ({ sessionUser, userProfile, onLogout }) => 
                       <span>Mark Resolved</span>
                     </button>
                   </div>
+
+                  {/* 1-Click Quick Clarification Prompts to Citizen */}
+                  <div className="space-y-1.5 pt-2 border-t border-border/40">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground block text-left">
+                      💬 1-Click Citizen Clarification Prompts
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { label: '📍 Ask Room / Lab #', note: 'Officer note: Please provide your specific room number or classroom location so our maintenance crew can inspect immediately.' },
+                        { label: '📷 Request Photo / Doc', note: 'Officer note: Please upload a photo of the physical issue or attach the relevant fee invoice / document.' },
+                        { label: '📞 Request Callback Time', note: 'Officer note: Please reply with your preferred time window for an on-site technician visit or telephone callback.' },
+                        { label: '💳 Ask Transaction ID', note: 'Officer note: Please share the payment transaction reference number or bank UTR ID for accounting verification.' }
+                      ].map((prompt, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => handleQuickStatusUpdate(selectedTicket.id, 'Pending User Response', prompt.note)}
+                          disabled={selectedTicket.status === 'Resolved' || selectedTicket.status === 'Closed'}
+                          className="px-2.5 py-1 rounded-lg bg-surface/90 hover:bg-cyan-500/15 border border-border/80 hover:border-cyan-500/40 text-[11px] font-medium text-foreground transition-all cursor-pointer disabled:opacity-40"
+                        >
+                          {prompt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </GlassPanel>
 
                 {/* 3. Citizen Dossier & Overview */}
@@ -643,6 +668,34 @@ export const OfficerDashboardPage = ({ sessionUser, userProfile, onLogout }) => 
                       <Sparkles size={11} />
                       <span>{aiGeneratingResolution ? 'Drafting...' : 'AI Suggest Notes'}</span>
                     </button>
+                  </div>
+
+                  {/* 1-Click Canned Resolution Templates */}
+                  <div className="space-y-1.5 pt-1">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground block">
+                      ⚡ 1-Click Canned Resolution Templates
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { label: '🔧 On-Site Repair Done', text: 'On-site technical inspection completed. Faulty hardware/fixtures were replaced and verified operational.' },
+                        { label: '📶 Network Restored', text: 'IT infrastructure switches and access points were reconfigured. Latency and signal levels are now verified normal.' },
+                        { label: '📑 Records Verified', text: 'Official verification completed with Academic Controller Office. Records updated in university portal.' },
+                        { label: '💳 Fee Balance Adjusted', text: 'Finance accounts team audited payment invoice and credit balance was adjusted in student fee ledger.' },
+                        { label: '🧹 Premises Sanitized', text: 'Housekeeping and facilities supervisor inspected premises and executed complete sanitization.' }
+                      ].map((tmpl, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            setResolutionNotes(tmpl.text);
+                            toast.success(`Template applied: ${tmpl.label}`);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-background border border-border hover:border-emerald-500/50 hover:bg-emerald-500/10 text-[11px] font-medium text-foreground transition-all cursor-pointer"
+                        >
+                          {tmpl.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <textarea
