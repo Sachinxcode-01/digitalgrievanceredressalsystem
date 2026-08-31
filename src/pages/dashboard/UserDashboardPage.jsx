@@ -27,11 +27,14 @@ import GlassPanel from '../../components/ui/GlassPanel';
 import MotionCard from '../../components/ui/MotionCard';
 import AnimatedButton from '../../components/ui/AnimatedButton';
 import LoadingSkeleton from '../../components/ui/LoadingSkeleton';
+import GuidedTourModal from '../../components/ui/GuidedTourModal';
+import { HelpCircle } from 'lucide-react';
 
 export const UserDashboard = ({ sessionUser, userProfile }) => {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTicket, setSelectedTicket] = useState(null);
+  const [showGuideModal, setShowGuideModal] = useState(false);
   
   // Modal & Form States
   const [showModal, setShowModal] = useState(false);
@@ -373,6 +376,7 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
 
   return (
     <AnimatedPage className="space-y-8 text-left max-w-7xl mx-auto pb-16">
+      <GuidedTourModal forceOpen={showGuideModal} onClose={() => setShowGuideModal(false)} />
       
       {/* 1. Header Banner */}
       <GlassPanel className="p-6 md:p-8 relative overflow-hidden border border-white/10 shadow-2xl rounded-3xl" intensity="heavy">
@@ -424,6 +428,14 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
               }}
             >
               Test Push & SMS
+            </AnimatedButton>
+            <AnimatedButton
+              variant="outline"
+              size="md"
+              leftIcon={HelpCircle}
+              onClick={() => setShowGuideModal(true)}
+            >
+              How It Works
             </AnimatedButton>
             <AnimatedButton
               variant="glow"

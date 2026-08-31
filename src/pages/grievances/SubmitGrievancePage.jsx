@@ -23,10 +23,13 @@ import DuplicateGrievanceModal from '../../components/ai/DuplicateGrievanceModal
 import MultilingualTranslator from '../../components/ai/MultilingualTranslator';
 import VoiceStudioModal from '../../components/ai/VoiceStudioModal';
 import FileUploadZone from '../../components/ui/FileUploadZone';
+import GuidedTourModal from '../../components/ui/GuidedTourModal';
+import { HelpCircle, Sparkles as SparklesIcon, CheckCircle, ShieldCheck as ShieldIcon, ArrowRight as ArrowRightIcon } from 'lucide-react';
 
 export const SubmitGrievancePage = ({ user, sessionUser }) => {
   const currentUser = user || sessionUser;
   const navigate = useNavigate();
+  const [showGuideModal, setShowGuideModal] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('IT Support');
@@ -396,11 +399,65 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
               </div>
             )}
 
-            {/* Ticket Reference & Proof Hash */}
+            {/* What Happens Next — Reassuring Human Roadmap */}
+            <div className="max-w-md mx-auto p-5 rounded-2xl bg-surface/90 border border-border text-left space-y-3.5 shadow-lg">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+                  <CheckCircle size={14} />
+                </div>
+                <h4 className="text-xs font-heading font-extrabold uppercase tracking-wider text-foreground">
+                  What Happens Next (Guaranteed Resolution)
+                </h4>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-mono font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5 border border-emerald-500/40">
+                    1
+                  </div>
+                  <div>
+                    <span className="font-bold text-foreground block">Issue Registered & Categorized</span>
+                    <span className="text-[11px] text-muted-foreground">Auto-assigned to <b>{submittedTicket.department || category || 'Department Nodal Authority'}</b>.</span>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-indigo-500/20 text-indigo-400 font-mono font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5 border border-indigo-500/40">
+                    2
+                  </div>
+                  <div>
+                    <span className="font-bold text-foreground block">Officer Review & Assignment (Target: &lt;2 Hours)</span>
+                    <span className="text-[11px] text-muted-foreground">A nodal officer is notified directly via SMS and Email to begin investigation.</span>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-mono font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5 border border-amber-500/40">
+                    3
+                  </div>
+                  <div>
+                    <span className="font-bold text-foreground block">On-Site Action & Resolution Note</span>
+                    <span className="text-[11px] text-muted-foreground">Technical/maintenance crew executes repair before the active SLA deadline.</span>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-purple-500/20 text-purple-400 font-mono font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5 border border-purple-500/40">
+                    4
+                  </div>
+                  <div>
+                    <span className="font-bold text-foreground block">Your Final Review & Appeal Rights</span>
+                    <span className="text-[11px] text-muted-foreground">You inspect the fix. Rate with stars or file a 1-click appeal if unsatisfied.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Ticket Reference Card */}
             <div className="max-w-sm mx-auto bg-slate-950 border border-white/10 rounded-2xl p-4 space-y-3">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-400">Ticket Reference</span>
-                <button type="button" onClick={copyTicketId} className="text-slate-400 hover:text-indigo-400 transition-colors" title="Copy ticket ID">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-400">Your Tracking Reference</span>
+                <button type="button" onClick={copyTicketId} className="text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer" title="Copy ticket ID">
                   <Copy size={14} />
                 </button>
               </div>
@@ -414,12 +471,12 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
 
               {submittedTicket.proof_hash && (
                 <div className="pt-2 border-t border-slate-800 text-[10px] text-slate-400 flex items-center justify-between font-mono">
-                  <span className="truncate max-w-45">SHA256: {submittedTicket.proof_hash}</span>
+                  <span className="truncate max-w-45">🛡️ Tamper-Proof Audit Lock</span>
                   <Link 
                     to={`/verify-hash?hash=${encodeURIComponent(submittedTicket.proof_hash)}`}
                     className="text-emerald-400 hover:underline flex items-center gap-1 shrink-0 font-sans"
                   >
-                    Verify Proof <ExternalLink size={10} />
+                    Inspect <ExternalLink size={10} />
                   </Link>
                 </div>
               )}
@@ -465,9 +522,58 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
               )}
             </AnimatePresence>
 
+            <GuidedTourModal forceOpen={showGuideModal} onClose={() => setShowGuideModal(false)} />
+
+            {/* Quick Human-Friendly Guide Banner */}
+            <div className="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300">
+              <div className="flex items-center gap-2">
+                <Sparkles size={16} className="text-indigo-400 shrink-0" />
+                <span className="font-medium">Need help? Voice dictation and AI auto-routing are active.</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowGuideModal(true)}
+                className="px-3 py-1 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/30 text-white text-[11px] font-bold uppercase tracking-wider transition-colors cursor-pointer shrink-0 flex items-center gap-1"
+              >
+                <HelpCircle size={13} />
+                <span>30s Guide</span>
+              </button>
+            </div>
+
             <GlassPanel className="p-6 md:p-8 space-y-6">
               <form onSubmit={handleFormSubmit} className="space-y-5">
                 
+                {/* 1-Click Smart Complaint Starter Chips */}
+                <div className="space-y-2">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-400 block">
+                    ⚡ Quick 1-Click Complaint Starters (Common Issues)
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { label: '📶 Wi-Fi / Internet Drop', cat: 'IT Support', t: 'Campus Wi-Fi connectivity drops frequently', d: 'The Wi-Fi network is unstable and disconnects every few minutes in [Room/Lab/Hostel Block].' },
+                      { label: '💧 Water & Plumbing', cat: 'Maintenance', t: 'Water supply disruption / plumbing leak', d: 'Water supply is unavailable / leaking heavily in [Hostel Block / Washroom]. Immediate plumbing fix required.' },
+                      { label: '⚡ Electricity & AC', cat: 'Maintenance', t: 'Electrical switchboard / AC unit malfunction', d: 'Power sockets / Air conditioning unit not working properly in [Classroom / Room No].' },
+                      { label: '📑 Marksheet & Grades', cat: 'Academic', t: 'Delay in Semester Marksheet Verification', d: 'Submitted physical marksheet verification form. Status is pending at Academic Registrar Office.' },
+                      { label: '💳 Fees & Scholarship', cat: 'Financial', t: 'Fee receipt & scholarship adjustment discrepancy', d: 'State scholarship reimbursement credit of Rs 15,000 has not been updated in student portal fee invoice.' },
+                      { label: '🍽️ Hostel & Mess Food', cat: 'Maintenance', t: 'Hostel mess dining hygiene & food quality issue', d: 'Food quality and sanitation standards in the dining mess need urgent review by student council and warden.' }
+                    ].map((preset, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setCategory(preset.cat);
+                          setTitle(preset.t);
+                          setDescription(preset.d);
+                          toast.success(`Preset applied: ${preset.label}`);
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-slate-950/80 hover:bg-indigo-600/20 border border-white/10 hover:border-indigo-500/40 text-xs font-semibold text-slate-300 hover:text-white transition-all cursor-pointer shadow-xs"
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="space-y-1">
                   <label className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-400">
                     Subject Specification *
