@@ -24,6 +24,7 @@ import MultilingualTranslator from '../../components/ai/MultilingualTranslator';
 import VoiceStudioModal from '../../components/ai/VoiceStudioModal';
 import FileUploadZone from '../../components/ui/FileUploadZone';
 import GuidedTourModal from '../../components/ui/GuidedTourModal';
+import EvidenceOcrScanner from '../../components/ui/EvidenceOcrScanner';
 import { HelpCircle, Sparkles as SparklesIcon, CheckCircle, ShieldCheck as ShieldIcon, ArrowRight as ArrowRightIcon } from 'lucide-react';
 
 export const SubmitGrievancePage = ({ user, sessionUser }) => {
@@ -833,6 +834,15 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
                     else if (route.recommended_department.includes('Financial')) setCategory('Financial');
                     else if (route.recommended_department.includes('Facilities')) setCategory('Maintenance');
                     toast.success(`Category updated to match ${route.recommended_department}`);
+                  }}
+                />
+
+                {/* Vision OCR Document Auto-Scanner */}
+                <EvidenceOcrScanner 
+                  onApplyScannedData={(data) => {
+                    if (data.title) setTitle(data.title);
+                    if (data.category) setCategory(data.category);
+                    if (data.description) setDescription(data.description);
                   }}
                 />
 
