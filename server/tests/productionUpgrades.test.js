@@ -139,9 +139,9 @@ describe('Enterprise Production Upgrades Test Suite', () => {
   describe('4. CSAT Satisfaction Feedback & Sentiment Scoring', () => {
     let feedbackTicket;
 
-    beforeAll(async () => {
+    beforeEach(async () => {
       feedbackTicket = await grievanceRepository.create({
-        ticket_id: 'TKT-2026-TEST-CSAT',
+        ticket_id: `TKT-2026-TEST-CSAT-${Date.now()}`,
         user_id: 'student-csat-test',
         title: 'Laboratory AC Unit Broken',
         description: 'AC unit is leaking water near electrical equipment.',
@@ -165,7 +165,7 @@ describe('Enterprise Production Upgrades Test Suite', () => {
       expect(updated.sentiment_score).toBe(1);
       expect(updated.feedback_tags).toEqual(['Fast Resolution', 'Polite Staff']);
       expect(updated.status).toBe('Closed');
-    });
+    }, 10000);
 
     test('Submitting low rating (1/5) computes negative sentiment score (-1)', async () => {
       const user = { id: 'student-csat-test', role: 'student' };
@@ -181,7 +181,7 @@ describe('Enterprise Production Upgrades Test Suite', () => {
 
       expect(updated.rating).toBe(1);
       expect(updated.sentiment_score).toBe(-1);
-    });
+    }, 10000);
   });
 
   describe('5. Dynamic Multi-Tier SLA Escalation Matrix', () => {

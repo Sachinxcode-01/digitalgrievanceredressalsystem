@@ -17,6 +17,7 @@ import GlassPanel from '../../components/ui/GlassPanel';
 import { AuroraBackground } from '../../components/ui/BackgroundEffects';
 import ProcessFlowDiagram from '../../components/ui/ProcessFlowDiagram';
 import DashboardPreviewMock from '../../components/ui/DashboardPreviewMock';
+import { AiSandboxDemo } from '../../components/ui/AiSandboxDemo';
 
 // Newly created components
 import HeroTypewriter from '../../components/ui/HeroTypewriter';
@@ -182,8 +183,13 @@ export const LandingPage = () => {
           </div>
 
           {/* Dashboard Hero Preview */}
-          <div className="pt-8">
+          <div className="pt-8 space-y-12">
             <DashboardPreviewMock />
+
+            {/* Interactive Live AI Triage Sandbox */}
+            <div className="pt-6">
+              <AiSandboxDemo />
+            </div>
           </div>
         </AnimatedSection>
 

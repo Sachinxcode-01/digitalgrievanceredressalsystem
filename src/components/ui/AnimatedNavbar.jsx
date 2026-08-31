@@ -26,36 +26,45 @@ export const AnimatedNavbar = ({ user }) => {
 
   const navLinks = [
     { name: 'Home', href: '/' },
-    { name: 'Track Status', href: '/public-status' },
+    { name: 'Track', href: '/public-status' },
+    { name: 'Transparency', href: '/transparency' },
+    { name: 'Verify Proof', href: '/verify-hash' },
     { name: 'System Status', href: '/status' },
   ];
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 transition-all duration-500 pointer-events-none">
-      <div className={`max-w-6xl mx-auto px-4 pt-3 transition-all duration-500 ${scrolled ? 'translate-y-1' : ''}`}>
+      <div className={`max-w-7xl mx-auto px-4 pt-3 transition-all duration-500 ${scrolled ? 'translate-y-1' : ''}`}>
         <div
           className={`
-            pointer-events-auto rounded-full transition-all duration-500 border p-2 pl-5 pr-3 flex items-center justify-between
+            pointer-events-auto rounded-full transition-all duration-500 border p-2 pl-5 pr-3 flex items-center justify-between gap-2
             ${scrolled
-              ? 'bg-slate-950/85 backdrop-blur-2xl border-white/15 shadow-2xl shadow-black/80'
-              : 'bg-slate-900/40 backdrop-blur-xl border-white/10 shadow-lg'}
+              ? 'bg-slate-950/90 backdrop-blur-2xl border-white/15 shadow-2xl shadow-black/80'
+              : 'bg-slate-900/50 backdrop-blur-xl border-white/10 shadow-lg'}
           `}
         >
-          {/* Logo with Glow */}
-          <Link to="/" className="flex items-center gap-3 group" aria-label="ResolveNow — Home">
-            <div className="relative flex items-center justify-center w-9 h-9 rounded-full bg-linear-to-tr from-indigo-600 to-cyan-500 shadow-md shadow-indigo-500/30 group-hover:scale-105 transition-transform duration-300">
-              <ShieldCheck className="w-4 h-4 text-white" aria-hidden="true" />
-              <div className="absolute inset-0 rounded-full bg-indigo-500/20 blur-sm group-hover:blur-md transition-all" aria-hidden="true" />
+          {/* Logo with Glow & Live SLA Badge */}
+          <div className="flex items-center gap-3">
+            <Link to="/" className="flex items-center gap-2.5 group" aria-label="ResolveNow — Home">
+              <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-linear-to-tr from-indigo-600 to-cyan-500 shadow-md shadow-indigo-500/30 group-hover:scale-105 transition-transform duration-300">
+                <ShieldCheck className="w-4 h-4 text-white" aria-hidden="true" />
+                <div className="absolute inset-0 rounded-full bg-indigo-500/20 blur-sm group-hover:blur-md transition-all" aria-hidden="true" />
+              </div>
+              <div className="flex flex-col text-left">
+                <span className="font-heading font-black text-xs tracking-wider bg-linear-to-r from-white via-slate-200 to-indigo-200 bg-clip-text text-transparent uppercase">
+                  ResolveNow
+                </span>
+                <span className="text-[7.5px] font-mono font-bold tracking-widest text-indigo-400 uppercase -mt-0.5">
+                  Redressal Node
+                </span>
+              </div>
+            </Link>
+
+            <div className="hidden lg:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[9px] font-mono font-bold">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping inline-block" />
+              <span>SLA 99.9% Nominal</span>
             </div>
-            <div className="flex flex-col text-left">
-              <span className="font-heading font-black text-sm tracking-wider bg-linear-to-r from-white via-slate-200 to-indigo-200 bg-clip-text text-transparent uppercase">
-                ResolveNow
-              </span>
-              <span className="text-[8px] font-mono font-bold tracking-widest text-indigo-400 uppercase -mt-0.5">
-                Redressal Node
-              </span>
-            </div>
-          </Link>
+          </div>
 
           {/* Desktop Nav Links */}
           <nav
@@ -69,7 +78,7 @@ export const AnimatedNavbar = ({ user }) => {
                   key={link.name}
                   to={link.href}
                   aria-current={isActive ? 'page' : undefined}
-                  className="relative px-4 py-1.5 rounded-full text-xs font-mono font-bold uppercase tracking-wider text-slate-300 hover:text-white transition-colors"
+                  className="relative px-3.5 py-1.5 rounded-full text-[11px] font-mono font-bold uppercase tracking-wider text-slate-300 hover:text-white transition-colors"
                 >
                   {isActive && (
                     <motion.div
@@ -107,7 +116,7 @@ export const AnimatedNavbar = ({ user }) => {
                       (user.fullName || user.email || 'U')[0].toUpperCase()
                     )}
                   </div>
-                  <span className="max-w-[80px] truncate text-[11px] font-bold text-white">
+                  <span className="max-w-20 truncate text-[11px] font-bold text-white">
                     {user.fullName?.split(' ')[0] || 'Profile'}
                   </span>
                 </Link>
