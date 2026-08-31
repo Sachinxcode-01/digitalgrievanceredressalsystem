@@ -11,6 +11,9 @@ import GrievanceWorkflowTimeline from '../../components/grievances/GrievanceWork
 import CommunityPetitionWidget from '../../components/grievances/CommunityPetitionWidget';
 import MobileNotificationSimulatorModal from '../../components/notifications/MobileNotificationSimulatorModal';
 import MultilingualTranslator from '../../components/ai/MultilingualTranslator';
+import AudioStatusReader from '../../components/ui/AudioStatusReader';
+import SmsWhatsAppOptInCard from '../../components/ui/SmsWhatsAppOptInCard';
+import PrintableQrReceipt from '../../components/ui/PrintableQrReceipt';
 import toast from 'react-hot-toast';
 
 import { AuroraBackground } from '../../components/ui/BackgroundEffects';
@@ -359,6 +362,15 @@ export const PublicStatusPage = () => {
                   </div>
                 </div>
 
+                {/* Voice Accessibility: Speech Synthesis Read-Aloud */}
+                <AudioStatusReader ticket={ticket} />
+
+                {/* Instant WhatsApp & SMS Notification Subscriptions */}
+                <SmsWhatsAppOptInCard ticketId={ticket.ticket_id || ticket.id} currentPhone={ticket.mobile_number || ''} />
+
+                {/* Physical QR Paper Receipt Printer */}
+                <PrintableQrReceipt ticket={ticket} />
+
                 {/* Receipt Actions: Copy Link & Download Official PDF */}
                 <div className="flex items-center justify-between gap-3 pt-2 border-t border-white/10 flex-wrap">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -378,7 +390,7 @@ export const PublicStatusPage = () => {
                       title="Test WhatsApp & Telegram Alerts"
                     >
                       <Smartphone size={14} />
-                      <span>Mobile Alerts</span>
+                      <span>Mobile Simulator</span>
                     </button>
                   </div>
 

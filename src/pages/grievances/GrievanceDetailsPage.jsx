@@ -16,8 +16,10 @@ import TimelineStep from '../../components/ui/TimelineStep';
 import { DeliveryTrackingWidget } from '../../components/grievances/DeliveryTrackingWidget';
 import CommunityPetitionWidget from '../../components/grievances/CommunityPetitionWidget';
 import MobileNotificationSimulatorModal from '../../components/notifications/MobileNotificationSimulatorModal';
-import { logSecurityEvent } from '../../lib/auditLogger';
 import MultilingualTranslator from '../../components/ai/MultilingualTranslator';
+import AudioStatusReader from '../../components/ui/AudioStatusReader';
+import SmsWhatsAppOptInCard from '../../components/ui/SmsWhatsAppOptInCard';
+import PrintableQrReceipt from '../../components/ui/PrintableQrReceipt';
 import toast from 'react-hot-toast';
 
 export const GrievanceDetailsPage = ({ user }) => {
@@ -371,6 +373,15 @@ export const GrievanceDetailsPage = ({ user }) => {
                       )}
                     </div>
                   </div>
+
+                  {/* Voice Accessibility: Speech Synthesis Read-Aloud */}
+                  <AudioStatusReader ticket={ticket} />
+
+                  {/* WhatsApp & SMS Direct Notification Opt-In */}
+                  <SmsWhatsAppOptInCard ticketId={ticket.ticket_id || ticket.id} currentPhone={ticket.mobile_number || ''} />
+
+                  {/* Physical QR Paper Receipt Printer */}
+                  <PrintableQrReceipt ticket={ticket} />
 
                   {/* Evidence Attachments */}
                   {ticket.attachment_url && (
