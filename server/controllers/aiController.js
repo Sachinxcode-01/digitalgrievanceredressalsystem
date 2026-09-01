@@ -199,11 +199,42 @@ const predictiveSlaForecastHandler = async (req, res) => {
   }
 };
 
+/**
+ * Predictive Resolution Turnaround & Queue Backlog Forecast.
+ */
+const predictiveTurnaroundForecast = async (req, res) => {
+  const { category, urgency, department } = req.query;
+  const predictiveAnalyticsService = require('../services/predictiveAnalyticsService');
+  try {
+    const forecast = await predictiveAnalyticsService.forecastResolution(category, urgency, department);
+    res.json({ success: true, forecast });
+  } catch (err) {
+    console.error('Turnaround Forecast Error:', err);
+    res.status(500).json({ error: 'Failed to compute resolution forecast: ' + err.message });
+  }
+};
+
+/**
+ * Department Velocity Scorecard.
+ */
+const departmentVelocityScorecard = async (req, res) => {
+  const predictiveAnalyticsService = require('../services/predictiveAnalyticsService');
+  try {
+    const scorecard = await predictiveAnalyticsService.getDepartmentVelocityScorecard();
+    res.json({ success: true, scorecard });
+  } catch (err) {
+    console.error('Velocity Scorecard Error:', err);
+    res.status(500).json({ error: 'Failed to retrieve department velocity scorecard: ' + err.message });
+  }
+};
+
 module.exports = {
   triageGrievance,
   suggestResolution,
   draftOfficialResolutionHandler,
   predictiveSlaForecastHandler,
+  predictiveTurnaroundForecast,
+  departmentVelocityScorecard,
   elevateBriefing,
   summarizePerformance,
   analyzeVision,

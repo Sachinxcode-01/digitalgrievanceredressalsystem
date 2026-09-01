@@ -5,6 +5,8 @@ const {
   suggestResolution, 
   draftOfficialResolutionHandler,
   predictiveSlaForecastHandler,
+  predictiveTurnaroundForecast,
+  departmentVelocityScorecard,
   elevateBriefing, 
   summarizePerformance, 
   analyzeVision,
@@ -18,6 +20,14 @@ const { authenticateToken, authorizeRoles } = require('../middleware/authMiddlew
 const { aiLimiter } = require('../middleware/securityMiddleware');
 
 router.use(aiLimiter);
+
+// @route   GET /api/v1/ai/predictive-forecast
+// @desc    Predictive Turnaround & Queue Backlog Estimation
+router.get('/predictive-forecast', authenticateToken, predictiveTurnaroundForecast);
+
+// @route   GET /api/v1/ai/velocity-scorecard
+// @desc    Department velocity scorecard and SLA turnaround baselines
+router.get('/velocity-scorecard', authenticateToken, departmentVelocityScorecard);
 
 // @route   POST /api/v1/ai/analyze
 // @desc    Perform AI triage on description (Available to authenticated users submitting tickets)

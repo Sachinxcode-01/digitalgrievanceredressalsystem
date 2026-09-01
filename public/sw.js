@@ -1,31 +1,38 @@
-const CACHE_NAME = 'resolvenow-v2.1-cache-v1';
+/**
+ * ResolveNow — Enterprise Progressive Web App (PWA) Service Worker
+ * Implements:
+ * 1. Pre-caching of core application assets & offline fallback shell
+ * 2. Stale-While-Revalidate caching for static scripts, stylesheets & images
+ * 3. Network-First strategy with cache fallback for grievance endpoints
+ * 4. Native Web Push Notification listeners with click-through deep linking
+ */
+
+const CACHE_NAME = 'resolvenow-pwa-v1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/favicon.svg',
-  '/logo_192.png',
-  '/logo_512.png',
-  '/offline.html'
+  '/banner.png'
 ];
 
-// Install Event — Pre-cache critical core shell
-self.addEventListener('install', (e) => {
-  e.waitUntil(
+// Install Event — Pre-cache critical application shell
+self.addEventListener('install', (event) => {
+  event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(STATIC_ASSETS);
     }).then(() => self.skipWaiting())
   );
 });
 
-// Activate Event — Clean up stale previous caches
-self.addEventListener('activate', (e) => {
-  e.waitUntil(
-    caches.keys().then((keys) => {
+// Activate Event — Clean up outdated caches
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
       return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
+        cacheNames.map((name) => {
+          if (name !== CACHE_NAME) {
+            return caches.delete(name);
           }
         })
       );
@@ -33,52 +40,117 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// Fetch Event — Stale-While-Revalidate for app shell & Cache-First for static fonts/images
-self.addEventListener('fetch', (e) => {
-  const url = new URL(e.request.url);
+// Fetch Event — Smart caching strategies
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
 
-  // 1. Bypass backend API and realtime sockets
-  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/socket.io') || url.hostname.includes('supabase.co')) {
+  // Skip non-GET requests and browser extensions
+  if (event.request.method !== 'GET' || !url.protocol.startsWith('http')) {
     return;
   }
 
-  // 2. Cache-First for Google Fonts and static media
-  if (url.hostname.includes('fonts.googleapis.com') || url.hostname.includes('fonts.gstatic.com') || url.pathname.match(/\.(png|jpg|jpeg|svg|webp|woff2?)$/i)) {
-    e.respondWith(
-      caches.match(e.request).then((cached) => {
-        if (cached) return cached;
-        return fetch(e.request).then((networkResponse) => {
+  // API Requests: Network-First with Cache Fallback
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // Clone and cache successful read-only API responses
+          if (response.status === 200) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
+          return response;
+        })
+        .catch(() => {
+          return caches.match(event.request);
+        })
+    );
+    return;
+  }
+
+  // Static Assets & Navigation: Stale-While-Revalidate
+  event.respondWith(
+    caches.match(event.request).then((cachedResponse) => {
+      const fetchPromise = fetch(event.request)
+        .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
-            const copy = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(e.request, copy));
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
           }
           return networkResponse;
-        }).catch(() => caches.match('/favicon.svg'));
-      })
-    );
+        })
+        .catch(() => {
+          // If offline and navigating to a page, serve the cached index.html
+          if (event.request.mode === 'navigate') {
+            return caches.match('/index.html');
+          }
+        });
+
+      return cachedResponse || fetchPromise;
+    })
+  );
+});
+
+// Web Push Notification Listener
+self.addEventListener('push', (event) => {
+  let data = {
+    title: 'ResolveNow Institutional Alert',
+    body: 'Your grievance status has been updated.',
+    ticketId: null,
+    icon: '/favicon.svg',
+    badge: '/favicon.svg'
+  };
+
+  try {
+    if (event.data) {
+      data = event.data.json();
+    }
+  } catch {
+    if (event.data) {
+      data.body = event.data.text();
+    }
+  }
+
+  const options = {
+    body: data.body,
+    icon: data.icon || '/favicon.svg',
+    badge: data.badge || '/favicon.svg',
+    vibrate: [100, 50, 100],
+    data: {
+      url: data.ticketId ? `/track?ticket=${data.ticketId}` : '/dashboard',
+      dateOfArrival: Date.now()
+    },
+    actions: [
+      { action: 'view', title: 'View Status' },
+      { action: 'dismiss', title: 'Dismiss' }
+    ]
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+// Notification Click Handler — Deep Link to Grievance Ticket
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  if (event.action === 'dismiss') {
     return;
   }
 
-  // 3. Stale-While-Revalidate for local app assets
-  if (url.origin === self.location.origin) {
-    e.respondWith(
-      caches.match(e.request).then((cachedResponse) => {
-        const fetchPromise = fetch(e.request)
-          .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              const copy = networkResponse.clone();
-              caches.open(CACHE_NAME).then((cache) => cache.put(e.request, copy));
-            }
-            return networkResponse;
-          })
-          .catch(() => {
-            if (e.request.mode === 'navigate') {
-              return caches.match('/offline.html');
-            }
-          });
+  const targetUrl = event.notification.data?.url || '/dashboard';
 
-        return cachedResponse || fetchPromise;
-      })
-    );
-  }
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(targetUrl) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
+    })
+  );
 });
