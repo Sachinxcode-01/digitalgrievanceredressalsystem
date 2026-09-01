@@ -10,6 +10,7 @@ const {
   elevateBriefing, 
   summarizePerformance, 
   analyzeVision,
+  verifyEvidenceHandler,
   composeBroadcast,
   smartRouteHandler,
   checkDuplicates,
@@ -72,6 +73,10 @@ router.post('/summarize', authenticateToken, authorizeRoles('admin', 'super admi
 // @route   POST /api/v1/ai/vision
 // @desc    AI vision analysis of evidence (Restricted to admin / super admin)
 router.post('/vision', authenticateToken, authorizeRoles('admin', 'super admin'), analyzeVision);
+
+// @route   POST /api/v1/ai/verify-evidence
+// @desc    Multimodal document OCR & tamper forensic inspection
+router.post('/verify-evidence', authenticateToken, verifyEvidenceHandler);
 
 // @route   POST /api/v1/ai/compose-broadcast
 // @desc    Draft institutional emails using AI (Restricted to admin / super admin)

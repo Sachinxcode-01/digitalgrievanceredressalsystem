@@ -22,7 +22,8 @@ const {
   getDeadLetterJobs,
   replayDeadLetterJob,
   clearDeadLetterQueue,
-  getDatabaseDiagnostics
+  getDatabaseDiagnostics,
+  getLiveOpsTelemetry
 } = require('../controllers/adminController');
 const { authenticateToken, authorizeRoles, authorizePermissions } = require('../middleware/authMiddleware');
 const { 
@@ -223,5 +224,8 @@ router.delete('/queue/dead-letter', authorizePermissions('manage_settings'), cle
 
 // --- 8. Database Disaster Recovery & Diagnostics ---
 router.get('/database/diagnostics', authorizePermissions('view_analytics'), getDatabaseDiagnostics);
+
+// --- 9. Real-Time LiveOps Telemetry Matrix ---
+router.get('/telemetry/live-matrix', authorizePermissions('view_analytics'), getLiveOpsTelemetry);
 
 module.exports = router;

@@ -980,6 +980,19 @@ const getDatabaseDiagnostics = async (req, res, next) => {
   }
 };
 
+/**
+ * Retrieve real-time LiveOps telemetry matrix
+ */
+const getLiveOpsTelemetry = async (req, res, next) => {
+  const liveTelemetryService = require('../services/liveTelemetryService');
+  try {
+    const matrix = await liveTelemetryService.getLiveOpsMatrix();
+    res.json({ success: true, matrix });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   broadcastToAll,
   getHealthMetrics,
@@ -1002,6 +1015,7 @@ module.exports = {
   getDeadLetterJobs,
   replayDeadLetterJob,
   clearDeadLetterQueue,
-  getDatabaseDiagnostics
+  getDatabaseDiagnostics,
+  getLiveOpsTelemetry
 };
 

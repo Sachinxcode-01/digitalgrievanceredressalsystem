@@ -89,6 +89,23 @@ const analyzeVision = async (req, res) => {
 };
 
 /**
+ * Handle Multimodal Document OCR & Tamper Detection Verification.
+ */
+const verifyEvidenceHandler = async (req, res) => {
+  const { imageBase64, mimeType, claimContext } = req.body;
+  try {
+    if (!imageBase64) {
+      return res.status(400).json({ error: 'imageBase64 payload is required for evidence verification.' });
+    }
+    const verification = await aiService.verifyEvidenceAuthenticity(imageBase64, mimeType, claimContext || {});
+    res.json({ success: true, verification });
+  } catch (err) {
+    console.error('Evidence Verification Error:', err);
+    res.status(500).json({ error: 'Evidence verification failed: ' + err.message });
+  }
+};
+
+/**
  * Handle AI-powered broadcast composition.
  */
 const composeBroadcast = async (req, res) => {
@@ -238,6 +255,7 @@ module.exports = {
   elevateBriefing,
   summarizePerformance,
   analyzeVision,
+  verifyEvidenceHandler,
   composeBroadcast,
   smartRouteHandler,
   checkDuplicates,
