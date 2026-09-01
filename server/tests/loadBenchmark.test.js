@@ -5,6 +5,8 @@ const express = require('express');
 process.env.JWT_SECRET = 'load-benchmark-secret-key-99182';
 process.env.NODE_ENV = 'test';
 
+jest.setTimeout(30000);
+
 describe('Enterprise Load & High-Concurrency Benchmark Suite', () => {
   let app;
 

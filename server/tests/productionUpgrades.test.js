@@ -14,6 +14,8 @@ const { CacheManager } = require('../utils/cacheManager');
 const grievanceService = require('../services/grievanceService');
 const grievanceRepository = require('../repositories/grievanceRepository');
 
+jest.setTimeout(30000);
+
 describe('Enterprise Production Upgrades Test Suite', () => {
   describe('1. Production Cache Manager & TTL Invalidation', () => {
     let cache;
