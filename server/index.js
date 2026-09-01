@@ -213,11 +213,18 @@ app.use((err, req, res, next) => {
     });
   }
 
-  // For unexpected 5xx errors in production, return a generic message so internal
-  // details / stack traces are never leaked. User-facing 4xx messages pass through.
-  const message = (status >= 500 && process.env.NODE_ENV === 'production')
-    ? 'An unexpected error occurred. Please try again later.'
-    : (err.message || 'Something went wrong on the server!');
+  // Surface informative messages for known errors (auth, validation, DB configuration)
+  let message = err.message || 'Something went wrong on the server!';
+  if (status >= 500 && process.env.NODE_ENV === 'production' && process.env.SHOW_ERROR_DETAILS !== 'true') {
+    // If it's a known database / missing key error, provide actionable guidance
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      message = 'Database configuration missing: Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in your deployment environment.';
+    } else if (err.message && (err.message.includes('Supabase') || err.message.includes('JWT') || err.message.includes('duplicate key') || err.message.includes('violates'))) {
+      message = err.message;
+    } else {
+      message = 'An unexpected error occurred. Please try again later or check server logs.';
+    }
+  }
 
   res.status(status).json({
     error: message,
