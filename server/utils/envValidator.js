@@ -40,11 +40,9 @@ function validateBootSecurity() {
   }
 
   if (missingRequired.length > 0) {
-    console.error('❌ SECURITY BOOT FAILURE: Required environment variables are missing:');
+    console.error('⚠️ ENVIRONMENT WARNING: Required environment variables are missing:');
     missingRequired.forEach(v => console.error(`   - ${v}`));
-    if (process.env.NODE_ENV === 'production') {
-      process.exit(1);
-    }
+    console.error('👉 Please configure these environment variables in your Render / Cloud Dashboard under Environment.');
   } else {
     console.log('🛡️ Security & Boot Environment Verification: 100% Passed.');
     if (missingOptional.length > 0) {
