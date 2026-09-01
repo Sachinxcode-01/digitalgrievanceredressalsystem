@@ -157,8 +157,14 @@ function sanitizeFileName(originalName, fallbackPrefix = 'file') {
   // Remove null bytes
   let safe = originalName.replace(/\0/g, '');
 
+  // Normalize backslashes to forward slashes for cross-platform compatibility (Windows & POSIX)
+  safe = safe.replace(/\\/g, '/');
+
   // Strip path directories (basename only)
-  safe = path.basename(safe);
+  safe = path.posix.basename(safe);
+
+  // Remove any remaining path traversal sequences ('..')
+  safe = safe.replace(/\.\.+/g, '');
 
   // Remove dangerous characters (control chars, shell special chars: \ / : * ? " < > | ` $ ; &)
   safe = safe.replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -167,8 +173,8 @@ function sanitizeFileName(originalName, fallbackPrefix = 'file') {
   safe = safe.replace(/^\.+/, '');
 
   // If filename is now empty or only extension, fallback
-  if (!safe || safe.startsWith('.')) {
-    safe = `${fallbackPrefix}_${Date.now()}${safe}`;
+  if (!safe || safe === '' || safe.startsWith('.')) {
+    safe = `${fallbackPrefix}_${Date.now()}${safe.startsWith('.') ? safe : ''}`;
   }
 
   // Limit length
