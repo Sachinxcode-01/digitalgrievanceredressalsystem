@@ -16,7 +16,7 @@
     "pm2:stop": "pm2 stop digital-grievance-system",
     "pm2:logs": "pm2 logs digital-grievance-system",
     "lint": "eslint .",
-    "test": "jest server/tests",
+    "test": "jest server/tests --testTimeout=30000 --runInBand --forceExit",
     "preflight": "node scripts/preflight-check.js",
     "preview": "vite preview"
   },

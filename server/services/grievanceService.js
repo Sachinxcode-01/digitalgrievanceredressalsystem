@@ -725,20 +725,11 @@ const grievanceService = {
       throw err;
     }
 
-    const isAdmin = user.role === 'admin' || user.role === 'super admin';
-    const isOwner = ticket.user_id === user.id || (user.email && user.email.toLowerCase() === ticket.email?.toLowerCase());
+    const isAdmin = user && (user.role === 'admin' || user.role === 'super admin');
 
-    if (!isAdmin && !isOwner) {
-      const err = new Error('Access Denied: Scoped ownership violation');
+    if (!isAdmin) {
+      const err = new Error('Access Denied: Insufficient administrative privileges to delete grievance records.');
       err.status = 403;
-      throw err;
-    }
-
-    // Deletion / Cancellation restriction for non-admins
-    const cancellableStatuses = ['Submitted', 'Draft', 'New', 'Pending', 'Assigned'];
-    if (!isAdmin && !cancellableStatuses.includes(ticket.status)) {
-      const err = new Error(`Cannot cancel a grievance that is already '${ticket.status}'. Only pending grievances can be canceled.`);
-      err.status = 400;
       throw err;
     }
 

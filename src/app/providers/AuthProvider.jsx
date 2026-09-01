@@ -48,7 +48,7 @@ export const AuthProvider = ({ children }) => {
         return;
       }
 
-      // 2. Restore an existing local (sandbox/JWT) session if present.
+      // 2. Restore an existing local (JWT) session if present.
       const hasLocalSession = localStorage.getItem('has_active_session') === 'true';
       if (hasLocalSession && !isSignedIn) {
         try {
@@ -69,7 +69,7 @@ export const AuthProvider = ({ children }) => {
           }
           return;
         } catch {
-          const savedUser = localStorage.getItem('demo_user');
+          const savedUser = localStorage.getItem('session_user');
           if (savedUser) {
             try {
               const parsed = JSON.parse(savedUser);
@@ -79,7 +79,7 @@ export const AuthProvider = ({ children }) => {
                 return;
               }
             } catch (e) {
-              console.error('Failed to parse saved demo user:', e);
+              console.error('Failed to parse saved user session:', e);
             }
           }
           setAccessToken(null);
@@ -208,141 +208,81 @@ export const AuthProvider = ({ children }) => {
     };
   };
 
-  const DEMO_PRESETS = {
-    student: {
-      id: 'demo-student-id-101',
-      email: 'student@resolvenow.demo',
-      role: 'student',
-      fullName: 'Student User'
-    },
-    admin: {
-      id: 'demo-admin-id-101',
-      email: 'admin@resolvenow.demo',
-      role: 'admin',
-      fullName: 'System Administrator'
-    },
-    officer: {
-      id: 'demo-officer-id-101',
-      email: 'officer@resolvenow.demo',
-      role: 'officer',
-      fullName: 'Grievance Officer'
-    }
-  };
-
-  const simpleLogin = async (role = 'student', customEmail = null) => {
-    const normRole = (role || 'student').toLowerCase();
-    const demoUser = DEMO_PRESETS[normRole] || {
-      id: `demo-${normRole}-${Date.now()}`,
-      email: customEmail || `${normRole}@resolvenow.demo`,
-      role: normRole,
-      fullName: `${normRole.charAt(0).toUpperCase() + normRole.slice(1)} User`
-    };
-
-    localStorage.setItem('has_active_session', 'true');
-    localStorage.setItem('demo_user', JSON.stringify(demoUser));
-    setUser(demoUser);
-    setLoading(false);
-
-    apiClient.post('/auth/login', { email: demoUser.email, password: 'DemoPassword@123', loginType: 'password' })
-      .then(res => {
-        if (res.data?.token) setAccessToken(res.data.token);
-      })
-      .catch(() => {});
-
-    return { message: 'Simple login successful.', user: demoUser };
-  };
-
   const login = async (identifier, password, loginType = 'password', rememberMe = false) => {
     const isSandbox = isSandboxAccount(identifier);
 
     if (isSandbox) {
-      try {
-        const payload = {
-          email: identifier.toLowerCase().trim(),
-          password,
-          loginType,
-          rememberMe
-        };
-        const response = await apiClient.post('/auth/login', payload);
-        const data = response.data;
+      const payload = {
+        email: identifier.toLowerCase().trim(),
+        password,
+        loginType,
+        rememberMe
+      };
+      const response = await apiClient.post('/auth/login', payload);
+      const data = response.data;
 
-        if (data.requiresOtp) {
-          return { requiresOtp: true, message: data.message };
-        }
-
-        if (data.requiresActivation) {
-          return {
-            requiresActivation: true,
-            message: data.message,
-            email: data.email
-          };
-        }
-
-        if (data.token) {
-          setAccessToken(data.token);
-          setUser(data.user);
-          setLoading(false);
-          localStorage.setItem('has_active_session', 'true');
-          localStorage.setItem('demo_user', JSON.stringify(data.user));
-          return {
-            message: 'Login successful.',
-            user: data.user
-          };
-        }
-      } catch (err) {
-        console.warn('Local login API warning, activating simple login fallback:', err.message);
-        const lower = (identifier || '').toLowerCase();
-        const detectedRole = lower.includes('admin') ? 'admin' : (lower.includes('officer') ? 'officer' : 'student');
-        return simpleLogin(detectedRole, identifier);
-      }
-    }
-
-    try {
-      if (!isSignInLoaded) {
-        const lower = (identifier || '').toLowerCase();
-        const detectedRole = lower.includes('admin') ? 'admin' : (lower.includes('officer') ? 'officer' : 'student');
-        return simpleLogin(detectedRole, identifier);
+      if (data.requiresOtp) {
+        return { requiresOtp: true, message: data.message };
       }
 
-      let res;
-      if (loginType === 'otp') {
-        res = await signIn.create({
-          identifier,
-          strategy: 'email_code'
-        });
-        return { requiresOtp: true };
-      } else {
-        res = await signIn.create({
-          identifier,
-          password
-        });
-      }
-
-      if (res.status === 'needs_second_factor') {
-        return { 
-          requiresOtp: true, 
-          message: 'Administrative accounts require a second factor. An OTP has been sent to your registered email.' 
+      if (data.requiresActivation) {
+        return {
+          requiresActivation: true,
+          message: data.message,
+          email: data.email
         };
       }
 
-      if (res.status === 'complete') {
-        await setSignInActive({ session: res.createdSessionId });
-        
-        const syncRes = await apiClient.post('/auth/sync');
-        setUser(syncRes.data.user);
+      if (data.token) {
+        setAccessToken(data.token);
+        setUser(data.user);
+        setLoading(false);
         localStorage.setItem('has_active_session', 'true');
-        localStorage.setItem('demo_user', JSON.stringify(syncRes.data.user));
+        localStorage.setItem('session_user', JSON.stringify(data.user));
         return {
           message: 'Login successful.',
-          user: syncRes.data.user
+          user: data.user
         };
       }
-    } catch (clerkErr) {
-      console.warn('Clerk auth warning, falling back to simple login:', clerkErr.message);
-      const lower = (identifier || '').toLowerCase();
-      const detectedRole = lower.includes('admin') ? 'admin' : (lower.includes('officer') ? 'officer' : 'student');
-      return simpleLogin(detectedRole, identifier);
+      throw new Error(data.message || 'Authentication failed. Please verify credentials.');
     }
+
+    if (!isSignInLoaded) throw new Error('Sign in service initializing. Please try again.');
+
+    let res;
+    if (loginType === 'otp') {
+      res = await signIn.create({
+        identifier,
+        strategy: 'email_code'
+      });
+      return { requiresOtp: true };
+    } else {
+      res = await signIn.create({
+        identifier,
+        password
+      });
+    }
+
+    if (res.status === 'needs_second_factor') {
+      return { 
+        requiresOtp: true, 
+        message: 'Administrative accounts require a second factor. An OTP has been sent to your registered email.' 
+      };
+    }
+
+    if (res.status === 'complete') {
+      await setSignInActive({ session: res.createdSessionId });
+      
+      const syncRes = await apiClient.post('/auth/sync');
+      setUser(syncRes.data.user);
+      localStorage.setItem('has_active_session', 'true');
+      localStorage.setItem('session_user', JSON.stringify(syncRes.data.user));
+      return {
+        message: 'Login successful.',
+        user: syncRes.data.user
+      };
+    }
+    throw new Error(`Login incomplete with status: ${res.status}`);
   };
 
   const loginWithGoogle = async () => {
@@ -553,38 +493,13 @@ export const AuthProvider = ({ children }) => {
       console.error('Local logout error:', err);
     }
     localStorage.removeItem('has_active_session');
-    localStorage.removeItem('demo_user');
+    localStorage.removeItem('session_user');
     setAccessToken(null);
     setUser(null);
   };
 
   // User Profile Settings
   const getProfile = async () => {
-    if (user?.id?.startsWith('demo-')) {
-      return {
-        profile: {
-          fullName: user.fullName || user.email?.split('@')[0] || 'Citizen Demo',
-          profilePicture: null,
-          notificationPreferences: { email: true, sms: true },
-          department: user.department || 'General',
-          institution: 'State University'
-        },
-        account: {
-          id: user.id,
-          email: user.email,
-          mobile_number: '+1 (555) 019-2834',
-          role: user.role || 'student',
-          status: 'active',
-          email_verified: true,
-          phone_verified: false,
-          created_at: new Date().toISOString()
-        },
-        logs: [
-          { action: 'LOGIN_SUCCESS', created_at: new Date().toISOString(), ip_address: '127.0.0.1' }
-        ]
-      };
-    }
-
     try {
       const res = await apiClient.get('/user/profile');
       return res.data;
@@ -629,7 +544,7 @@ export const AuthProvider = ({ children }) => {
           profilePicture: res.data.profile.profilePicture !== undefined ? res.data.profile.profilePicture : prev?.profilePicture
         };
         try {
-          localStorage.setItem('demo_user', JSON.stringify(updated));
+          localStorage.setItem('session_user', JSON.stringify(updated));
         } catch (storageErr) {
           console.debug('Failed to sync updated user in localStorage:', storageErr);
         }
@@ -723,7 +638,6 @@ export const AuthProvider = ({ children }) => {
         loading,
         register,
         login,
-        simpleLogin,
         loginWithGoogle,
         loginWithMicrosoft,
         verifyOtp,

@@ -12,13 +12,12 @@ import { AuroraBackground } from '../../components/ui/BackgroundEffects';
 import AnimatedButton from '../../components/ui/AnimatedButton';
 
 export const AdminLoginPage = () => {
-  const { login, simpleLogin, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [demoLoading, setDemoLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
@@ -38,8 +37,7 @@ export const AdminLoginPage = () => {
       // Role validation after login
       const role = result?.user?.role?.toLowerCase();
       if (role && role !== 'admin' && role !== 'super admin' && role !== 'officer') {
-        await simpleLogin('student'); // reset state
-        setError('Access denied. This portal is restricted to administrative accounts only.');
+        setError('Access denied. This portal is restricted to administrative and officer accounts only.');
         setLoading(false);
         return;
       }
@@ -64,20 +62,6 @@ export const AdminLoginPage = () => {
     } catch (err) {
       setError('Google login failed. Please try again.');
       setGoogleLoading(false);
-    }
-  };
-
-  // Quick demo login (sandbox fallback for local/offline testing)
-  const handleDemoLogin = async () => {
-    setDemoLoading(true);
-    try {
-      await simpleLogin('admin');
-      toast.success('Demo admin session started.');
-      navigate('/admin/dashboard');
-    } catch {
-      toast.error('Demo login failed.');
-    } finally {
-      setDemoLoading(false);
     }
   };
 
@@ -124,10 +108,10 @@ export const AdminLoginPage = () => {
           </div>
 
           {/* Card */}
-          <div className="relative rounded-[2rem] p-1.5 bg-white/5 border border-white/10">
+          <div className="relative rounded-4xl p-1.5 bg-white/5 border border-white/10">
             <div className="rounded-[calc(2rem-0.375rem)] bg-slate-950/90 backdrop-blur-xl p-7 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)]">
               {/* Top highlight */}
-              <div className="absolute top-1.5 left-10 right-10 h-[1px] bg-gradient-to-r from-transparent via-white/15 to-transparent pointer-events-none" />
+              <div className="absolute top-1.5 left-10 right-10 h-px bg-linear-to-r from-transparent via-white/15 to-transparent pointer-events-none" />
 
               {/* Error Banner */}
               <AnimatePresence>
@@ -220,9 +204,9 @@ export const AdminLoginPage = () => {
 
               {/* Divider */}
               <div className="my-5 flex items-center gap-3">
-                <div className="flex-1 h-[1px] bg-white/8" />
+                <div className="flex-1 h-px bg-white/8" />
                 <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">or</span>
-                <div className="flex-1 h-[1px] bg-white/8" />
+                <div className="flex-1 h-px bg-white/8" />
               </div>
 
               {/* Google Login */}
@@ -245,26 +229,7 @@ export const AdminLoginPage = () => {
                 Continue with Google
               </button>
 
-              {/* Demo Login */}
-              <div className="mt-4 p-3 rounded-xl bg-slate-900/40 border border-white/5 flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest">
-                    Quick Demo Access
-                  </p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    No credentials required — demo admin session
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleDemoLogin}
-                  disabled={demoLoading || loading}
-                  className="shrink-0 px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-mono font-bold hover:bg-indigo-500/20 transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center gap-1.5"
-                >
-                  {demoLoading ? <Loader2 size={11} className="animate-spin" /> : <ShieldCheck size={11} />}
-                  Demo
-                </button>
-              </div>
+
 
               {/* Footer */}
               <div className="mt-6 pt-5 border-t border-white/5 text-center">

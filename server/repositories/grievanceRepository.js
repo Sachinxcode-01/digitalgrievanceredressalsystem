@@ -55,7 +55,13 @@ const inMemoryGrievances = [
 
 
 const grievanceRepository = {
-  async getAll(userId = null, department = null) {
+  async getAll(userIdOrFilters = null, department = null) {
+    let userId = typeof userIdOrFilters === 'string' ? userIdOrFilters : null;
+    let filters = typeof userIdOrFilters === 'object' && userIdOrFilters !== null ? userIdOrFilters : {};
+    let search = filters.search || null;
+    let dept = department || filters.department || null;
+    let userFilter = userId || filters.userId || null;
+
     if (supabase) {
       try {
         const { data, error } = await withDbRetry(async () => {
@@ -64,11 +70,14 @@ const grievanceRepository = {
             .select('*')
             .order('created_at', { ascending: false });
 
-          if (userId) {
-            query = query.eq('user_id', userId);
+          if (userFilter) {
+            query = query.eq('user_id', userFilter);
           }
-          if (department) {
-            query = query.eq('department', department);
+          if (dept) {
+            query = query.eq('department', dept);
+          }
+          if (search) {
+            query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
           }
           return await query;
         });
@@ -82,11 +91,15 @@ const grievanceRepository = {
     }
 
     let results = inMemoryGrievances;
-    if (userId) {
-      results = results.filter(g => !g.user_id || g.user_id === userId || userId.startsWith('demo-'));
+    if (userFilter) {
+      results = results.filter(g => !g.user_id || g.user_id === userFilter || (typeof userFilter === 'string' && userFilter.startsWith('demo-')));
     }
-    if (department) {
-      results = results.filter(g => g.department === department);
+    if (dept) {
+      results = results.filter(g => g.department === dept);
+    }
+    if (search) {
+      const s = search.toLowerCase();
+      results = results.filter(g => (g.title && g.title.toLowerCase().includes(s)) || (g.description && g.description.toLowerCase().includes(s)));
     }
     return results;
   },

@@ -11,7 +11,7 @@ import MotionCard from '../../components/ui/MotionCard';
 import AnimatedButton from '../../components/ui/AnimatedButton';
 
 export const LoginPage = () => {
-  const { login, simpleLogin, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -37,19 +37,6 @@ export const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
 
-  const handleQuickLogin = async (role) => {
-    setLoading(true);
-    try {
-      const res = await simpleLogin(role);
-      toast.success(`Logged in as ${role.toUpperCase()} successfully!`);
-      navigate(getRedirectPath(res.user));
-    } catch (err) {
-      toast.error('Quick login failed. Trying direct authentication...');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleGoogleLogin = async () => {
     setLoading(true);
     try {
@@ -72,15 +59,21 @@ export const LoginPage = () => {
     setLoading(true);
     try {
       const result = await login(identifier, password, loginType, rememberMe);
+      if (result?.requiresOtp) {
+        toast.success(result.message || 'Verification key dispatched to your email.');
+        navigate('/verify-otp', { state: { email: identifier, purpose: 'login' } });
+        return;
+      }
+      if (result?.requiresActivation) {
+        toast.success('Account activation required. OTP dispatched.');
+        navigate('/verify-otp', { state: { email: identifier, purpose: 'registration' } });
+        return;
+      }
       toast.success('Login successful!');
       navigate(getRedirectPath(result.user));
     } catch (err) {
       console.error('Login process exception:', err);
-      const lower = identifier.toLowerCase();
-      const detectedRole = lower.includes('admin') ? 'admin' : (lower.includes('officer') ? 'officer' : 'student');
-      const fallbackRes = await simpleLogin(detectedRole, identifier);
-      toast.success('Login authenticated!');
-      navigate(getRedirectPath(fallbackRes.user));
+      toast.error(getErrorMessage(err, 'Invalid email or password. Please verify credentials.'));
     } finally {
       setLoading(false);
     }
@@ -105,7 +98,7 @@ export const LoginPage = () => {
             </Link>
 
             <Link to="/" className="inline-flex items-center gap-2 group mb-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-105 transition-transform duration-300">
+              <div className="w-10 h-10 rounded-xl bg-linear-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-105 transition-transform duration-300">
                 <ShieldCheck className="w-5 h-5 text-white" />
               </div>
               <span className="text-2xl font-heading font-black text-white tracking-tight uppercase">
@@ -116,46 +109,6 @@ export const LoginPage = () => {
             <p className="text-xs text-indigo-400 font-mono font-bold uppercase tracking-widest mt-1">
               Institutional Redressal & Support Gateway
             </p>
-          </div>
-
-          {/* Quick Demo Role Selectors */}
-          <div className="mb-4 bg-slate-900/80 border border-indigo-500/30 rounded-2xl p-4 text-center shadow-xl backdrop-blur-xl">
-            <div className="flex items-center justify-center gap-1.5 text-[10px] font-mono font-bold uppercase tracking-widest text-indigo-400 mb-2.5">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Quick 1-Click Role Login</span>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <AnimatedButton
-                variant="secondary"
-                size="xs"
-                onClick={() => handleQuickLogin('student')}
-                isLoading={loading}
-                className="flex-col !py-2.5"
-              >
-                <span className="text-base mb-0.5">🎓</span>
-                <span>Student</span>
-              </AnimatedButton>
-              <AnimatedButton
-                variant="secondary"
-                size="xs"
-                onClick={() => handleQuickLogin('admin')}
-                isLoading={loading}
-                className="flex-col !py-2.5"
-              >
-                <span className="text-base mb-0.5">🛡️</span>
-                <span>Admin</span>
-              </AnimatedButton>
-              <AnimatedButton
-                variant="secondary"
-                size="xs"
-                onClick={() => handleQuickLogin('officer')}
-                isLoading={loading}
-                className="flex-col !py-2.5"
-              >
-                <span className="text-base mb-0.5">👮</span>
-                <span>Officer</span>
-              </AnimatedButton>
-            </div>
           </div>
 
           {/* Login Motion Card */}
@@ -177,9 +130,9 @@ export const LoginPage = () => {
               </button>
 
               <div className="flex items-center gap-4 py-1">
-                <div className="h-[1px] bg-white/10 flex-grow" />
+                <div className="h-px bg-white/10 grow" />
                 <span className="text-[9px] text-slate-500 font-mono font-bold uppercase tracking-widest">or credentials</span>
-                <div className="h-[1px] bg-white/10 flex-grow" />
+                <div className="h-px bg-white/10 grow" />
               </div>
 
               {/* Password vs OTP switch */}
@@ -215,7 +168,7 @@ export const LoginPage = () => {
                       type="email"
                       value={identifier}
                       onChange={(e) => setIdentifier(e.target.value)}
-                      placeholder="student@resolvenow.demo"
+                      placeholder="student@institution.edu"
                       className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950/80 border border-white/10 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
                       required
                     />

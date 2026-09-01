@@ -281,9 +281,9 @@ const authService = {
       };
     }
 
-    // Enforce MFA for Admin/Super Admin (bypassed for lab demo accounts ending in .demo or test override)
-    const isDemoAccount = user.email.endsWith('.demo') || ['sachiii8827@gmail.com', 'saxhin0708@gmail.com', 'heyyysachiii88@gmail.com'].includes(user.email.toLowerCase()) || process.env.DISABLE_MFA === 'true';
-    if ((user.role === 'admin' || user.role === 'super admin') && !isDemoAccount) {
+    // Enforce MFA for Admin/Super Admin (configurable via DISABLE_MFA)
+    const disableMfa = process.env.DISABLE_MFA === 'true';
+    if ((user.role === 'admin' || user.role === 'super admin') && !disableMfa) {
       const cooldownSec = await checkOtpCooldown(email, 'login');
       if (cooldownSec > 0) {
         throw createError(`Please wait ${cooldownSec} seconds before requesting a new login OTP.`, 429);
@@ -319,8 +319,8 @@ const authService = {
       user: {
         id: user.id,
         email: user.email,
-        mobileNumber: null,
-        role: user.email.toLowerCase() === 'heyyysachiii88@gmail.com' ? 'officer' : user.role,
+        mobileNumber: user.mobile_number || null,
+        role: user.role,
         fullName: user.full_name
       }
     };
