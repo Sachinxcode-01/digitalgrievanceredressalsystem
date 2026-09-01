@@ -85,7 +85,21 @@ app.use('/api/', apiLimiter);
 app.use(express.json());
 app.use(cookieParser());
 app.use(sanitizeInput);
-app.use(clerkMiddleware());
+// Clerk Auth Middleware (gracefully disabled when keys not present in environment/CI)
+const clerkKey = process.env.CLERK_PUBLISHABLE_KEY || process.env.VITE_CLERK_PUBLISHABLE_KEY;
+if (clerkKey && clerkKey.startsWith('pk_')) {
+  try {
+    app.use(clerkMiddleware());
+  } catch (clerkErr) {
+    console.warn('⚠️ Clerk middleware initialization skipped:', clerkErr.message);
+  }
+} else {
+  // Safe mock auth context when Clerk keys are absent
+  app.use((req, res, next) => {
+    req.auth = req.auth || { userId: null, sessionId: null };
+    next();
+  });
+}
 
 // 4. Main Health Check
 app.get('/api/health', async (req, res) => {

@@ -34,6 +34,8 @@ jobs:
     - name: Run Backend Test Suite
       run: npm run test
       env:
+        NODE_ENV: test
+        PORT: 5000
         JWT_SECRET: test-github-action-key-2026
 
     - name: Compile Frontend Bundle (Vite)
