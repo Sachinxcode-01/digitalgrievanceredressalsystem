@@ -245,6 +245,21 @@ const departmentVelocityScorecard = async (req, res) => {
   }
 };
 
+/**
+ * Interactive AI Voice Assistant Two-Way Conversational Dialogue & Entity Extractor.
+ */
+const converseVoiceAssistant = async (req, res) => {
+  const { message, history, language } = req.body;
+  const voiceAssistantService = require('../services/voiceAssistantService');
+  try {
+    const result = await voiceAssistantService.processVoiceDialogue(message, history || [], language || 'en-US');
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('Voice Assistant Converse Error:', err);
+    res.status(500).json({ error: 'Failed to process voice dialogue: ' + err.message });
+  }
+};
+
 module.exports = {
   triageGrievance,
   suggestResolution,
@@ -252,6 +267,7 @@ module.exports = {
   predictiveSlaForecastHandler,
   predictiveTurnaroundForecast,
   departmentVelocityScorecard,
+  converseVoiceAssistant,
   elevateBriefing,
   summarizePerformance,
   analyzeVision,

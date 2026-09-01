@@ -22,6 +22,7 @@ import SmartTriageAssistant from '../../components/ai/SmartTriageAssistant';
 import DuplicateGrievanceModal from '../../components/ai/DuplicateGrievanceModal';
 import MultilingualTranslator from '../../components/ai/MultilingualTranslator';
 import VoiceStudioModal from '../../components/ai/VoiceStudioModal';
+import VoiceGrievanceAssistantModal from '../../components/voice/VoiceGrievanceAssistantModal';
 import FileUploadZone from '../../components/ui/FileUploadZone';
 import GuidedTourModal from '../../components/ui/GuidedTourModal';
 import EvidenceOcrScanner from '../../components/ui/EvidenceOcrScanner';
@@ -48,6 +49,30 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
   const [showDraftBanner, setShowDraftBanner] = useState(false);
   const [submittedTicket, setSubmittedTicket] = useState(null);
   const [showVoiceModal, setShowVoiceModal] = useState(false);
+  const [showAiVoiceAssistantModal, setShowAiVoiceAssistantModal] = useState(false);
+
+  const handleApplyVoiceGrievance = (extracted) => {
+    if (!extracted) return;
+    if (extracted.title) setTitle(extracted.title);
+    if (extracted.description) setDescription(extracted.description);
+    if (extracted.category) {
+      const catMap = {
+        'Plumbing': 'Maintenance',
+        'Electrical': 'Maintenance',
+        'Academics': 'Academic',
+        'Hostel': 'Maintenance',
+        'Financial': 'Financial',
+        'Infrastructure': 'IT Support',
+        'Security': 'Public Infrastructure',
+        'General': 'IT Support'
+      };
+      setCategory(catMap[extracted.category] || 'IT Support');
+    }
+    if (extracted.urgency) {
+      const validUrgencies = ['Low', 'Medium', 'High'];
+      setUrgency(validUrgencies.includes(extracted.urgency) ? extracted.urgency : 'Medium');
+    }
+  };
 
   // Duplicate Check states
   const [duplicateCheckResult, setDuplicateCheckResult] = useState(null);
@@ -541,6 +566,34 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
               </button>
             </div>
 
+            {/* AI Voice Assistant Two-Way Intake Hero Banner */}
+            <motion.div 
+              whileHover={{ scale: 1.01 }}
+              onClick={() => setShowAiVoiceAssistantModal(true)}
+              className="p-4 rounded-2xl bg-linear-to-r from-indigo-900/50 via-purple-900/40 to-slate-900/70 border border-indigo-500/40 cursor-pointer shadow-lg hover:shadow-indigo-500/20 transition-all flex items-center justify-between gap-4"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-indigo-600/30 text-indigo-400 border border-indigo-500/40 relative">
+                  <Mic className="w-6 h-6 animate-pulse" />
+                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full ring-2 ring-slate-900" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                    <span>AI Conversational Voice Assistant</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 uppercase font-mono">Hands-Free</span>
+                  </h4>
+                  <p className="text-xs text-slate-300">Speak naturally in English, Hindi, Spanish, or French. AI auto-extracts categories & files for you.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md transition flex items-center gap-1.5 shrink-0"
+              >
+                <span>Start Voice Intake</span>
+                <ArrowRight size={14} />
+              </button>
+            </motion.div>
+
             <GlassPanel className="p-6 md:p-8 space-y-6">
               <form onSubmit={handleFormSubmit} className="space-y-5">
                 
@@ -917,6 +970,12 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
               setTitle(`${previewTitle}...`);
             }
           }}
+        />
+
+        <VoiceGrievanceAssistantModal
+          isOpen={showAiVoiceAssistantModal}
+          onClose={() => setShowAiVoiceAssistantModal(false)}
+          onApplyData={handleApplyVoiceGrievance}
         />
 
       </AnimatedPage>

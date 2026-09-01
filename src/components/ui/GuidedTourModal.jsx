@@ -3,18 +3,23 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Clock, ShieldCheck, ArrowRight, Check, X, HelpCircle, HeartHandshake } from 'lucide-react';
 
 export const GuidedTourModal = ({ forceOpen = false, onClose = null }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(() => {
+    try {
+      return !localStorage.getItem('dg_onboarding_seen');
+    } catch {
+      return false;
+    }
+  });
   const [currentStep, setCurrentStep] = useState(0);
 
-  useEffect(() => {
-    const hasSeenTour = localStorage.getItem('dg_onboarding_seen');
-    if (!hasSeenTour || forceOpen) {
-      setIsOpen(true);
-    }
-  }, [forceOpen]);
+  const isModalOpen = forceOpen || isOpen;
 
   const handleDismiss = () => {
-    localStorage.setItem('dg_onboarding_seen', 'true');
+    try {
+      localStorage.setItem('dg_onboarding_seen', 'true');
+    } catch {
+      // ignore storage errors
+    }
     setIsOpen(false);
     if (onClose) onClose();
   };
@@ -46,7 +51,7 @@ export const GuidedTourModal = ({ forceOpen = false, onClose = null }) => {
     }
   ];
 
-  if (!isOpen) return null;
+  if (!isModalOpen) return null;
 
   const stepData = steps[currentStep];
   const StepIcon = stepData.icon;

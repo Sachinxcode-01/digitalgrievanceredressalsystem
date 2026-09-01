@@ -7,6 +7,7 @@ const {
   predictiveSlaForecastHandler,
   predictiveTurnaroundForecast,
   departmentVelocityScorecard,
+  converseVoiceAssistant,
   elevateBriefing, 
   summarizePerformance, 
   analyzeVision,
@@ -21,6 +22,10 @@ const { authenticateToken, authorizeRoles } = require('../middleware/authMiddlew
 const { aiLimiter } = require('../middleware/securityMiddleware');
 
 router.use(aiLimiter);
+
+// @route   POST /api/v1/ai/voice-assistant/converse
+// @desc    Interactive AI voice assistant conversational dialogue & entity extractor
+router.post('/voice-assistant/converse', authenticateToken, converseVoiceAssistant);
 
 // @route   GET /api/v1/ai/predictive-forecast
 // @desc    Predictive Turnaround & Queue Backlog Estimation
