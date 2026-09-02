@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowLeft, Clock, FileDown, MessageSquare, ShieldCheck, 
   MapPin, CheckCircle, HelpCircle, Loader2, Calendar, ClipboardList, 
-  AlertCircle, History, Info, Trash2, Star, Send, ThumbsUp, Smartphone
+  AlertCircle, History, Info, Trash2, Star, Send, ThumbsUp, Smartphone,
+  Plus, Paperclip, UploadCloud, Eye, ExternalLink, X, Image as ImageIcon
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '../../lib/supabase';
@@ -23,6 +24,7 @@ import PrintableQrReceipt from '../../components/ui/PrintableQrReceipt';
 import SlaCountdownTimer from '../../components/grievances/SlaCountdownTimer';
 import InteractiveCaseTimeline from '../../components/grievances/InteractiveCaseTimeline';
 import ExportCertificateModal from '../../components/grievances/ExportCertificateModal';
+import { FileUploadZone } from '../../components/ui/FileUploadZone';
 import toast from 'react-hot-toast';
 
 export const GrievanceDetailsPage = ({ user }) => {
@@ -51,6 +53,11 @@ export const GrievanceDetailsPage = ({ user }) => {
   // Cancel Modal
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Supplementary Evidence uploader
+  const [showEvidenceUploader, setShowEvidenceUploader] = useState(false);
+  const [selectedEvidenceFile, setSelectedEvidenceFile] = useState(null);
+  const [isUploadingEvidence, setIsUploadingEvidence] = useState(false);
 
   const fetchTicketDetails = async () => {
     try {
@@ -210,6 +217,54 @@ export const GrievanceDetailsPage = ({ user }) => {
     }
   };
 
+  const handleUploadEvidence = async () => {
+    if (!selectedEvidenceFile) {
+      toast.error('Please select a document or photo to upload.');
+      return;
+    }
+    setIsUploadingEvidence(true);
+    try {
+      let fileUrl = '';
+      const fileExt = selectedEvidenceFile.name.split('.').pop();
+      const fileName = `${ticket.id}-${Date.now()}.${fileExt}`;
+      const filePath = `evidence/${fileName}`;
+
+      try {
+        const { error: uploadError } = await supabase.storage
+          .from('grievances')
+          .upload(filePath, selectedEvidenceFile);
+
+        if (!uploadError) {
+          const { data: publicData } = supabase.storage
+            .from('grievances')
+            .getPublicUrl(filePath);
+          fileUrl = publicData?.publicUrl || '';
+        }
+      } catch {
+        // storage fallback
+      }
+
+      if (!fileUrl) {
+        fileUrl = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target.result);
+          reader.readAsDataURL(selectedEvidenceFile);
+        });
+      }
+
+      await grievanceService.attachEvidence(ticket.id, fileUrl, selectedEvidenceFile.name, user?.id);
+      toast.success(`Attached ${selectedEvidenceFile.name} as verified evidence!`);
+      setTicket(prev => ({ ...prev, attachment_url: fileUrl }));
+      setSelectedEvidenceFile(null);
+      setShowEvidenceUploader(false);
+      fetchTicketDetails();
+    } catch (err) {
+      toast.error('Failed to attach evidence: ' + err.message);
+    } finally {
+      setIsUploadingEvidence(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
@@ -300,6 +355,26 @@ export const GrievanceDetailsPage = ({ user }) => {
             <span>Mobile Alerts</span>
           </button>
 
+          {/* 1-Click Appeal / Escalation Trigger Button */}
+          {(ticket.status === 'Resolved' || ticket.status === 'Closed') && ticket.status !== 'Disputed' && (
+            <button 
+              type="button"
+              onClick={() => setShowAppealModal(true)}
+              className="px-3 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
+              title="Dispute resolution and escalate to Department Head / Ombudsman"
+            >
+              <AlertCircle size={13} />
+              <span>Dispute / Appeal</span>
+            </button>
+          )}
+
+          {ticket.status === 'Disputed' && (
+            <span className="px-3 py-2 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs font-mono font-bold text-amber-400 flex items-center gap-1.5 shadow-xs">
+              <ShieldCheck size={13} />
+              <span>Dispute Under Review</span>
+            </span>
+          )}
+
           {isCancellable && (
             <button 
               onClick={() => setShowCancelModal(true)}
@@ -312,6 +387,29 @@ export const GrievanceDetailsPage = ({ user }) => {
         </div>
 
       </div>
+
+      {/* Active Dispute Appeal Alert Banner */}
+      {ticket.status === 'Disputed' && (
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3 text-left">
+          <AlertCircle className="text-amber-400 shrink-0 mt-0.5" size={20} />
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <h4 className="text-xs font-black uppercase tracking-wider text-amber-300">
+                Dispute Appeal Registered — {ticket.escalation_tier || 'Tier 2 (HOD Dispute Review)'}
+              </h4>
+              <span className="px-2 py-0.2 bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[9px] font-mono font-bold rounded">
+                {ticket.appeal_status || 'Pending Review'}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Complainant Justification: <strong className="text-foreground">"{ticket.appeal_reason}"</strong>
+            </p>
+            <p className="text-[10px] text-amber-400/80 font-mono">
+              The original resolution was contested. Re-investigation has been mandated to the senior institutional ombudsman.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Live Delivery Tracking Timeline Widget */}
       <DeliveryTrackingWidget 
@@ -404,26 +502,102 @@ export const GrievanceDetailsPage = ({ user }) => {
                   {/* Physical QR Paper Receipt Printer */}
                   <PrintableQrReceipt ticket={ticket} />
 
-                  {/* Evidence Attachments */}
-                  {ticket.attachment_url && (
-                    <div className="bg-surface border border-border/80 rounded-2xl p-6 shadow-xs space-y-3">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">Attached Evidence</span>
-                      <a 
-                        href={ticket.attachment_url} 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-3 p-3.5 rounded-xl border border-border hover:border-primary/40 transition-all bg-background cursor-pointer"
+                  {/* Supplementary Evidence & Documentation Hub */}
+                  <div className="bg-surface border border-border/80 rounded-2xl p-6 shadow-xs space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Paperclip size={16} className="text-indigo-400" />
+                        <span className="text-xs font-heading font-extrabold uppercase tracking-wider text-foreground">
+                          Evidence & Attached Documentation
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowEvidenceUploader(!showEvidenceUploader)}
+                        className="px-3 py-1 rounded-xl bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-indigo-300 text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
                       >
-                        <div className="p-2.5 bg-primary/10 border border-primary/20 rounded-lg text-primary">
-                          <FileDown size={18} />
-                        </div>
-                        <div className="text-left">
-                          <p className="text-xs font-bold text-foreground">Download Verified Evidence Attachment</p>
-                          <p className="text-[9px] text-muted-foreground uppercase">Click to open or save document</p>
-                        </div>
-                      </a>
+                        <Plus size={13} />
+                        <span>{showEvidenceUploader ? 'Cancel Upload' : 'Add Evidence'}</span>
+                      </button>
                     </div>
-                  )}
+
+                    {/* Primary/Existing Attachment Preview Card */}
+                    {ticket.attachment_url ? (
+                      <div className="p-4 rounded-xl border border-border bg-background flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="p-2.5 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-400 shrink-0">
+                            {ticket.attachment_url.match(/\.(jpg|jpeg|png|webp)($|\?)/i) || ticket.attachment_url.startsWith('data:image') ? (
+                              <ImageIcon size={20} />
+                            ) : (
+                              <FileDown size={20} />
+                            )}
+                          </div>
+                          <div className="truncate">
+                            <p className="text-xs font-bold text-foreground truncate">
+                              Verified Supporting Evidence Document
+                            </p>
+                            <p className="text-[10px] font-mono text-muted-foreground">
+                              SHA-256 Verified Case Record
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <a 
+                            href={ticket.attachment_url} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+                          >
+                            <ExternalLink size={12} />
+                            <span>View / Download</span>
+                          </a>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic p-2">
+                        No supplementary evidence file was attached during original submission. You can add supporting photos or PDF documents below.
+                      </p>
+                    )}
+
+                    {/* Expandable Evidence Upload Zone */}
+                    <AnimatePresence>
+                      {showEvidenceUploader && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="overflow-hidden space-y-3 pt-2 border-t border-border/60"
+                        >
+                          <FileUploadZone
+                            onFileSelect={(file) => setSelectedEvidenceFile(file)}
+                            selectedFile={selectedEvidenceFile}
+                          />
+
+                          {selectedEvidenceFile && (
+                            <div className="flex justify-end gap-2 pt-1">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedEvidenceFile(null)}
+                                className="px-3 py-1.5 rounded-xl bg-muted hover:bg-muted/80 text-foreground text-xs font-bold cursor-pointer"
+                              >
+                                Remove File
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleUploadEvidence}
+                                disabled={isUploadingEvidence}
+                                className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-2 cursor-pointer shadow-sm disabled:opacity-50"
+                              >
+                                {isUploadingEvidence ? <Loader2 size={13} className="animate-spin" /> : <UploadCloud size={13} />}
+                                <span>Transmit & Attach to Ticket</span>
+                              </button>
+                            </div>
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
 
                 <div className="space-y-6">

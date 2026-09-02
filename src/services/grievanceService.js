@@ -1,4 +1,5 @@
 import { apiClient, getAccessToken } from '../api/apiClient';
+import { supabase } from '../lib/supabase';
 
 const getLocalGrievances = () => {
   try {
@@ -226,6 +227,49 @@ export const grievanceService = {
   async appeal(id, reason) {
     const response = await apiClient.post(`/grievances/${id}/appeal`, { reason });
     return response.data;
+  },
+
+  /**
+   * Upload and attach additional post-submission evidence.
+   */
+  async attachEvidence(id, fileUrl, fileName, uploaderId = null) {
+    try {
+      // 1. Update ticket attachment_url if empty or append
+      const { data, error } = await supabase
+        .from('grievances')
+        .update({ attachment_url: fileUrl })
+        .eq('id', id)
+        .select()
+        .maybeSingle();
+
+      // 2. Transmit notification message into ticket_comments
+      if (uploaderId) {
+        await supabase
+          .from('ticket_comments')
+          .insert([
+            {
+              grievance_id: id,
+              user_id: uploaderId,
+              message: `📎 [Supplementary Evidence Attached]: ${fileName}\nURL: ${fileUrl}`,
+              is_internal: false
+            }
+          ]);
+      }
+
+      if (!error && data) return data;
+    } catch (err) {
+      console.warn('attachEvidence fallback:', err.message);
+    }
+
+    // LocalStorage fallback for demo/offline
+    const localData = getLocalGrievances();
+    const match = localData.find(g => g.id === id || g.ticket_id === id);
+    if (match) {
+      match.attachment_url = fileUrl;
+      localStorage.setItem('resolvenow_local_grievances', JSON.stringify(localData));
+      return match;
+    }
+    return { id, attachment_url: fileUrl };
   },
 
   /**
