@@ -46,6 +46,7 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [priorityFilter, setPriorityFilter] = useState('All');
   const [departmentFilter, setDepartmentFilter] = useState('All');
+  const [timeHorizon, setTimeHorizon] = useState('all'); // '7d', '30d', 'all'
 
   // Modals & Drawers
   const [showExportModal, setShowExportModal] = useState(false);
@@ -121,14 +122,24 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
     };
   }, []);
 
-  const totalCount = tickets.length;
-  const pendingCount = tickets.filter(t => ['Submitted', 'New', 'Pending', 'Draft'].includes(t.status)).length;
-  const inProgressCount = tickets.filter(t => ['Assigned', 'In Progress', 'Under Review'].includes(t.status)).length;
-  const resolvedCount = tickets.filter(t => t.status === 'Resolved').length;
-  const closedCount = tickets.filter(t => t.status === 'Closed').length;
-  const escalatedCount = tickets.filter(t => t.status === 'Escalated').length;
+  // Filter tickets by selected time scope for KPI cards and velocity charts
+  const timeFilteredTickets = tickets.filter(t => {
+    if (timeHorizon === 'all') return true;
+    const ticketDate = new Date(t.created_at || Date.now());
+    const cutoff = new Date();
+    if (timeHorizon === '7d') cutoff.setDate(cutoff.getDate() - 7);
+    else if (timeHorizon === '30d') cutoff.setDate(cutoff.getDate() - 30);
+    return ticketDate >= cutoff;
+  });
 
-  const overdueCount = tickets.filter(t => {
+  const totalCount = timeFilteredTickets.length;
+  const pendingCount = timeFilteredTickets.filter(t => ['Submitted', 'New', 'Pending', 'Draft'].includes(t.status)).length;
+  const inProgressCount = timeFilteredTickets.filter(t => ['Assigned', 'In Progress', 'Under Review'].includes(t.status)).length;
+  const resolvedCount = timeFilteredTickets.filter(t => t.status === 'Resolved').length;
+  const closedCount = timeFilteredTickets.filter(t => t.status === 'Closed').length;
+  const escalatedCount = timeFilteredTickets.filter(t => t.status === 'Escalated').length;
+
+  const overdueCount = timeFilteredTickets.filter(t => {
     if (['Resolved', 'Closed', 'Rejected'].includes(t.status)) return false;
     const dueAt = t.sla_due_at ? new Date(t.sla_due_at) : new Date(new Date(t.created_at).getTime() + 72 * 3600000);
     return dueAt < new Date();
@@ -137,7 +148,7 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
   const slaCompliance = totalCount > 0 ? Math.round(((totalCount - overdueCount) / totalCount) * 100) : 100;
 
   const deptMap = {};
-  tickets.forEach(t => {
+  timeFilteredTickets.forEach(t => {
     const dept = t.department || t.category || 'General';
     deptMap[dept] = (deptMap[dept] || 0) + 1;
   });
@@ -148,7 +159,7 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
   }));
 
   const categoryMap = {};
-  tickets.forEach(t => {
+  timeFilteredTickets.forEach(t => {
     const cat = t.category || 'General';
     categoryMap[cat] = (categoryMap[cat] || 0) + 1;
   });
@@ -315,7 +326,37 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
       </GlassPanel>
 
       {/* 2. Executive At-A-Glance Cockpit & CSAT Sentiment */}
-      <ExecutiveHealthSummaryCard tickets={tickets} departments={departments} />
+      <ExecutiveHealthSummaryCard tickets={timeFilteredTickets} departments={departments} />
+
+      {/* Scope Horizon Switcher */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-900/60 border border-white/10 rounded-2xl p-3 px-4 shadow-sm">
+        <div className="flex items-center gap-2">
+          <Clock size={15} className="text-indigo-400" />
+          <span className="text-xs font-heading font-bold text-white uppercase tracking-wider">Metrics Scope:</span>
+          <span className="text-[11px] font-mono text-slate-400">
+            {timeHorizon === '7d' ? 'Past 7 Days' : timeHorizon === '30d' ? 'Past 30 Days' : 'All Recorded History'}
+          </span>
+        </div>
+        <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-white/10 w-full sm:w-auto justify-center">
+          {[
+            { id: '7d', label: '7D' },
+            { id: '30d', label: '30D' },
+            { id: 'all', label: 'All Time' }
+          ].map(h => (
+            <button
+              key={h.id}
+              onClick={() => setTimeHorizon(h.id)}
+              className={`px-3.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                timeHorizon === h.id 
+                  ? 'bg-indigo-600 text-white shadow-xs' 
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              {h.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* 3. KPI Cards Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -327,8 +368,8 @@ export const AdminDashboard = ({ sessionUser, userProfile, onLogout }) => {
         <CounterCard title="SLA Overdue" value={overdueCount} icon={ShieldAlert} iconColor="text-red-500" />
       </div>
 
-      {/* 3. Resolution Velocity & Analytics Grid */}
-      <ResolutionVelocityChart tickets={tickets} />
+      {/* 4. Resolution Velocity & Analytics Grid */}
+      <ResolutionVelocityChart tickets={timeFilteredTickets} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
