@@ -26,6 +26,7 @@ import VoiceGrievanceAssistantModal from '../../components/voice/VoiceGrievanceA
 import FileUploadZone from '../../components/ui/FileUploadZone';
 import GuidedTourModal from '../../components/ui/GuidedTourModal';
 import EvidenceOcrScanner from '../../components/ui/EvidenceOcrScanner';
+import KnowledgeDeflector from '../../components/forms/KnowledgeDeflector';
 import { HelpCircle, Sparkles as SparklesIcon, CheckCircle, ShieldCheck as ShieldIcon, ArrowRight as ArrowRightIcon } from 'lucide-react';
 
 export const SubmitGrievancePage = ({ user, sessionUser }) => {
@@ -641,6 +642,16 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
                     required 
                   />
                 </div>
+
+                {/* Instant Solution / Pre-submission Knowledge Deflector */}
+                <KnowledgeDeflector 
+                  title={title} 
+                  description={description} 
+                  category={category}
+                  onDeflected={() => {
+                    toast.success('Self-service solution applied! Grievance deflected.');
+                  }}
+                />
 
                 {/* Live Campus Outage / Collective Petition Match */}
                 {(() => {

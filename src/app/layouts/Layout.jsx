@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LogOut, LayoutDashboard, Ticket, Users, User, Settings, Moon, Sun, Shield, ShieldAlert, Activity, Lock, PlusCircle, ChevronLeft, ChevronRight, Menu, UserCheck, Building2, FileBarChart } from 'lucide-react';
+import { LogOut, LayoutDashboard, Ticket, Users, User, Settings, Moon, Sun, Shield, ShieldAlert, Activity, Lock, PlusCircle, ChevronLeft, ChevronRight, Menu, UserCheck, Building2, FileBarChart, BookOpen, TrendingUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation, NavLink } from 'react-router-dom';
 import { NotificationCenter } from '../../components/notifications/NotificationCenter';
@@ -23,6 +23,7 @@ export const Layout = ({ children, user, onLogout, theme, setTheme }) => {
         { path: '/admin/officers', icon: UserCheck, label: 'Officers' },
         { path: '/admin/departments', icon: Building2, label: 'Departments' },
         { path: '/admin/reports', icon: FileBarChart, label: 'Reports' },
+        { path: '/admin/predictive', icon: TrendingUp, label: 'Predictive SLA' },
         { path: '/admin/health', icon: Activity, label: 'Analytics' },
         { path: '/admin/compliance', icon: Shield, label: 'Compliance' },
         { path: '/admin/audit', icon: ShieldAlert, label: 'Audit Logs' },
@@ -32,6 +33,7 @@ export const Layout = ({ children, user, onLogout, theme, setTheme }) => {
         { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
         { path: '/grievances/submit', icon: PlusCircle, label: 'Submit Grievance' },
         { path: '/grievances', icon: Ticket, label: 'My Grievances' },
+        { path: '/knowledge-base', icon: BookOpen, label: 'Help Center' },
         { path: '/public-status', icon: Activity, label: 'Track Status' },
         { path: '/reports', icon: FileBarChart, label: 'Reports' },
         { path: '/profile', icon: User, label: 'Profile' },

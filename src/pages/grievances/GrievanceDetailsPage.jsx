@@ -20,6 +20,9 @@ import MultilingualTranslator from '../../components/ai/MultilingualTranslator';
 import AudioStatusReader from '../../components/ui/AudioStatusReader';
 import SmsWhatsAppOptInCard from '../../components/ui/SmsWhatsAppOptInCard';
 import PrintableQrReceipt from '../../components/ui/PrintableQrReceipt';
+import SlaCountdownTimer from '../../components/grievances/SlaCountdownTimer';
+import InteractiveCaseTimeline from '../../components/grievances/InteractiveCaseTimeline';
+import ExportCertificateModal from '../../components/grievances/ExportCertificateModal';
 import toast from 'react-hot-toast';
 
 export const GrievanceDetailsPage = ({ user }) => {
@@ -32,6 +35,7 @@ export const GrievanceDetailsPage = ({ user }) => {
   const [isExporting, setIsExporting] = useState(false);
   const [isUpvoting, setIsUpvoting] = useState(false);
   const [showMobileSimulator, setShowMobileSimulator] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   // Feedback states
   const [feedbackRating, setFeedbackRating] = useState(5);
@@ -239,6 +243,13 @@ export const GrievanceDetailsPage = ({ user }) => {
               </span>
               <StatusBadge status={ticket.status} />
               <UrgencyBadge level={ticket.urgency} />
+              <SlaCountdownTimer 
+                createdAt={ticket.created_at}
+                slaHours={ticket.urgency === 'High' ? 24 : (ticket.urgency === 'Emergency' ? 2 : 48)}
+                status={ticket.status}
+                priority={ticket.urgency}
+                escalationLevel={ticket.escalation_level || 1}
+              />
               {(ticket.upvote_count > 0 || ticket.urgency === 'High') && (
                 <span className="px-2.5 py-0.5 rounded-md text-xs font-bold bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center gap-1">
                   <ThumbsUp className="w-3 h-3" />
@@ -259,6 +270,16 @@ export const GrievanceDetailsPage = ({ user }) => {
           >
             <ThumbsUp size={13} />
             <span>Upvote ({ticket.upvote_count || 1})</span>
+          </button>
+
+          <button 
+            type="button"
+            onClick={() => setShowExportModal(true)}
+            className="px-3 py-2 bg-primary-bright/15 hover:bg-primary-bright/25 text-primary-bright border border-primary-bright/30 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
+            title="Download Official Receipt & Resolution Certificate"
+          >
+            <FileDown size={13} />
+            <span>Certified PDF Studio</span>
           </button>
 
           <button 
@@ -455,29 +476,11 @@ export const GrievanceDetailsPage = ({ user }) => {
               exit={{ opacity: 0, y: -5 }}
               className="bg-surface border border-border/80 rounded-2xl p-6 shadow-xs space-y-6"
             >
-              <div>
-                <h3 className="font-heading font-extrabold text-xs uppercase tracking-wider text-foreground">Redressal Milestone History</h3>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Chronological record of status updates and workflow events.</p>
-              </div>
-
-              <div className="space-y-6 relative pl-2">
-                <div className="absolute left-4.25 top-2 bottom-2 w-px bg-border" />
-                
-                {timeline.map((step, idx) => (
-                  <TimelineStep 
-                    key={step.id || idx}
-                    done={true}
-                    active={idx === timeline.length - 1 && ticket.status !== 'Resolved'}
-                    label={step.status}
-                    date={new Date(step.created_at).toLocaleDateString()}
-                    desc={step.notes || `Activity type: ${step.activity_type}`}
-                  />
-                ))}
-
-                {timeline.length === 0 && (
-                  <p className="text-xs text-muted-foreground italic text-center py-4">No timeline logs recorded yet.</p>
-                )}
-              </div>
+              <InteractiveCaseTimeline 
+                grievance={ticket}
+                timelineEvents={timeline}
+                isAdmin={false}
+              />
             </motion.div>
           )}
 
@@ -783,6 +786,16 @@ export const GrievanceDetailsPage = ({ user }) => {
           isOpen={showMobileSimulator}
           onClose={() => setShowMobileSimulator(false)}
           ticket={ticket}
+        />
+      )}
+
+      {/* Official Certified Document Export Studio Modal */}
+      {ticket && (
+        <ExportCertificateModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          ticket={ticket}
+          user={user}
         />
       )}
 

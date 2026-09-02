@@ -14,6 +14,9 @@ import UrgencyBadge from '../../components/ui/UrgencyBadge';
 import MultilingualTranslator from '../../components/ai/MultilingualTranslator';
 import AiResolutionCopilotModal from '../../components/ai/AiResolutionCopilotModal';
 import MobileNotificationSimulatorModal from '../../components/notifications/MobileNotificationSimulatorModal';
+import SlaCountdownTimer from '../../components/grievances/SlaCountdownTimer';
+import InteractiveCaseTimeline from '../../components/grievances/InteractiveCaseTimeline';
+import ExportCertificateModal from '../../components/grievances/ExportCertificateModal';
 import toast from 'react-hot-toast';
 
 // ─── Status Flow Configuration ───────────────────────────────────────────────
@@ -217,6 +220,7 @@ export const AdminGrievanceDetailsPage = ({ user, sessionUser }) => {
   // Modal states
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
   const [isMobileSimulatorOpen, setIsMobileSimulatorOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   // ── Fetch ticket + timeline ────────────────────────────────────────────────
   const fetchData = async () => {
@@ -381,6 +385,14 @@ export const AdminGrievanceDetailsPage = ({ user, sessionUser }) => {
             <span>Mobile Dispatch</span>
           </button>
           <button
+            onClick={() => setIsExportModalOpen(true)}
+            className="btn-ghost flex items-center gap-1.5 text-xs text-primary-bright border border-primary-bright/30 hover:bg-primary-bright/10 cursor-pointer"
+            title="Export Official Certified PDF Documents"
+          >
+            <Download size={13} />
+            <span>Certified PDF</span>
+          </button>
+          <button
             onClick={() => setIsCopilotOpen(true)}
             className="btn-primary flex items-center gap-1.5 text-xs shadow-md shadow-primary-bright/20 bg-linear-to-r from-primary-bright via-indigo-500 to-cyan-500 hover:opacity-95 cursor-pointer"
           >
@@ -414,6 +426,13 @@ export const AdminGrievanceDetailsPage = ({ user, sessionUser }) => {
                 {ticket.status}
               </span>
               <UrgencyBadge level={ticket.urgency} />
+              <SlaCountdownTimer 
+                createdAt={ticket.created_at}
+                slaHours={ticket.urgency === 'High' ? 24 : (ticket.urgency === 'Emergency' ? 2 : 48)}
+                status={ticket.status}
+                priority={ticket.urgency}
+                escalationLevel={ticket.escalation_level || 1}
+              />
               {ticket.escalated_at && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-500/10 border border-red-500/30 text-red-400 text-[10px] font-bold uppercase tracking-wider rounded-full">
                   <ShieldAlert size={9} />
@@ -906,6 +925,16 @@ export const AdminGrievanceDetailsPage = ({ user, sessionUser }) => {
         onClose={() => setIsMobileSimulatorOpen(false)}
         ticket={ticket}
       />
+
+      {/* Official Certified Document Export Studio Modal */}
+      {ticket && (
+        <ExportCertificateModal
+          isOpen={isExportModalOpen}
+          onClose={() => setIsExportModalOpen(false)}
+          ticket={ticket}
+          user={currentUser}
+        />
+      )}
 
     </div>
   );

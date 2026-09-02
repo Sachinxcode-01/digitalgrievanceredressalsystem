@@ -27,6 +27,8 @@ const StatusPage = React.lazy(() => import('./pages/public/StatusPage').then(m =
 const PublicTransparencyPage = React.lazy(() => import('./pages/public/PublicTransparencyPage').then(m => ({ default: m.PublicTransparencyPage })));
 const PublicHashVerificationPage = React.lazy(() => import('./pages/public/PublicHashVerificationPage'));
 const AdminHealthPage = React.lazy(() => import('./pages/analytics/AdminHealthPage').then(m => ({ default: m.AdminHealthPage })));
+const KnowledgeBasePage = React.lazy(() => import('./pages/public/KnowledgeBasePage'));
+const PredictiveInsightsPage = React.lazy(() => import('./pages/analytics/PredictiveInsightsPage'));
 
 // --- New Clerk Auth & Settings Pages ---
 const RegisterPage = React.lazy(() => import('./pages/auth/RegisterPage'));
@@ -165,6 +167,9 @@ function AppContent() {
               <Route path="/scorecard" element={<PublicTransparencyPage />} />
               <Route path="/verify-hash" element={<PublicHashVerificationPage />} />
               <Route path="/hash-inspector" element={<PublicHashVerificationPage />} />
+              <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
+              <Route path="/help" element={<Navigate to="/knowledge-base" replace />} />
+              <Route path="/faq" element={<Navigate to="/knowledge-base" replace />} />
               
               {/* Auth Gates */}
               <Route path="/sso-callback" element={<SsoCallbackPage />} />
@@ -232,6 +237,20 @@ function AppContent() {
                   </ProtectedRoute>
                 } 
               />
+              {/* Admin Predictive Insights & Bottleneck Forecaster */}
+              <Route 
+                path="/admin/predictive" 
+                element={
+                  <ProtectedRoute>
+                    <RoleGuard allowedRoles={['admin', 'super admin', 'officer']} fallback={<Navigate to="/dashboard" />}>
+                      <Layout user={user} onLogout={logout} theme={theme} setTheme={setTheme}>
+                        <PredictiveInsightsPage />
+                      </Layout>
+                    </RoleGuard>
+                  </ProtectedRoute>
+                } 
+              />
+              <Route path="/analytics/predictive" element={<Navigate to="/admin/predictive" replace />} />
 
               {/* Admin Users Panel */}
               <Route 
