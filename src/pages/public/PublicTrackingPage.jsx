@@ -14,6 +14,8 @@ import MultilingualTranslator from '../../components/ai/MultilingualTranslator';
 import AudioStatusReader from '../../components/ui/AudioStatusReader';
 import SmsWhatsAppOptInCard from '../../components/ui/SmsWhatsAppOptInCard';
 import PrintableQrReceipt from '../../components/ui/PrintableQrReceipt';
+import SlaCountdownTimer from '../../components/grievances/SlaCountdownTimer';
+import { generateAcknowledgmentReceipt, generateResolutionCertificate } from '../../utils/pdfGenerator';
 import toast from 'react-hot-toast';
 
 import { AuroraBackground } from '../../components/ui/BackgroundEffects';
@@ -152,50 +154,18 @@ export const PublicStatusPage = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleExportPdf = async () => {
+  const handleExportPdf = () => {
     if (!ticket) return;
     try {
-      const { jsPDF } = await import('jspdf');
-      const doc = new jsPDF();
-      
-      doc.setFillColor(37, 99, 235);
-      doc.rect(0, 0, 210, 42, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(20);
-      doc.text("OFFICIAL GRIEVANCE STATUS RECEIPT", 15, 24);
-      doc.setFontSize(10);
-      doc.text(`TICKET REFERENCE: #${ticket.ticket_id}`, 135, 24);
-      doc.text(`VERIFIED: ${new Date().toLocaleDateString()}`, 135, 31);
-      
-      doc.setTextColor(15, 23, 42);
-      doc.setFontSize(12);
-      doc.text("Grievance Status Overview", 15, 54);
-      doc.line(15, 57, 195, 57);
-      
-      doc.setFontSize(10);
-      doc.text(`Subject: ${ticket.title}`, 15, 66);
-      doc.text(`Department: ${ticket.department || ticket.category || 'General'}`, 15, 74);
-      doc.text(`Current Status: ${ticket.status}`, 15, 82);
-      doc.text(`Filing Date: ${new Date(ticket.created_at).toLocaleString()}`, 15, 90);
-      
-      const splitDesc = doc.splitTextToSize(`Narrative: ${ticket.description}`, 180);
-      doc.text(splitDesc, 15, 102);
-
-      if (ticket.resolution_notes) {
-        doc.setFillColor(240, 253, 250);
-        doc.rect(15, 130, 180, 25, 'F');
-        doc.setTextColor(13, 148, 136);
-        doc.setFontSize(10);
-        doc.text("Verified Resolution Statement:", 20, 138);
-        doc.setFontSize(9);
-        doc.setTextColor(51, 65, 85);
-        doc.text(doc.splitTextToSize(ticket.resolution_notes, 170), 20, 146);
+      if (['Resolved', 'Closed', 'AUTO_RESOLVED'].includes(ticket.status)) {
+        generateResolutionCertificate(ticket);
+        toast.success('Official Resolution Certificate downloaded!');
+      } else {
+        generateAcknowledgmentReceipt(ticket);
+        toast.success('Official Grievance Acknowledgment Receipt downloaded!');
       }
-      
-      doc.save(`Receipt_${ticket.ticket_id}.pdf`);
-      toast.success("Receipt PDF downloaded.");
     } catch {
-      toast.error("Failed to generate PDF.");
+      toast.error('Failed to generate PDF document.');
     }
   };
 
@@ -307,7 +277,13 @@ export const PublicStatusPage = () => {
                   </div>
                   <div className="flex flex-col sm:items-end gap-2 shrink-0">
                     <div className="flex items-center gap-2 flex-wrap sm:justify-end">
-                      <SlaRiskBadge createdAt={ticket.created_at} slaDueAt={ticket.sla_due_at} status={ticket.status} compact={true} />
+                      <SlaCountdownTimer 
+                        createdAt={ticket.created_at}
+                        slaHours={ticket.urgency === 'High' ? 24 : (ticket.urgency === 'Emergency' ? 2 : 48)}
+                        status={ticket.status}
+                        priority={ticket.urgency}
+                        escalationLevel={ticket.escalation_level || 1}
+                      />
                       <StatusBadge status={ticket.status} />
                     </div>
                     <SlaRadialCountdown createdAt={ticket.created_at} slaDueAt={ticket.sla_due_at} status={ticket.status} size={76} strokeWidth={5} />

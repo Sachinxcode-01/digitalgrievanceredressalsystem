@@ -746,6 +746,27 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
                   </div>
                 </div>
 
+                {/* Estimated SLA Turnaround Guarantee Preview */}
+                <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/25 flex items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="text-slate-300 font-medium">
+                      Estimated Turnaround SLA: <strong className="text-white font-mono">{
+                        isEmergency 
+                          ? '⚡ 2 Hours (Emergency Dispatch)' 
+                          : urgency === 'High' 
+                            ? '⚡ 24 Hours' 
+                            : urgency === 'Medium' 
+                              ? '⏱️ 48 Hours' 
+                              : '🗓️ 72 Hours'
+                      }</strong>
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono text-indigo-400 font-semibold uppercase tracking-wider hidden sm:inline-block">
+                    Cryptographic Proof Guarantee
+                  </span>
+                </div>
+
                 {/* Whistleblower Anonymous Mode & Emergency SOS Toggles */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                   <div 
