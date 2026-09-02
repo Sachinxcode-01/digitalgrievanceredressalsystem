@@ -97,8 +97,8 @@ export default function PublicHashVerificationPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden font-sans">
       {/* Background glow physics */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[350px] bg-emerald-500/10 blur-[140px] pointer-events-none rounded-full" />
-      <div className="absolute top-1/3 right-10 w-[400px] h-[300px] bg-cyan-500/10 blur-[120px] pointer-events-none rounded-full" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-200 h-87.5 bg-emerald-500/10 blur-[140px] pointer-events-none rounded-full" />
+      <div className="absolute top-1/3 right-10 w-100 h-75 bg-cyan-500/10 blur-[120px] pointer-events-none rounded-full" />
 
       <div className="max-w-4xl mx-auto relative z-10">
         
@@ -161,7 +161,7 @@ export default function PublicHashVerificationPage() {
             <button
               type="button"
               onClick={() => { setQuery('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'); handleVerify('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'); }}
-              className="px-2.5 py-1 bg-slate-800/80 hover:bg-slate-800 text-slate-300 rounded-md font-mono transition-colors truncate max-w-[200px]"
+              className="px-2.5 py-1 bg-slate-800/80 hover:bg-slate-800 text-slate-300 rounded-md font-mono transition-colors truncate max-w-50"
             >
               e3b0c44298fc1c14...
             </button>
