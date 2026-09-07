@@ -30,6 +30,12 @@ const VALID_CATEGORIES = [
 ];
 const VALID_URGENCY = ['High', 'Medium', 'Low'];
 const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+const GEMINI_CANDIDATE_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+  'gemini-1.5-pro'
+];
 
 /**
  * Call OpenRouter AI API.
@@ -122,18 +128,28 @@ const callAI = async (prompt, systemPrompt = '', temperature = 0.5) => {
       const nvidiaReply = await callNvidiaAI(prompt, systemPrompt, temperature);
       if (nvidiaReply) return nvidiaReply;
 
-      // 3. Try Gemini AI
+      // 3. Try Gemini AI with candidate model fallback
       const genAI = getGenAI();
       if (genAI) {
-        try {
-          const modelName = configService.getSetting('gemini_model', DEFAULT_GEMINI_MODEL);
-          const model = genAI.getGenerativeModel({ model: modelName });
-          const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
-          const result = await model.generateContent(fullPrompt);
-          const response = await result.response;
-          return response.text()?.trim() || null;
-        } catch (err) {
-          console.warn('[Gemini AI Warning]:', err.message);
+        const configuredModel = configService.getSetting('gemini_model', DEFAULT_GEMINI_MODEL);
+        const candidateModels = Array.from(new Set([configuredModel, ...GEMINI_CANDIDATE_MODELS]));
+
+        for (const modelName of candidateModels) {
+          try {
+            const model = genAI.getGenerativeModel({ model: modelName });
+            const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
+            const result = await model.generateContent(fullPrompt);
+            const response = await result.response;
+            const text = response.text()?.trim();
+            if (text) return text;
+          } catch (err) {
+            const isQuotaError = err.message?.includes('429') || err.message?.includes('RESOURCE_EXHAUSTED');
+            console.warn(`[Gemini AI Warning — model ${modelName}]:`, err.message);
+            if (isQuotaError) {
+              // API quota exhausted for key; break early to avoid delay
+              break;
+            }
+          }
         }
       }
       return null;
@@ -212,14 +228,15 @@ function normalizeAnalysis(raw, description) {
 }
 
 const aiService = {
-  async analyzeGrievance(description) {
-    if (!description) {
+  async analyzeGrievance(input) {
+    const text = typeof input === 'string' ? input : (input?.description ? `${input?.title ? input.title + ': ' : ''}${input.description}` : '');
+    if (!text || !text.trim()) {
       throw new Error('Description is required for AI analysis');
     }
 
     const systemPrompt = 'You are an institutional grievance triage AI. Output ONLY minified JSON without markdown.';
     const prompt = `
-      Analyze the grievance description: "${description}"
+      Analyze the grievance description: "${text}"
       Rules:
       1. category: EXACTLY one of: ${VALID_CATEGORIES.map(c => `'${c}'`).join(', ')}.
       2. urgency: 'High', 'Medium', or 'Low'.
@@ -233,7 +250,7 @@ const aiService = {
 
     const rawResponse = await callAI(prompt, systemPrompt, 0.2);
     const parsed = extractJson(rawResponse);
-    return normalizeAnalysis(parsed, description);
+    return normalizeAnalysis(parsed, text);
   },
 
   async getChatResponse(userMessage) {
@@ -1039,7 +1056,9 @@ Respond ONLY with valid JSON in this exact structure:
     try {
       const genAI = getGenAI();
       if (genAI) {
-        const model = genAI.getGenerativeModel({ model: DEFAULT_GEMINI_MODEL });
+        const configuredModel = configService.getSetting('gemini_model', DEFAULT_GEMINI_MODEL);
+        const candidateModels = Array.from(new Set([configuredModel, ...GEMINI_CANDIDATE_MODELS]));
+
         const prompt = `You are an expert audio transcription engine for a digital grievance portal.
 Transcribe the speech in this audio recording word-for-word into clear text.
 Include appropriate capitalization and punctuation.
@@ -1059,16 +1078,25 @@ Respond ONLY with JSON:
           }
         };
 
-        const result = await model.generateContent([prompt, audioPart]);
-        const responseText = result.response.text();
-        const parsed = extractJson(responseText);
+        for (const modelName of candidateModels) {
+          try {
+            const model = genAI.getGenerativeModel({ model: modelName });
+            const result = await model.generateContent([prompt, audioPart]);
+            const responseText = result.response.text();
+            const parsed = extractJson(responseText);
 
-        if (parsed && parsed.transcript) {
-          return {
-            transcript: parsed.transcript,
-            language_detected: parsed.language_detected || 'English',
-            title_suggestion: parsed.title_suggestion || 'Audio Grievance Report'
-          };
+            if (parsed && parsed.transcript) {
+              return {
+                transcript: parsed.transcript,
+                language_detected: parsed.language_detected || 'English',
+                title_suggestion: parsed.title_suggestion || 'Audio Grievance Report'
+              };
+            }
+          } catch (modelErr) {
+            const isQuotaError = modelErr.message?.includes('429') || modelErr.message?.includes('RESOURCE_EXHAUSTED');
+            console.warn(`[Multimodal audio transcription warning — model ${modelName}]:`, modelErr.message);
+            if (isQuotaError) break;
+          }
         }
       }
     } catch (err) {
