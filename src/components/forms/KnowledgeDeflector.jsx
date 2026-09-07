@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Lightbulb, CheckCircle2, ChevronRight, ExternalLink, ThumbsUp, X, BookOpen, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -73,15 +73,13 @@ const KNOWLEDGE_BASE_ITEMS = [
 ];
 
 export const KnowledgeDeflector = ({ title = '', description = '', category = '', onDeflected }) => {
-  const [matchedArticle, setMatchedArticle] = useState(null);
   const [expanded, setExpanded] = useState(false);
   const [isResolved, setIsResolved] = useState(false);
 
-  useEffect(() => {
+  const matchedArticle = useMemo(() => {
     const text = `${title} ${description} ${category}`.toLowerCase();
     if (text.trim().length < 4) {
-      setMatchedArticle(null);
-      return;
+      return null;
     }
 
     const match = KNOWLEDGE_BASE_ITEMS.find(item => {
@@ -89,7 +87,7 @@ export const KnowledgeDeflector = ({ title = '', description = '', category = ''
       return item.keywords.some(kw => text.includes(kw));
     });
 
-    setMatchedArticle(match || null);
+    return match || null;
   }, [title, description, category]);
 
   if (!matchedArticle || isResolved) {
