@@ -190,7 +190,7 @@ export const LandingPage = () => {
                 <img 
                   src="/images/hero-command-center.jpg" 
                   alt="ResolveNow Enterprise Incident Command Center" 
-                  className="w-full h-auto max-h-[520px] object-cover object-center group-hover:scale-[1.02] transition-transform duration-700 ease-out"
+                  className="w-full h-auto max-h-130 object-cover object-center group-hover:scale-[1.02] transition-transform duration-700 ease-out"
                 />
                 <div className="absolute inset-0 bg-linear-to-t from-slate-950 via-slate-950/40 to-transparent pointer-events-none" />
                 
@@ -252,7 +252,7 @@ export const LandingPage = () => {
                   <img 
                     src="/images/about-institution-network.jpg" 
                     alt="ResolveNow Institutional Digital Redressal Infrastructure" 
-                    className="w-full h-[440px] sm:h-[480px] object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
+                    className="w-full h-110 sm:h-120 object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
                   />
                   <div className="absolute inset-0 bg-linear-to-t from-slate-950/90 via-slate-950/20 to-transparent pointer-events-none" />
 
@@ -447,7 +447,7 @@ export const LandingPage = () => {
                   <img 
                     src="/images/ai-voice-triage-flow.jpg" 
                     alt="AI Speech Wave Analysis and Verified Blockchain Ticket Timeline" 
-                    className="w-full h-[380px] sm:h-[450px] object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
+                    className="w-full h-95 sm:h-112.5 object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
                   />
                   <div className="absolute inset-0 bg-linear-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none" />
 
