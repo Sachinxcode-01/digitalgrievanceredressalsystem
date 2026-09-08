@@ -333,12 +333,12 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
   const totalCount = tickets.length;
   const pendingCount = tickets.filter(t => ['Submitted', 'New', 'Pending', 'Draft'].includes(t.status)).length;
   const inProgressCount = tickets.filter(t => ['Assigned', 'In Progress', 'Under Review'].includes(t.status)).length;
-  const resolvedCount = tickets.filter(t => t.status === 'Resolved').length;
+  const resolvedCount = tickets.filter(t => ['Resolved', 'AUTO_RESOLVED'].includes(t.status)).length;
   const closedCount = tickets.filter(t => t.status === 'Closed').length;
   const escalatedCount = tickets.filter(t => t.status === 'Escalated').length;
   
   const overdueCount = tickets.filter(t => {
-    if (['Resolved', 'Closed', 'Rejected'].includes(t.status)) return false;
+    if (['Resolved', 'Closed', 'Rejected', 'AUTO_RESOLVED'].includes(t.status)) return false;
     const dueAt = t.sla_due_at ? new Date(t.sla_due_at) : new Date(new Date(t.created_at).getTime() + 72 * 3600000);
     return dueAt < new Date();
   }).length;
@@ -359,7 +359,7 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
   ];
 
   const topCategory = Object.entries(categoryDataMap).sort((a, b) => b[1] - a[1])[0]?.[0] || 'IT Support';
-  const activeTicket = tickets.find(t => !['Resolved', 'Closed'].includes(t.status)) || tickets[0];
+  const activeTicket = tickets.find(t => !['Resolved', 'Closed', 'AUTO_RESOLVED'].includes(t.status)) || tickets[0];
 
   const filteredTickets = tickets.filter(t => {
     const matchesSearch = 
@@ -643,6 +643,7 @@ export const UserDashboard = ({ sessionUser, userProfile }) => {
               <option value="Assigned">Assigned</option>
               <option value="In Progress">In Progress</option>
               <option value="Escalated">Escalated</option>
+              <option value="AUTO_RESOLVED">⚡ Auto-Resolved</option>
               <option value="Resolved">Resolved</option>
               <option value="Closed">Closed</option>
             </select>

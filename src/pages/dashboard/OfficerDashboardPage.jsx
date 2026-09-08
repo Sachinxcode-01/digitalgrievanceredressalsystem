@@ -256,11 +256,11 @@ export const OfficerDashboardPage = ({ sessionUser, userProfile, onLogout }) => 
   const totalAssigned = myAssignedTickets.length;
   const activeInTransit = myAssignedTickets.filter(t => ['Assigned', 'In Progress', 'Under Review'].includes(t.status)).length;
   const pendingCitizen = myAssignedTickets.filter(t => t.status === 'Pending User Response').length;
-  const resolvedCount = myAssignedTickets.filter(t => ['Resolved', 'Closed'].includes(t.status)).length;
+  const resolvedCount = myAssignedTickets.filter(t => ['Resolved', 'Closed', 'AUTO_RESOLVED'].includes(t.status)).length;
   const resolutionRate = totalAssigned > 0 ? Math.round((resolvedCount / totalAssigned) * 100) : 100;
   
   const slaCriticalCount = myAssignedTickets.filter(t => {
-    if (!t.sla_due_at || ['Resolved', 'Closed'].includes(t.status)) return false;
+    if (!t.sla_due_at || ['Resolved', 'Closed', 'AUTO_RESOLVED'].includes(t.status)) return false;
     const diff = new Date(t.sla_due_at) - new Date();
     return diff > 0 && diff < 24 * 3600000;
   }).length;
@@ -404,6 +404,7 @@ export const OfficerDashboardPage = ({ sessionUser, userProfile, onLogout }) => 
                     <option value="Under Review">Under Review</option>
                     <option value="Pending User Response">Pending Citizen</option>
                     <option value="Escalated">Escalated</option>
+                    <option value="AUTO_RESOLVED">⚡ Auto-Resolved</option>
                     <option value="Resolved">Resolved</option>
                   </select>
 
@@ -413,6 +414,7 @@ export const OfficerDashboardPage = ({ sessionUser, userProfile, onLogout }) => 
                     className="flex-1 px-2.5 py-1.5 text-[11px] rounded-lg bg-background/80 border border-border/60 text-foreground focus:outline-none"
                   >
                     <option value="All">All Urgency</option>
+                    <option value="Emergency">🚨 Emergency SOS</option>
                     <option value="Critical">Critical</option>
                     <option value="High">High</option>
                     <option value="Medium">Medium</option>

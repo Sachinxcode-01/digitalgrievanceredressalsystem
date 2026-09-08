@@ -6,6 +6,19 @@ export const StatusBadge = ({ status = 'Pending', className = '' }) => {
 
   const getConfig = () => {
     switch (normStatus) {
+      case 'autoresolved':
+        return {
+          label: '⚡ AUTO-RESOLVED',
+          badgeClass: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40 shadow-emerald-500/20 shadow-md ring-1 ring-emerald-500/30',
+          dotClass: 'bg-emerald-300 animate-pulse',
+        };
+      case 'emergencysos':
+      case 'emergency':
+        return {
+          label: '🚨 EMERGENCY SOS',
+          badgeClass: 'bg-red-500/20 text-red-300 border-red-500/50 shadow-red-500/30 shadow-lg ring-1 ring-red-500/40',
+          dotClass: 'bg-red-400 animate-ping',
+        };
       case 'resolved':
       case 'closed':
         return {

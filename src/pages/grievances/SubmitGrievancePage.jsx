@@ -995,11 +995,19 @@ export const SubmitGrievancePage = ({ user, sessionUser }) => {
         <VoiceStudioModal
           isOpen={showVoiceModal}
           onClose={() => setShowVoiceModal(false)}
-          onTranscriptionComplete={(text) => {
-            setDescription(prev => prev ? `${prev}\n\n${text}` : text);
-            if (!title) {
-              const previewTitle = text.split(' ').slice(0, 6).join(' ');
-              setTitle(`${previewTitle}...`);
+          onTranscriptionComplete={(data) => {
+            if (typeof data === 'object' && data !== null) {
+              if (data.title) setTitle(data.title);
+              if (data.description) setDescription(prev => prev ? `${prev}\n\n${data.description}` : data.description);
+              if (data.category) setCategory(data.category);
+              if (data.urgency) setUrgency(data.urgency);
+            } else {
+              const text = String(data || '');
+              setDescription(prev => prev ? `${prev}\n\n${text}` : text);
+              if (!title && text) {
+                const previewTitle = text.split(' ').slice(0, 6).join(' ');
+                setTitle(`${previewTitle}...`);
+              }
             }
           }}
         />

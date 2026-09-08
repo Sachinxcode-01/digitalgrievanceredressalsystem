@@ -29,12 +29,12 @@ const VALID_CATEGORIES = [
   'Public Infrastructure', 'Eco-Sustainability', 'Social Welfare'
 ];
 const VALID_URGENCY = ['High', 'Medium', 'Low'];
-const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
 const GEMINI_CANDIDATE_MODELS = [
+  'gemini-3.6-flash',
   'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
-  'gemini-1.5-pro'
+  'gemini-1.5-flash-latest',
+  'gemini-1.5-flash'
 ];
 
 /**
@@ -1059,16 +1059,23 @@ Respond ONLY with valid JSON in this exact structure:
         const configuredModel = configService.getSetting('gemini_model', DEFAULT_GEMINI_MODEL);
         const candidateModels = Array.from(new Set([configuredModel, ...GEMINI_CANDIDATE_MODELS]));
 
-        const prompt = `You are an expert audio transcription engine for a digital grievance portal.
+        const prompt = `You are an expert audio transcription engine for an institutional grievance portal.
 Transcribe the speech in this audio recording word-for-word into clear text.
 Include appropriate capitalization and punctuation.
-Also provide a concise 4-8 word title summarizing the grievance reported.
+Also extract structured grievance attributes:
+1. transcript: Exact transcription of the speech.
+2. language_detected: Language spoken (e.g. English, Hindi, Tamil, Telugu).
+3. title_suggestion: Concise 4-8 word grievance title summarizing the report.
+4. category_suggestion: Exactly one of ['Financial', 'Academic', 'Maintenance', 'IT Support', 'Public Infrastructure', 'Eco-Sustainability', 'Social Welfare'].
+5. urgency_suggestion: One of ['Low', 'Medium', 'High'].
 
-Respond ONLY with JSON:
+Respond ONLY with strictly valid JSON:
 {
   "transcript": "Exact transcription of the speech",
-  "language_detected": "Language spoken (e.g. English, Hindi, Tamil)",
-  "title_suggestion": "Concise grievance title"
+  "language_detected": "Language spoken",
+  "title_suggestion": "Concise grievance title",
+  "category_suggestion": "Maintenance",
+  "urgency_suggestion": "Medium"
 }`;
 
         const audioPart = {
@@ -1085,11 +1092,15 @@ Respond ONLY with JSON:
             const responseText = result.response.text();
             const parsed = extractJson(responseText);
 
-            if (parsed && parsed.transcript) {
+            if (parsed && (parsed.transcript || parsed.title_suggestion)) {
+              const heur = keywordHeuristics(parsed.transcript || '');
               return {
-                transcript: parsed.transcript,
+                transcript: parsed.transcript || 'Voice transcript processed.',
                 language_detected: parsed.language_detected || 'English',
-                title_suggestion: parsed.title_suggestion || 'Audio Grievance Report'
+                title_suggestion: parsed.title_suggestion || 'Audio Grievance Report',
+                category_suggestion: VALID_CATEGORIES.find(c => c.toLowerCase() === (parsed.category_suggestion || '').toLowerCase()) || heur.category,
+                urgency_suggestion: VALID_URGENCY.find(u => u.toLowerCase() === (parsed.urgency_suggestion || '').toLowerCase()) || heur.urgency,
+                confidence: 94
               };
             }
           } catch (modelErr) {
@@ -1106,7 +1117,10 @@ Respond ONLY with JSON:
     return {
       transcript: 'Voice recording received. (Audio transcription service completed).',
       language_detected: 'English',
-      title_suggestion: 'Voice Recorded Grievance'
+      title_suggestion: 'Voice Recorded Grievance',
+      category_suggestion: 'IT Support',
+      urgency_suggestion: 'Medium',
+      confidence: 80
     };
   },
 
@@ -1167,71 +1181,16 @@ Respond ONLY with JSON:
    * Automatically extracts title, structured narrative, urgency, and category.
    */
   async transcribeAudioGrievance(audioBase64, mimeType = 'audio/webm') {
-    const genAI = getGenAI();
-
-    if (!genAI || !audioBase64) {
-      return {
-        transcript: 'Voice recording received. Please review and refine the grievance details.',
-        title: 'Voice Grievance Submission',
-        category: 'IT Support',
-        urgency: 'Medium',
-        language: 'en',
-        confidence: 80
-      };
-    }
-
-    try {
-      const model = genAI.getGenerativeModel({ model: DEFAULT_GEMINI_MODEL });
-      const prompt = `You are an institutional grievance processing AI. Listen to this recorded audio complaint carefully.
-1. Transcribe the audio accurately.
-2. Formulate a crisp, professional Subject Title (under 10 words).
-3. Structure the complaint description cleanly.
-4. Categorize it as one of: [Financial, Academic, Maintenance, IT Support, Public Infrastructure, Eco-Sustainability, Social Welfare].
-5. Assign urgency: [Low, Medium, High, Critical].
-
-Return strictly valid JSON format with keys:
-{
-  "transcript": "...",
-  "title": "...",
-  "description": "...",
-  "category": "...",
-  "urgency": "...",
-  "language": "en"
-}`;
-
-      const audioPart = {
-        inlineData: {
-          data: audioBase64,
-          mimeType: mimeType || 'audio/webm'
-        }
-      };
-
-      const result = await model.generateContent([prompt, audioPart]);
-      const text = result.response.text();
-      const cleanedJson = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-      const parsed = JSON.parse(cleanedJson);
-
-      return {
-        transcript: parsed.transcript || parsed.description || 'Voice transcript processed.',
-        title: parsed.title || 'Recorded Voice Grievance',
-        description: parsed.description || parsed.transcript || '',
-        category: parsed.category || 'IT Support',
-        urgency: parsed.urgency || 'Medium',
-        language: parsed.language || 'en',
-        confidence: 94
-      };
-    } catch (err) {
-      console.warn('Gemini audio transcription fallback:', err.message);
-      return {
-        transcript: 'Audio recording processed via speech recognition.',
-        title: 'Voice Recorded Grievance',
-        description: 'Citizen submitted grievance via voice recording.',
-        category: 'IT Support',
-        urgency: 'Medium',
-        language: 'en',
-        confidence: 75
-      };
-    }
+    const res = await this.transcribeAudio(audioBase64, mimeType);
+    return {
+      transcript: res.transcript,
+      title: res.title_suggestion || 'Recorded Voice Grievance',
+      description: res.transcript,
+      category: res.category_suggestion || 'IT Support',
+      urgency: res.urgency_suggestion || 'Medium',
+      language: res.language_detected || 'en',
+      confidence: res.confidence || 90
+    };
   }
 };
 

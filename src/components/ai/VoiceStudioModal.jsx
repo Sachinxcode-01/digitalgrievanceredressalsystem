@@ -11,6 +11,7 @@ export const VoiceStudioModal = ({ isOpen, onClose, onTranscriptionComplete }) =
   const [liveTranscript, setLiveTranscript] = useState('');
   const [isTranscribingFile, setIsTranscribingFile] = useState(false);
   const [audioFile, setAudioFile] = useState(null);
+  const [extractedEntities, setExtractedEntities] = useState(null);
 
   const recognitionRef = useRef(null);
   const timerRef = useRef(null);
@@ -112,7 +113,15 @@ export const VoiceStudioModal = ({ isOpen, onClose, onTranscriptionComplete }) =
         const res = await grievanceService.transcribeVoice(base64Data, file.type || 'audio/webm', selectedLang);
         if (res && res.transcript) {
           setLiveTranscript(res.transcript);
-          toast.success('Audio file transcribed successfully!');
+          if (res.title_suggestion || res.category_suggestion) {
+            setExtractedEntities({
+              title: res.title_suggestion || '',
+              category: res.category_suggestion || 'IT Support',
+              urgency: res.urgency_suggestion || 'Medium',
+              description: res.transcript
+            });
+          }
+          toast.success('Audio file transcribed and analyzed!');
         }
         setIsTranscribingFile(false);
       };
@@ -123,6 +132,25 @@ export const VoiceStudioModal = ({ isOpen, onClose, onTranscriptionComplete }) =
     }
   };
 
+  const handleApplyFullGrievance = () => {
+    if (!liveTranscript.trim()) {
+      toast.error('No speech audio captured.');
+      return;
+    }
+    const payload = extractedEntities ? {
+      ...extractedEntities,
+      description: liveTranscript.trim()
+    } : {
+      title: liveTranscript.split(' ').slice(0, 6).join(' ') + '...',
+      description: liveTranscript.trim(),
+      category: 'IT Support',
+      urgency: 'Medium'
+    };
+    onTranscriptionComplete(payload);
+    toast.success('Grievance form populated from voice analysis!');
+    onClose();
+  };
+
   const handleConfirmTranscript = () => {
     if (!liveTranscript.trim()) {
       toast.error('No transcribed voice text to apply.');
@@ -130,7 +158,7 @@ export const VoiceStudioModal = ({ isOpen, onClose, onTranscriptionComplete }) =
     }
 
     onTranscriptionComplete(liveTranscript.trim());
-    toast.success('Voice dictation applied to grievance form.');
+    toast.success('Voice dictation applied to grievance description.');
     onClose();
   };
 
@@ -268,10 +296,10 @@ export const VoiceStudioModal = ({ isOpen, onClose, onTranscriptionComplete }) =
 
         {/* Live Transcript Preview */}
         <div className="space-y-2">
-          <label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between">
+          <div className="flex items-center justify-between text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest">
             <span>Captured Transcription</span>
-            {liveTranscript && <span className="text-emerald-400">Ready to apply</span>}
-          </label>
+            {liveTranscript && <span className="text-emerald-400 font-bold">Ready to apply</span>}
+          </div>
           <textarea
             rows={3}
             value={liveTranscript}
@@ -281,27 +309,70 @@ export const VoiceStudioModal = ({ isOpen, onClose, onTranscriptionComplete }) =
           />
         </div>
 
+        {/* AI Extracted Grievance Summary Card */}
+        {extractedEntities && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-3.5 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 space-y-2"
+          >
+            <div className="flex items-center gap-1.5 text-indigo-300 text-[11px] font-mono font-bold">
+              <Sparkles size={13} className="text-indigo-400" />
+              <span>AI Extracted Grievance Package</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              <div className="bg-slate-900/80 p-2 rounded-xl border border-white/5">
+                <span className="text-[10px] text-slate-400 block font-mono">Suggested Title</span>
+                <span className="text-white font-semibold truncate block">{extractedEntities.title || 'Voice Grievance'}</span>
+              </div>
+              <div className="bg-slate-900/80 p-2 rounded-xl border border-white/5 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-mono">Category</span>
+                  <span className="text-emerald-400 font-bold">{extractedEntities.category || 'IT Support'}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] text-slate-400 block font-mono">Urgency</span>
+                  <span className="text-amber-400 font-bold">{extractedEntities.urgency || 'Medium'}</span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* Action Controls */}
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 pt-4 border-t border-white/10">
           <button
             type="button"
             onClick={() => {
               if (isRecording) stopRecording();
               onClose();
             }}
-            className="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white"
+            className="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white transition-colors"
           >
             Cancel
           </button>
 
-          <button
-            type="button"
-            onClick={handleConfirmTranscript}
-            disabled={!liveTranscript.trim()}
-            className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
-          >
-            <Check size={14} /> Apply Transcript
-          </button>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={handleConfirmTranscript}
+              disabled={!liveTranscript.trim()}
+              className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-200 text-xs font-bold border border-white/10 transition-all cursor-pointer"
+              title="Only copy transcribed words into the description box"
+            >
+              <Check size={14} className="inline mr-1" /> Insert Text Only
+            </button>
+
+            <button
+              type="button"
+              onClick={handleApplyFullGrievance}
+              disabled={!liveTranscript.trim()}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl bg-linear-to-r from-indigo-600 via-indigo-500 to-cyan-500 hover:opacity-95 disabled:opacity-40 text-white text-xs font-extrabold shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
+              title="Populate Title, Category, Urgency, and Narrative together"
+            >
+              <Sparkles size={14} /> Apply Full Grievance
+            </button>
+          </div>
         </div>
       </motion.div>
     </div>

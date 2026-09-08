@@ -180,6 +180,7 @@ const grievanceService = {
       is_anonymous: Boolean(passkeyInfo),
       secret_passkey: passkeyInfo ? passkeyInfo.secretPasskey : null,
       proof_hash: proofHash,
+      resolved_at: (kbMatch && kbMatch.isAutoResolved) ? (kbMatch.resolvedAt || new Date().toISOString()) : null,
       auto_resolution_notes: kbMatch.isAutoResolved ? kbMatch.solutionNotes : null
     });
 
@@ -211,6 +212,17 @@ const grievanceService = {
       performed_by: finalUserId === 'anonymous' ? null : finalUserId,
       notes: routingNote
     });
+
+    // If instant auto-resolution was matched, log dedicated resolution event
+    if (kbMatch && kbMatch.isAutoResolved) {
+      await grievanceRepository.addTimelineEvent({
+        grievance_id: newGrievance.id,
+        status: 'AUTO_RESOLVED',
+        activity_type: 'auto_resolution',
+        performed_by: null,
+        notes: 'Instant Knowledge Base resolution matched. Official verified resolution instructions issued to citizen.'
+      });
+    }
 
     // If auto-assigned, log a dedicated assignment event in the timeline too.
     if (finalAssignee) {

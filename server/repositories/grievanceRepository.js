@@ -149,7 +149,9 @@ const grievanceRepository = {
       'resolved_at', 'escalated_at', 'escalated_reason', 'sla_due_at',
       'rating', 'feedback_comments', 'feedback_tags', 'sentiment_score',
       'appeal_reason', 'appeal_date', 'appeal_status', 'escalation_tier',
-      'tier_escalated_at', 'escalated_to', 'upvote_count', 'upvoted_by'
+      'tier_escalated_at', 'escalated_to', 'upvote_count', 'upvoted_by',
+      'proof_hash', 'secret_passkey', 'is_emergency', 'frustration_index',
+      'auto_resolution_notes'
     ];
 
     const sanitizedPayload = {
@@ -194,7 +196,9 @@ const grievanceRepository = {
       'escalated_at', 'escalated_reason', 'sla_due_at', 'rating',
       'feedback_comments', 'feedback_tags', 'sentiment_score',
       'appeal_reason', 'appeal_date', 'appeal_status', 'escalation_tier',
-      'tier_escalated_at', 'escalated_to', 'updated_at'
+      'tier_escalated_at', 'escalated_to', 'updated_at',
+      'proof_hash', 'secret_passkey', 'is_emergency', 'frustration_index',
+      'auto_resolution_notes'
     ];
 
     const sanitizedUpdates = {};

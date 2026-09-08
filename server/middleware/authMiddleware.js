@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const { getAuth, clerkClient } = require('@clerk/express');
 const userRepository = require('../repositories/userRepository');
 const supabase = require('../config/supabase');
+const { redisClient, isRedisConnected } = require('../config/redisClient');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const userCache = new Map();
@@ -57,7 +58,14 @@ const authenticateToken = async (req, res, next) => {
         let email = null;
         let fullName = 'Clerk User';
 
-        const cached = userCache.get(userId);
+        let cached = userCache.get(userId);
+        if (!cached && isRedisConnected() && redisClient) {
+          try {
+            const redisVal = await redisClient.get(`resolvenow:user:${userId}`);
+            if (redisVal) cached = JSON.parse(redisVal);
+          } catch {}
+        }
+
         if (cached && cached.expiresAt > Date.now()) {
           email = cached.email;
           fullName = cached.fullName;
@@ -66,11 +74,15 @@ const authenticateToken = async (req, res, next) => {
           email = clerkUser.emailAddresses[0]?.emailAddress;
           fullName = clerkUser.firstName ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim() : 'Clerk User';
           
-          userCache.set(userId, {
+          const cachePayload = {
             email,
             fullName,
             expiresAt: Date.now() + 5 * 60 * 1000
-          });
+          };
+          userCache.set(userId, cachePayload);
+          if (isRedisConnected() && redisClient) {
+            redisClient.setex(`resolvenow:user:${userId}`, 300, JSON.stringify(cachePayload)).catch(() => {});
+          }
         }
 
         if (!email) {

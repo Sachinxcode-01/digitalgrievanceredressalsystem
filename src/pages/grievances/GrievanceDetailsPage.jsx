@@ -5,7 +5,8 @@ import {
   ArrowLeft, Clock, FileDown, MessageSquare, ShieldCheck, 
   MapPin, CheckCircle, HelpCircle, Loader2, Calendar, ClipboardList, 
   AlertCircle, History, Info, Trash2, Star, Send, ThumbsUp, Smartphone,
-  Plus, Paperclip, UploadCloud, Eye, ExternalLink, X, Image as ImageIcon
+  Plus, Paperclip, UploadCloud, Eye, ExternalLink, X, Image as ImageIcon,
+  Zap, Copy
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '../../lib/supabase';
@@ -356,7 +357,7 @@ export const GrievanceDetailsPage = ({ user }) => {
           </button>
 
           {/* 1-Click Appeal / Escalation Trigger Button */}
-          {(ticket.status === 'Resolved' || ticket.status === 'Closed') && ticket.status !== 'Disputed' && (
+          {(ticket.status === 'Resolved' || ticket.status === 'Closed' || ticket.status === 'AUTO_RESOLVED') && ticket.status !== 'Disputed' && (
             <button 
               type="button"
               onClick={() => setShowAppealModal(true)}
@@ -492,6 +493,65 @@ export const GrievanceDetailsPage = ({ user }) => {
                       )}
                     </div>
                   </div>
+
+                  {/* Official Instant AI Knowledge Base Auto-Resolution Card */}
+                  {(ticket.status === 'AUTO_RESOLVED' || ticket.auto_resolution_notes) && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-5 rounded-2xl bg-linear-to-br from-emerald-950/40 via-surface to-emerald-950/20 border border-emerald-500/30 shadow-lg shadow-emerald-500/5 space-y-3.5 text-left"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                            <Zap size={16} />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-xs font-black uppercase tracking-wider text-emerald-300">
+                                Instant Institutional Auto-Resolution
+                              </h4>
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                                ⚡ Sub-1-Minute Verified
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              This grievance matched official institutional knowledge base protocols.
+                            </p>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(ticket.auto_resolution_notes || ticket.resolution_notes || '');
+                            toast.success('Resolution instructions copied to clipboard!');
+                          }}
+                          className="p-2 rounded-xl bg-surface hover:bg-muted/50 border border-border text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+                          title="Copy resolution instructions"
+                        >
+                          <Copy size={13} />
+                        </button>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-background/80 border border-emerald-500/20 text-xs text-foreground font-medium whitespace-pre-wrap leading-relaxed">
+                        {ticket.auto_resolution_notes || ticket.resolution_notes || 'Resolved via verified institutional knowledge base guidance.'}
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] pt-1 border-t border-emerald-500/15">
+                        <span className="text-muted-foreground">
+                          Status: <strong className="text-emerald-400">Resolved & Closed</strong>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('resolution')}
+                          className="text-primary hover:underline font-bold cursor-pointer flex items-center gap-1"
+                        >
+                          <span>View Resolution Dossier & Rate CSAT</span> &rarr;
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
 
                   {/* Voice Accessibility: Speech Synthesis Read-Aloud */}
                   <AudioStatusReader ticket={ticket} />
@@ -689,18 +749,35 @@ export const GrievanceDetailsPage = ({ user }) => {
                 <p className="text-[10px] text-muted-foreground mt-0.5">Official resolution statement logged by assigned department officer.</p>
               </div>
 
-              {ticket.status === 'Resolved' || ticket.status === 'Closed' ? (
+              {ticket.status === 'Resolved' || ticket.status === 'Closed' || ticket.status === 'AUTO_RESOLVED' ? (
                 <div className="space-y-6">
                   <div className="p-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 space-y-4">
                     <div className="flex gap-3">
-                      <CheckCircle className="text-emerald-500 shrink-0" size={20} />
+                      {ticket.status === 'AUTO_RESOLVED' ? (
+                        <Zap className="text-emerald-400 shrink-0 mt-0.5" size={20} />
+                      ) : (
+                        <CheckCircle className="text-emerald-500 shrink-0" size={20} />
+                      )}
                       <div className="space-y-1 text-left">
-                        <h4 className="text-sm font-bold text-foreground">Grievance Addressed & Resolved</h4>
-                        <p className="text-xs text-muted-foreground">The assigned officer has completed the investigation:</p>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-bold text-foreground">
+                            {ticket.status === 'AUTO_RESOLVED' ? 'Instant AI Knowledge Base Resolution' : 'Grievance Addressed & Resolved'}
+                          </h4>
+                          {ticket.status === 'AUTO_RESOLVED' && (
+                            <span className="px-2 py-0.5 text-[9px] font-mono font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded">
+                              Sub-1-Minute
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {ticket.status === 'AUTO_RESOLVED'
+                            ? 'Matched institutional standard operating procedure & knowledge base guidance:'
+                            : 'The assigned officer has completed the investigation:'}
+                        </p>
                       </div>
                     </div>
-                    <div className="p-4 rounded-xl bg-background/80 border border-border text-xs text-foreground font-medium italic whitespace-pre-wrap leading-relaxed">
-                      "{ticket.resolution_notes || 'Resolved satisfactorily according to institutional guidelines.'}"
+                    <div className="p-4 rounded-xl bg-background/80 border border-border text-xs text-foreground font-medium whitespace-pre-wrap leading-relaxed">
+                      {ticket.auto_resolution_notes || ticket.resolution_notes || 'Resolved satisfactorily according to institutional guidelines.'}
                     </div>
 
                     {/* Dispute / Appeal Resolution CTA */}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Clock, AlertCircle, ChevronLeft, Landmark, Activity, CheckCircle2, QrCode, Download, ShieldCheck, Copy, FileDown, Check, Smartphone } from 'lucide-react';
+import { Search, Clock, AlertCircle, ChevronLeft, Landmark, Activity, CheckCircle2, QrCode, Download, ShieldCheck, Copy, FileDown, Check, Smartphone, Zap } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { apiClient } from '../../api/apiClient';
@@ -171,7 +171,7 @@ export const PublicStatusPage = () => {
 
   const getTimelineSteps = (t) => {
     if (!t) return [];
-    const isResolved = t.status === 'Resolved' || t.status === 'Closed';
+    const isResolved = t.status === 'Resolved' || t.status === 'Closed' || t.status === 'AUTO_RESOLVED';
     const isInProgress = t.status === 'In Progress' || t.status === 'Under Review' || t.status === 'Assigned';
     const isEscalated = t.status === 'Escalated';
 
@@ -188,14 +188,14 @@ export const PublicStatusPage = () => {
         done: true,
       },
       {
-        title: 'Officer Assessment & Investigation',
-        desc: isEscalated ? 'Escalated to Senior Administrative Directorate.' : 'Officer reviewing dossier evidence.',
+        title: t.status === 'AUTO_RESOLVED' ? 'Instant AI Knowledge Base Verification' : 'Officer Assessment & Investigation',
+        desc: t.status === 'AUTO_RESOLVED' ? 'Matched institutional knowledge base standard operating procedure.' : (isEscalated ? 'Escalated to Senior Administrative Directorate.' : 'Officer reviewing dossier evidence.'),
         active: isInProgress || isEscalated,
         done: isResolved,
       },
       {
-        title: 'Final Resolution & Case Sign-Off',
-        desc: t.resolution_notes || 'Pending final verification by redressal authority.',
+        title: t.status === 'AUTO_RESOLVED' ? 'Instant Redressal Resolution Applied' : 'Final Resolution & Case Sign-Off',
+        desc: t.auto_resolution_notes || t.resolution_notes || (t.status === 'AUTO_RESOLVED' ? 'Verified resolution instructions issued to citizen.' : 'Pending final verification by redressal authority.'),
         done: isResolved,
       },
     ];
@@ -327,6 +327,32 @@ export const PublicStatusPage = () => {
                   grievance={ticket} 
                   onUpvoteSuccess={(updated) => setTicket(updated)} 
                 />
+
+                {/* Instant Knowledge Base Auto-Resolution Guidance Banner */}
+                {(ticket.status === 'AUTO_RESOLVED' || ticket.auto_resolution_notes) && (
+                  <div className="p-4 rounded-2xl bg-linear-to-br from-emerald-950/60 to-slate-950 border border-emerald-500/30 text-left space-y-2.5 shadow-lg shadow-emerald-500/10">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
+                          <Zap size={15} />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-heading font-black text-emerald-300 uppercase tracking-wider">
+                            Instant Verified Auto-Resolution
+                          </h4>
+                          <span className="text-[10px] text-slate-400 font-mono">Matched Institutional Knowledge Base Solution</span>
+                        </div>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        Sub-1-Minute
+                      </span>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-slate-900/90 border border-emerald-500/20 text-xs text-slate-200 leading-relaxed font-sans whitespace-pre-wrap">
+                      {ticket.auto_resolution_notes || ticket.resolution_notes || 'Resolved via standard operating procedure guidance.'}
+                    </div>
+                  </div>
+                )}
 
                 <div className="p-4 bg-slate-950/60 rounded-2xl border border-white/10 space-y-3">
                   <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest block">Narrative Statement Log</span>

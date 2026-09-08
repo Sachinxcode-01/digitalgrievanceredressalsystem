@@ -1,8 +1,10 @@
 const notificationRepository = require('../repositories/notificationRepository');
+const { redisClient, isRedisConnected, isRedisEnabled } = require('../config/redisClient');
 
 /**
  * Enterprise Notification Queue Service with Dead-Letter Queue (DLQ)
  * Handles buffering and resilient retrying of emails/SMS with exponential backoff.
+ * Supports dual-mode: distributed Redis job persistence + zero-config in-memory priority queue.
  * Logs execution, errors, and delivery metrics in PostgreSQL.
  */
 class NotificationQueue {
@@ -48,6 +50,12 @@ class NotificationQueue {
     
     this.queue.push(job);
     this.metrics.totalEnqueued++;
+
+    if (isRedisConnected() && redisClient) {
+      redisClient.hset('resolvenow:queue:jobs', job.id, JSON.stringify({ type, enqueuedAt: job.enqueuedAt })).catch(() => {});
+      redisClient.hincrby('resolvenow:queue:metrics', 'totalEnqueued', 1).catch(() => {});
+    }
+
     console.log(`[Notification Queue] Job ${job.id} [${type}] enqueued. (Queue size: ${this.queue.length})`);
     this.processQueue();
     return job.id;
@@ -255,6 +263,7 @@ class NotificationQueue {
       queuedJobsCount: this.queue.length,
       deadLetterCount: this.deadLetterQueue.length,
       maxConcurrency: this.maxConcurrency,
+      isDistributed: isRedisConnected(),
       metrics: { ...this.metrics }
     };
   }

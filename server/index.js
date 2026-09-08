@@ -141,6 +141,9 @@ const { httpLoggerMiddleware } = require('./utils/logger');
 app.use(requestIdMiddleware);
 app.use(httpLoggerMiddleware);
 
+const { metricsCollector } = require('./utils/metricsCollector');
+app.use(metricsCollector.middleware());
+
 // Import Routes
 const grievanceRoutes   = require('./routes/grievanceRoutes');
 const aiRoutes          = require('./routes/aiRoutes');
@@ -154,9 +157,11 @@ const publicRoutes      = require('./routes/publicRoutes');
 const uploadRoutes      = require('./routes/uploadRoutes');
 const messagingRoutes   = require('./routes/messagingRoutes');
 const healthRoutes      = require('./routes/healthRoutes');
+const metricsRoutes     = require('./routes/metricsRoutes');
 
 // 5. Versioned API Routing & Observability
 app.use('/metrics', healthRoutes);
+app.use('/api/v1/metrics', metricsRoutes);
 app.use('/api/v1/health', healthRoutes);
 app.use('/api/v1/grievances', grievanceRoutes);
 app.use('/api/v1/ai', aiRoutes);

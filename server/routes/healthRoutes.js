@@ -68,7 +68,10 @@ const handlePrometheusMetrics = (req, res) => {
   if (circuitState === CircuitState.OPEN) circuitCode = 1;
   else if (circuitState === CircuitState.HALF_OPEN) circuitCode = 2;
 
-  const prometheusMetrics = [
+  const { metricsCollector } = require('../utils/metricsCollector');
+  const advancedPrometheus = metricsCollector.toPrometheusFormat();
+
+  const basePrometheusMetrics = [
     '# HELP process_uptime_seconds Total uptime of the Node.js process in seconds.',
     '# TYPE process_uptime_seconds counter',
     `process_uptime_seconds ${uptime.toFixed(2)}`,
@@ -108,7 +111,7 @@ const handlePrometheusMetrics = (req, res) => {
   ].join('\n');
 
   res.setHeader('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
-  res.status(200).send(prometheusMetrics);
+  res.status(200).send(`${basePrometheusMetrics}\n${advancedPrometheus}`);
 };
 
 router.get('/metrics', handlePrometheusMetrics);
