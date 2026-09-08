@@ -182,8 +182,54 @@ export const LandingPage = () => {
             </a>
           </div>
 
-          {/* Dashboard Hero Preview */}
+          {/* Dashboard Hero Preview & Command Operations Showcase */}
           <div className="pt-8 space-y-12">
+            {/* Live Interactive Command Center HUD Preview */}
+            <div className="relative rounded-3xl p-1 bg-linear-to-b from-indigo-500/30 via-white/5 to-transparent border border-white/10 shadow-2xl shadow-indigo-950/50 overflow-hidden group">
+              <div className="relative rounded-[calc(1.5rem-2px)] overflow-hidden bg-slate-950">
+                <img 
+                  src="/images/hero-command-center.jpg" 
+                  alt="ResolveNow Enterprise Incident Command Center" 
+                  className="w-full h-auto max-h-[520px] object-cover object-center group-hover:scale-[1.02] transition-transform duration-700 ease-out"
+                />
+                <div className="absolute inset-0 bg-linear-to-t from-slate-950 via-slate-950/40 to-transparent pointer-events-none" />
+                
+                {/* Floating Telemetry HUD Badges */}
+                <div className="absolute top-4 left-4 sm:top-6 sm:left-6 flex flex-wrap items-center gap-2">
+                  <div className="px-3 py-1.5 rounded-full bg-slate-950/85 backdrop-blur-md border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold flex items-center gap-2 shadow-lg">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                    <span>LIVE COMMAND CENTER</span>
+                  </div>
+                  <div className="hidden sm:flex px-3 py-1.5 rounded-full bg-slate-950/85 backdrop-blur-md border border-indigo-500/30 text-indigo-300 text-xs font-mono font-bold">
+                    <span>99.4% SLA TIMELINESS</span>
+                  </div>
+                  <div className="hidden md:flex px-3 py-1.5 rounded-full bg-slate-950/85 backdrop-blur-md border border-cyan-500/30 text-cyan-300 text-xs font-mono font-bold">
+                    <span>INSTANT AUTO-RESOLUTION</span>
+                  </div>
+                </div>
+
+                <div className="absolute bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6 flex flex-col sm:flex-row items-start sm:items-end justify-between gap-3 text-left">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-indigo-400 font-bold">
+                      National Redressal Architecture • Real-Time Operations
+                    </span>
+                    <h3 className="text-lg sm:text-2xl font-heading font-black text-white">
+                      Automated Incident Ingestion & Officer Triage Command
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-300 max-w-xl leading-relaxed">
+                      Unified civic command terminal featuring automated department queue load-balancing, multimodal voice transcription, and cryptographic ticket verification.
+                    </p>
+                  </div>
+
+                  <Link to="/public-status">
+                    <MotionButton variant="glow" size="sm" rightIcon={ArrowRight}>
+                      Live Ticket HUD
+                    </MotionButton>
+                  </Link>
+                </div>
+              </div>
+            </div>
+
             <DashboardPreviewMock />
 
             {/* Interactive Live AI Triage Sandbox */}
@@ -194,39 +240,118 @@ export const LandingPage = () => {
         </AnimatedSection>
 
         {/* ========================================================================= */}
-        {/* SECTION 2: ABOUT PROJECT */}
+        {/* SECTION 2: ABOUT RESOLVENOW (Rich Asymmetric Visual Showcase) */}
         {/* ========================================================================= */}
-        <AnimatedSection className="w-full max-w-5xl">
-          <GlassPanel doubleBezel className="p-8 sm:p-12 text-left space-y-6">
-            <ResponsiveTextBlock
-              eyebrow="About ResolveNow"
-              title="Next-Generation Institutional Redressal Infrastructure"
-              center={false}
-            />
+        <AnimatedSection className="w-full max-w-6xl">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            
+            {/* Left: Futuristic Campus & Civic Infrastructure Image */}
+            <div className="lg:col-span-6 relative group">
+              <div className="relative rounded-3xl p-1.5 bg-linear-to-br from-cyan-500/30 via-indigo-500/20 to-transparent border border-white/15 shadow-2xl shadow-cyan-950/40 overflow-hidden">
+                <div className="relative rounded-2xl overflow-hidden bg-slate-950">
+                  <img 
+                    src="/images/about-institution-network.jpg" 
+                    alt="ResolveNow Institutional Digital Redressal Infrastructure" 
+                    className="w-full h-[440px] sm:h-[480px] object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
+                  />
+                  <div className="absolute inset-0 bg-linear-to-t from-slate-950/90 via-slate-950/20 to-transparent pointer-events-none" />
 
-            <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
-              ResolveNow is a smart digital grievance portal designed for colleges, universities, corporate offices, public sector bodies, and organizations. It replaces outdated paper forms and unmonitored emails with an automated end-to-end framework where users can submit complaints, track real-time milestones, and receive verified resolutions. Powered by Gemini AI, ResolveNow categorizes grievances, evaluates urgency scores, calculates SLA deadlines, and dispatches real-time alerts to officers.
-            </p>
+                  {/* Overlay Badge Pills */}
+                  <div className="absolute top-4 left-4 flex flex-wrap gap-2">
+                    <span className="px-3 py-1 rounded-full bg-slate-950/85 backdrop-blur-md border border-cyan-500/40 text-cyan-300 font-mono text-[10px] font-bold tracking-wider uppercase">
+                      🏛️ Centralized Redressal Tower
+                    </span>
+                    <span className="px-3 py-1 rounded-full bg-slate-950/85 backdrop-blur-md border border-indigo-500/40 text-indigo-300 font-mono text-[10px] font-bold tracking-wider uppercase">
+                      Mesh Network
+                    </span>
+                  </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-white/10 font-mono text-xs">
-              <div>
-                <span className="text-slate-400 block uppercase text-[9px]">Target Sector</span>
-                <span className="font-bold text-white">Higher Ed & Offices</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block uppercase text-[9px]">AI Engine</span>
-                <span className="font-bold text-indigo-400">Gemini 1.5 Pro</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block uppercase text-[9px]">Security</span>
-                <span className="font-bold text-emerald-400">ISO-27001 RLS</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block uppercase text-[9px]">Compliance</span>
-                <span className="font-bold text-cyan-400">48-Hour SLA</span>
+                  <div className="absolute bottom-4 left-4 right-4 p-4 rounded-xl bg-slate-950/85 backdrop-blur-md border border-white/10 text-left space-y-1">
+                    <div className="flex items-center justify-between text-xs font-mono">
+                      <span className="text-slate-400">Institutional Redressal Fabric:</span>
+                      <span className="text-emerald-400 font-bold">100% Connected</span>
+                    </div>
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      Direct fiber-speed routing connecting student affairs, academic departments, municipal offices, and leadership terminals.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
-          </GlassPanel>
+
+            {/* Right: Narrative & Strategic Value */}
+            <div className="lg:col-span-6 text-left space-y-6">
+              <ResponsiveTextBlock
+                eyebrow="About ResolveNow"
+                title="Next-Generation Institutional Redressal Infrastructure"
+                center={false}
+              />
+
+              <p className="text-slate-300 text-sm sm:text-base leading-relaxed font-medium">
+                ResolveNow is a unified digital grievance redresal system engineered for colleges, universities, corporate enterprises, and civic bodies. It replaces lost paper folders, untracked complaints, and silent delays with an automated, auditable resolution lifecycle with zero margin for bureaucratic stagnation.
+              </p>
+
+              {/* 3 Core Architecture Highlights */}
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 p-3.5 rounded-xl bg-white/5 border border-white/10 hover:border-indigo-500/30 transition-colors">
+                  <div className="p-2 rounded-lg bg-indigo-500/20 text-indigo-400 shrink-0 mt-0.5">
+                    <Cpu size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">AI-Driven Urgency & Auto-Triage</h4>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Gemini AI analyzes natural language, evaluates citizen frustration scores, and auto-dispatches tickets to the exact designated terminal.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3.5 rounded-xl bg-white/5 border border-white/10 hover:border-emerald-500/30 transition-colors">
+                  <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400 shrink-0 mt-0.5">
+                    <Clock size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">Enforced 24h-48h SLA Escalation Timers</h4>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Automated countdown clocks notify officers and trigger supervisor escalations if complaints approach deadline breach.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3.5 rounded-xl bg-white/5 border border-white/10 hover:border-cyan-500/30 transition-colors">
+                  <div className="p-2 rounded-lg bg-cyan-500/20 text-cyan-400 shrink-0 mt-0.5">
+                    <ShieldCheck size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">Public Cryptographic Milestone Ledger</h4>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Users track resolution milestones publicly via reference ticket keys without login, preventing tampering or silent ticket dismissal.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Target Spec Badges */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 font-mono text-xs">
+                <div className="p-2.5 rounded-xl bg-slate-950/60 border border-white/10">
+                  <span className="text-slate-400 block uppercase text-[9px]">Target Sector</span>
+                  <span className="font-bold text-white">Higher Ed & Offices</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-slate-950/60 border border-white/10">
+                  <span className="text-slate-400 block uppercase text-[9px]">AI Engine</span>
+                  <span className="font-bold text-indigo-400">Gemini 1.5 Pro</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-slate-950/60 border border-white/10">
+                  <span className="text-slate-400 block uppercase text-[9px]">Security</span>
+                  <span className="font-bold text-emerald-400">ISO-27001 RLS</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-slate-950/60 border border-white/10">
+                  <span className="text-slate-400 block uppercase text-[9px]">Compliance</span>
+                  <span className="font-bold text-cyan-400">48-Hour SLA</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
         </AnimatedSection>
 
         {/* ========================================================================= */}
@@ -256,6 +381,90 @@ export const LandingPage = () => {
               </GlassPanel>
             ))}
           </LandingGrid>
+        </AnimatedSection>
+
+        {/* ========================================================================= */}
+        {/* SECTION 3B: AI MULTIMODAL INTAKE & VERIFIED TRACKING SHOWCASE */}
+        {/* ========================================================================= */}
+        <AnimatedSection className="w-full max-w-6xl space-y-8">
+          <ResponsiveTextBlock
+            eyebrow="Multimodal AI Architecture"
+            title="Intelligent Voice Triage & Verifiable Milestone Ledger"
+          />
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            {/* Left Column: Feature highlights */}
+            <div className="lg:col-span-5 text-left space-y-5 order-2 lg:order-1">
+              <div className="space-y-2">
+                <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono text-[10px] font-bold uppercase tracking-wider">
+                  Next-Gen Citizen Ingestion
+                </span>
+                <h3 className="text-2xl sm:text-3xl font-heading font-black text-white">
+                  Speak, Transcribe, Triage & Track in Seconds
+                </h3>
+                <p className="text-slate-300 text-sm leading-relaxed">
+                  ResolveNow eliminates typing hurdles with our high-fidelity Voice Studio. Citizens can record audio in Hindi, English, Tamil, Telugu, and 8+ Indian regional dialects. Gemini Multimodal parses acoustics, extracts grievance intent, computes an automated urgency index, and mints a verifiable tracking timeline.
+                </p>
+              </div>
+
+              <div className="space-y-3 font-mono text-xs">
+                <div className="flex items-center gap-3 text-slate-300">
+                  <CheckCircle2 size={16} className="text-indigo-400 shrink-0" />
+                  <span>Real-time audio waveform recording & noise reduction</span>
+                </div>
+                <div className="flex items-center gap-3 text-slate-300">
+                  <CheckCircle2 size={16} className="text-cyan-400 shrink-0" />
+                  <span>Automated 1-10 Urgency & Frustration scoring</span>
+                </div>
+                <div className="flex items-center gap-3 text-slate-300">
+                  <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                  <span>Sub-minute auto-resolution for standard questions</span>
+                </div>
+                <div className="flex items-center gap-3 text-slate-300">
+                  <CheckCircle2 size={16} className="text-amber-400 shrink-0" />
+                  <span>Cryptographic hash verification of every ticket milestone</span>
+                </div>
+              </div>
+
+              <div className="pt-2 flex flex-wrap gap-3">
+                <Link to="/submit-grievance">
+                  <MotionButton variant="glow" size="md" leftIcon={Mic}>
+                    Try Voice Intake Studio
+                  </MotionButton>
+                </Link>
+                <Link to="/public-status">
+                  <MotionButton variant="outline" size="md" leftIcon={Search}>
+                    Verify Ticket Ledger
+                  </MotionButton>
+                </Link>
+              </div>
+            </div>
+
+            {/* Right Column: Holographic Tablet Image */}
+            <div className="lg:col-span-7 order-1 lg:order-2 group">
+              <div className="relative rounded-3xl p-1.5 bg-linear-to-bl from-indigo-500/30 via-emerald-500/20 to-transparent border border-white/15 shadow-2xl shadow-indigo-950/40 overflow-hidden">
+                <div className="relative rounded-2xl overflow-hidden bg-slate-950">
+                  <img 
+                    src="/images/ai-voice-triage-flow.jpg" 
+                    alt="AI Speech Wave Analysis and Verified Blockchain Ticket Timeline" 
+                    className="w-full h-[380px] sm:h-[450px] object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
+                  />
+                  <div className="absolute inset-0 bg-linear-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none" />
+
+                  {/* Floating HUD chips */}
+                  <div className="absolute bottom-4 left-4 right-4 flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-slate-950/85 backdrop-blur-md border border-white/10">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="text-[11px] font-mono font-bold text-white">Live Voice Triage Engine: ACTIVE</span>
+                    </div>
+                    <span className="text-[10px] font-mono text-cyan-300 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-500/30">
+                      Urgency: 8.5/10 Critical
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </AnimatedSection>
 
         {/* ========================================================================= */}
