@@ -63,7 +63,9 @@ const authenticateToken = async (req, res, next) => {
           try {
             const redisVal = await redisClient.get(`resolvenow:user:${userId}`);
             if (redisVal) cached = JSON.parse(redisVal);
-          } catch {}
+          } catch (_err) {
+            // Non-critical cache read failure; fallback to Clerk API
+          }
         }
 
         if (cached && cached.expiresAt > Date.now()) {
