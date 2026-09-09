@@ -738,11 +738,22 @@ const grievanceService = {
     }
 
     const isAdmin = user && (user.role === 'admin' || user.role === 'super admin');
+    const isOwner = user && ticket.user_id && String(ticket.user_id) === String(user.id);
 
-    if (!isAdmin) {
-      const err = new Error('Access Denied: Insufficient administrative privileges to delete grievance records.');
+    if (!isAdmin && !isOwner) {
+      const err = new Error('Access Denied: Insufficient privileges to delete or cancel this grievance record.');
       err.status = 403;
       throw err;
+    }
+
+    // Students/owners can only cancel pending, unserviced, or draft tickets (not tickets actively being worked on)
+    if (!isAdmin && isOwner) {
+      const cancellableStatuses = ['Pending', 'Submitted', 'Assigned', 'Draft', 'AUTO_RESOLVED'];
+      if (!cancellableStatuses.includes(ticket.status)) {
+        const err = new Error(`Cannot cancel ticket #${ticket.ticket_id} because its current status is '${ticket.status}'. Only pending submissions can be canceled.`);
+        err.status = 400;
+        throw err;
+      }
     }
 
     await grievanceRepository.delete(id);

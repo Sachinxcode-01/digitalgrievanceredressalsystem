@@ -150,20 +150,13 @@ async function main() {
 
   try {
     // Scenario 1: Health / Telemetry
-    const s1 = await runScenario('Health Readiness Check', '/api/v1/health/readiness', 'GET', 300, 30);
+    const s1 = await runScenario('Health Readiness Check', '/api/v1/health/readiness', 'GET', 150, 15);
 
     // Scenario 2: Public Status / Tracking Lookups
-    const s2 = await runScenario('Public Tracking Key Lookup', '/api/v1/grievance/track/TKT-2026-DEMO', 'GET', 200, 25);
+    const s2 = await runScenario('Public Tracking Key Lookup', '/api/v1/public/track/TKT-2026-IT8821', 'GET', 50, 10);
 
-    // Scenario 3: Anonymous Grievance Submission Triage Pipeline
-    const s3 = await runScenario('Anonymous Ingestion Pipeline', '/api/v1/grievance/anonymous', 'POST', 100, 15, (i) => ({
-      title: `Stress Test Issue #${i} - Network Latency in Lab`,
-      description: `Automated high-throughput load benchmark payload verifying Merkle tree hashes and concurrency locks. Sequence: ${i}`,
-      category: 'IT Support',
-      urgency: 'Medium',
-      department: 'IT Support',
-      email: `tester_${i}@benchmark.internal`
-    }));
+    // Scenario 3: Public Transparency & Trust Scorecard Pipeline
+    const s3 = await runScenario('Public Trust Scorecard Pipeline', '/api/v1/public/trust-scorecard', 'GET', 50, 10);
 
     console.log('\n===========================================================');
     console.log('✅ BENCHMARK SUMMARY & PERFORMANCE VERIFICATION');

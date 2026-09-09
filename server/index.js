@@ -76,6 +76,7 @@ const apiLimiter = rateLimit({
       return 100;
     }
   },
+  skip: (req) => req.path.includes('/health') || req.path.includes('/metrics'),
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   message: { error: 'Too many requests from this IP. Please try again after 15 minutes.' }

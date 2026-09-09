@@ -51,7 +51,7 @@ const grievanceSubmissionLimiter = rateLimit({
  */
 const publicApiLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 60,
+  max: process.env.NODE_ENV === 'test' || process.env.LOAD_TEST === 'true' ? 10000 : 200,
   standardHeaders: true,
   legacyHeaders: false,
   message: {

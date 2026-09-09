@@ -600,6 +600,10 @@ const grievanceRepository = {
       alreadyUpvoted: false,
       escalated: newCount === 3 || newCount === 7 || newCount === 10
     };
+  },
+
+  async findAll(limit = 1000, offset = 0, filters = {}) {
+    return this.getAll(filters);
   }
 };
 
