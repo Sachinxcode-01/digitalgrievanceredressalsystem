@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Clock, AlertCircle, ChevronLeft, Landmark, Activity, CheckCircle2, QrCode, Download, ShieldCheck, Copy, FileDown, Check, Smartphone, Zap } from 'lucide-react';
+import { Search, Clock, AlertCircle, ChevronLeft, Landmark, Activity, CheckCircle2, QrCode, Download, ShieldCheck, Copy, FileDown, Check, Smartphone, Zap, Lock, FileText, RotateCcw } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { apiClient } from '../../api/apiClient';
@@ -30,6 +30,7 @@ export const PublicStatusPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [hashCopied, setHashCopied] = useState(false);
   const [showMobileSimulator, setShowMobileSimulator] = useState(false);
 
   const fetchTicketDetails = async (idToFetch) => {
@@ -152,6 +153,27 @@ export const PublicStatusPage = () => {
     setCopied(true);
     toast.success('Public tracking link copied!');
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopyHash = (hash) => {
+    if (!hash) return;
+    navigator.clipboard.writeText(hash);
+    setHashCopied(true);
+    toast.success('SHA-256 Ledger Hash copied!');
+    setTimeout(() => setHashCopied(false), 2000);
+  };
+
+  const getReopenWindowDetails = (t) => {
+    if (!t || !['Resolved', 'Closed', 'AUTO_RESOLVED'].includes(t.status)) return null;
+    const resolvedTime = new Date(t.resolved_at || t.updated_at || t.created_at).getTime();
+    const now = Date.now();
+    const diffHours = (now - resolvedTime) / (1000 * 60 * 60);
+    const remaining = Math.max(0, Math.ceil(72 - diffHours));
+    return {
+      isOpen: diffHours < 72,
+      remainingHours: remaining,
+      canReopen: diffHours < 72 && (Number(t.reopen_count) || 0) < 1
+    };
   };
 
   const handleExportPdf = () => {
@@ -291,6 +313,66 @@ export const PublicStatusPage = () => {
                   </div>
                 </div>
 
+                {/* Active Lifecycle Banner: Citizen Clarification / SLA Paused */}
+                {(ticket.status === 'Pending User Response' || ticket.sla_paused_at) && (
+                  <div className="p-4 rounded-2xl bg-linear-to-r from-amber-950/70 via-amber-900/30 to-slate-950 border border-amber-500/40 text-left space-y-2 shadow-lg shadow-amber-500/10">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center justify-center">
+                          <Clock size={15} />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-heading font-black text-amber-300 uppercase tracking-wider">
+                            Statutory SLA Paused • Citizen Clarification Requested
+                          </h4>
+                          <p className="text-[10px] text-amber-200/80 font-mono">
+                            Investigation suspended pending citizen clarification submission
+                          </p>
+                        </div>
+                      </div>
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase">
+                        Paused
+                      </span>
+                    </div>
+                    {ticket.clarification_requested && (
+                      <div className="p-3 rounded-xl bg-slate-950/80 border border-amber-500/20 text-xs text-amber-100 font-sans leading-relaxed">
+                        <span className="font-mono text-[10px] font-bold text-amber-400 block mb-1 uppercase tracking-wider">Officer Inquiry:</span>
+                        {ticket.clarification_requested}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Active Lifecycle Banner: Grievance Reopened */}
+                {(ticket.status === 'Reopened' || Number(ticket.reopen_count) > 0) && (
+                  <div className="p-4 rounded-2xl bg-linear-to-r from-indigo-950/70 via-purple-950/40 to-slate-950 border border-indigo-500/40 text-left space-y-2 shadow-lg shadow-indigo-500/10">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 flex items-center justify-center">
+                          <RotateCcw size={15} />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-heading font-black text-indigo-200 uppercase tracking-wider">
+                            Grievance Reopened For Re-Investigation
+                          </h4>
+                          <p className="text-[10px] text-indigo-300/80 font-mono">
+                            Reopen Cycle #{ticket.reopen_count || 1} • Escalated for secondary supervisor audit
+                          </p>
+                        </div>
+                      </div>
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 uppercase">
+                        Reopened
+                      </span>
+                    </div>
+                    {ticket.reopen_reason && (
+                      <div className="p-3 rounded-xl bg-slate-950/80 border border-indigo-500/20 text-xs text-slate-200 font-sans leading-relaxed">
+                        <span className="font-mono text-[10px] font-bold text-indigo-400 block mb-1 uppercase tracking-wider">Complainant Reopen Rationale:</span>
+                        "{ticket.reopen_reason}"
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
                   <div className="md:col-span-2 space-y-3">
                     <div>
@@ -328,8 +410,106 @@ export const PublicStatusPage = () => {
                   onUpvoteSuccess={(updated) => setTicket(updated)} 
                 />
 
+                {/* Official Redressal Resolution Dossier Card */}
+                {(() => {
+                  const isResolved = ['Resolved', 'Closed'].includes(ticket.status) || Boolean(ticket.resolution_notes || ticket.root_cause || ticket.resolution_proof_url);
+                  if (!isResolved && ticket.status !== 'AUTO_RESOLVED') return null;
+
+                  const reopenWindow = getReopenWindowDetails(ticket);
+
+                  return (
+                    <div className="p-5 rounded-2xl bg-linear-to-br from-slate-900/90 via-slate-950 to-indigo-950/30 border border-emerald-500/30 text-left space-y-4 shadow-xl">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
+                            <CheckCircle2 size={18} />
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-heading font-black text-white uppercase tracking-wider">
+                              Official Redressal Resolution Dossier
+                            </h3>
+                            <span className="text-[10px] font-mono text-slate-400">
+                              Departmental Corrective Action & Audit Ledger
+                            </span>
+                          </div>
+                        </div>
+
+                        {ticket.root_cause && (
+                          <span className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                            <AlertCircle size={12} className="text-indigo-400" />
+                            Root Cause: {ticket.root_cause}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Resolution Statement */}
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest block">
+                          Official Resolution Statement
+                        </span>
+                        <div className="p-3.5 rounded-xl bg-slate-950/90 border border-emerald-500/20 text-xs text-slate-200 leading-relaxed font-sans whitespace-pre-wrap">
+                          {ticket.resolution_notes || ticket.auto_resolution_notes || 'Grievance resolved following institutional standard operating procedure remediation.'}
+                        </div>
+                      </div>
+
+                      {/* Resolution Proof Evidence */}
+                      {ticket.resolution_proof_url && (
+                        <div className="p-3.5 rounded-xl bg-slate-950/70 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                              <FileText size={16} />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-heading font-bold text-white truncate">
+                                Verified Remediation Evidence Artifact
+                              </p>
+                              <p className="text-[10px] font-mono text-slate-400">
+                                Official corrective action inspection documentation submitted by officer
+                              </p>
+                            </div>
+                          </div>
+                          <a
+                            href={ticket.resolution_proof_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-mono font-bold transition-all shrink-0 cursor-pointer"
+                          >
+                            <Download size={13} />
+                            <span>Inspect Evidence</span>
+                          </a>
+                        </div>
+                      )}
+
+                      {/* 72-Hour Citizen Reopen Grace Window */}
+                      {reopenWindow && (
+                        <div className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${
+                          reopenWindow.isOpen
+                            ? 'bg-amber-500/10 border-amber-500/30 text-amber-200'
+                            : 'bg-slate-950/60 border-white/10 text-slate-400'
+                        }`}>
+                          <div className="flex items-center gap-2 text-xs font-mono">
+                            <Clock size={14} className={reopenWindow.isOpen ? 'text-amber-400 shrink-0' : 'text-slate-500 shrink-0'} />
+                            <span>
+                              {reopenWindow.isOpen
+                                ? `72-Hour Citizen Grace Window Active: ${reopenWindow.remainingHours}h remaining to request supervisor reassessment`
+                                : '72-Hour Citizen Grace Window Concluded • Resolution Finalized & Audited'}
+                            </span>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider self-start sm:self-auto ${
+                            reopenWindow.isOpen
+                              ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300'
+                              : 'bg-slate-800 text-slate-400 border border-slate-700'
+                          }`}>
+                            {reopenWindow.isOpen ? 'Active' : 'Sealed'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 {/* Instant Knowledge Base Auto-Resolution Guidance Banner */}
-                {(ticket.status === 'AUTO_RESOLVED' || ticket.auto_resolution_notes) && (
+                {(ticket.status === 'AUTO_RESOLVED' || ticket.auto_resolution_notes) && !ticket.resolution_notes && (
                   <div className="p-4 rounded-2xl bg-linear-to-br from-emerald-950/60 to-slate-950 border border-emerald-500/30 text-left space-y-2.5 shadow-lg shadow-emerald-500/10">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -349,7 +529,7 @@ export const PublicStatusPage = () => {
                     </div>
 
                     <div className="p-3.5 rounded-xl bg-slate-900/90 border border-emerald-500/20 text-xs text-slate-200 leading-relaxed font-sans whitespace-pre-wrap">
-                      {ticket.auto_resolution_notes || ticket.resolution_notes || 'Resolved via standard operating procedure guidance.'}
+                      {ticket.auto_resolution_notes || 'Resolved via standard operating procedure guidance.'}
                     </div>
                   </div>
                 )}
@@ -405,6 +585,39 @@ export const PublicStatusPage = () => {
                     Download Official PDF Receipt
                   </AnimatedButton>
                 </div>
+
+                {/* Cryptographic SHA-256 Case Ledger Integrity Stamp */}
+                {ticket.proof_hash && (
+                  <div className="p-4 rounded-2xl bg-linear-to-r from-slate-950 via-indigo-950/30 to-slate-950 border border-indigo-500/20 space-y-2.5">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck size={16} className="text-indigo-400" />
+                        <span className="text-[10px] font-mono font-bold text-indigo-300 uppercase tracking-widest">
+                          Cryptographic Case Ledger Integrity Stamp
+                        </span>
+                      </div>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                        <Lock size={10} />
+                        Tamper-Evident SHA-256 Seal
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-slate-950/90 border border-white/10 font-mono text-[11px] text-slate-300">
+                      <span className="truncate">{ticket.proof_hash}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyHash(ticket.proof_hash)}
+                        className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-300 border border-indigo-500/30 text-[10px] font-mono font-bold transition-all cursor-pointer"
+                        title="Copy Ledger Hash"
+                      >
+                        {hashCopied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                        <span>{hashCopied ? 'Copied' : 'Copy'}</span>
+                      </button>
+                    </div>
+                    <p className="text-[10px] font-sans text-slate-500">
+                      Canonical digest computed from grievance filing attributes. Any record tampering invalidates this cryptographic proof.
+                    </p>
+                  </div>
+                )}
 
                 {/* Audit Workflow Timeline */}
                 <div className="pt-2">

@@ -4,6 +4,8 @@ const grievanceRepository = require('../repositories/grievanceRepository');
 const cacheManager = require('../utils/cacheManager');
 const { publicApiLimiter } = require('../middleware/rateLimiter');
 
+const { generateGrievanceHash } = require('../utils/cryptoUtil');
+
 router.use(publicApiLimiter);
 
 // @route   GET /api/v1/public/track/:ticketId
@@ -26,11 +28,20 @@ router.get('/track/:ticketId', async (req, res, next) => {
       });
     }
 
+    const proofHash = rawTicket.proof_hash || generateGrievanceHash({
+      ticket_key: rawTicket.ticket_id,
+      subject: rawTicket.title,
+      description: rawTicket.description,
+      category: rawTicket.category,
+      created_at: rawTicket.created_at
+    });
+
     // Expose only safe public tracking parameters
     const safeData = {
       id: rawTicket.id,
       ticket_id: rawTicket.ticket_id,
       title: rawTicket.title,
+      description: rawTicket.description || '',
       category: rawTicket.category || 'General',
       department: rawTicket.department || 'Facilities & Maintenance',
       urgency: rawTicket.urgency || 'Medium',
@@ -38,10 +49,21 @@ router.get('/track/:ticketId', async (req, res, next) => {
       escalation_tier: rawTicket.escalation_tier || null,
       appeal_status: rawTicket.appeal_status || null,
       rating: rawTicket.rating || null,
+      nps_score: rawTicket.nps_score !== undefined ? rawTicket.nps_score : null,
+      resolution_satisfied: rawTicket.resolution_satisfied !== undefined ? rawTicket.resolution_satisfied : null,
       created_at: rawTicket.created_at,
       sla_due_at: rawTicket.sla_due_at,
       resolution_notes: rawTicket.resolution_notes || null,
-      resolved_at: rawTicket.resolved_at || null
+      resolved_at: rawTicket.resolved_at || null,
+      root_cause: rawTicket.root_cause || null,
+      resolution_proof_url: rawTicket.resolution_proof_url || null,
+      proof_hash: proofHash,
+      reopen_count: Number(rawTicket.reopen_count) || 0,
+      reopened_at: rawTicket.reopened_at || null,
+      reopen_reason: rawTicket.reopen_reason || null,
+      sla_paused_at: rawTicket.sla_paused_at || null,
+      clarification_requested: rawTicket.clarification_requested || null,
+      auto_resolution_notes: rawTicket.auto_resolution_notes || null
     };
 
     cacheManager.set(cacheKey, safeData, 60 * 1000); // 1 min TTL
