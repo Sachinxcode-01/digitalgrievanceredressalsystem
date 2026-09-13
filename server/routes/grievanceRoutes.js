@@ -11,6 +11,7 @@ const {
   checkSLABreaches,
   getGrievanceTimeline,
   submitFeedback,
+  reopenGrievance,
   deleteGrievance,
   upvoteGrievance,
   getCommunityClusters
@@ -22,7 +23,8 @@ const {
   validateUpdateGrievanceStatus, 
   validateAssignGrievance, 
   validateEscalateGrievance,
-  validateFeedback
+  validateFeedback,
+  validateReopenGrievance
 } = require('../validators/grievanceValidator');
 
 router.use(authenticateToken);
@@ -73,6 +75,10 @@ router.put('/:id/escalate', validateEscalateGrievance, escalateGrievance);
 // @route   POST /api/v1/grievances/:id/appeal
 // @desc    Dispute/Appeal a resolved grievance ticket
 router.post('/:id/appeal', appealGrievance);
+
+// @route   POST /api/v1/grievances/:id/reopen
+// @desc    Reopen a resolved or closed grievance within 72 hours
+router.post('/:id/reopen', validateReopenGrievance, reopenGrievance);
 
 // @route   GET /api/v1/grievances/:id/timeline
 // @desc    Fetch timeline log for a grievance

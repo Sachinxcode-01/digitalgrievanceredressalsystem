@@ -6,7 +6,7 @@ import {
   MapPin, CheckCircle, HelpCircle, Loader2, Calendar, ClipboardList, 
   AlertCircle, History, Info, Trash2, Star, Send, ThumbsUp, Smartphone,
   Plus, Paperclip, UploadCloud, Eye, ExternalLink, X, Image as ImageIcon,
-  Zap, Copy
+  Zap, Copy, RotateCcw
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '../../lib/supabase';
@@ -44,7 +44,14 @@ export const GrievanceDetailsPage = ({ user }) => {
   const [feedbackRating, setFeedbackRating] = useState(5);
   const [feedbackComments, setFeedbackComments] = useState('');
   const [feedbackTags, setFeedbackTags] = useState([]);
+  const [npsScore, setNpsScore] = useState(10);
+  const [resolutionSatisfied, setResolutionSatisfied] = useState(true);
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+
+  // 72h Reopen Modal states
+  const [showReopenModal, setShowReopenModal] = useState(false);
+  const [reopenReason, setReopenReason] = useState('');
+  const [isSubmittingReopen, setIsSubmittingReopen] = useState(false);
 
   // Appeal / Dispute states
   const [showAppealModal, setShowAppealModal] = useState(false);
@@ -184,17 +191,70 @@ export const GrievanceDetailsPage = ({ user }) => {
     }
   };
 
+  const getReopenWindowDetails = () => {
+    if (!ticket) return { isEligible: false, remainingText: '', isExpired: true };
+    const validStatuses = ['Resolved', 'Closed', 'AUTO_RESOLVED'];
+    if (!validStatuses.includes(ticket.status)) {
+      return { isEligible: false, remainingText: '', isExpired: false };
+    }
+    const refTime = ticket.resolved_at || ticket.updated_at || ticket.created_at;
+    if (!refTime) return { isEligible: true, remainingText: '72h window active', isExpired: false };
+    
+    const elapsedMs = Date.now() - new Date(refTime).getTime();
+    const totalWindowMs = 72 * 60 * 60 * 1000;
+    const remainingMs = totalWindowMs - elapsedMs;
+
+    if (remainingMs <= 0) {
+      return { isEligible: false, remainingText: '72h Reopen Window Expired', isExpired: true };
+    }
+
+    const hours = Math.floor(remainingMs / (1000 * 60 * 60));
+    const minutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+    return {
+      isEligible: true,
+      remainingText: `${hours}h ${minutes}m left to reopen`,
+      isExpired: false
+    };
+  };
+
   const handleSubmitFeedback = async (e) => {
     e.preventDefault();
     setIsSubmittingFeedback(true);
     try {
-      await grievanceService.submitFeedback(ticket.id, feedbackRating, feedbackComments, feedbackTags);
-      toast.success('Thank you! Your feedback rating has been submitted.');
+      await grievanceService.submitFeedback(
+        ticket.id, 
+        feedbackRating, 
+        feedbackComments, 
+        feedbackTags,
+        npsScore,
+        resolutionSatisfied
+      );
+      toast.success('Thank you! Your CSAT feedback & NPS rating have been recorded.');
       fetchTicketDetails();
     } catch (err) {
       toast.error('Feedback submission failed.');
     } finally {
       setIsSubmittingFeedback(false);
+    }
+  };
+
+  const handleReopenSubmit = async (e) => {
+    e.preventDefault();
+    if (!reopenReason || reopenReason.trim().length < 5) {
+      toast.error('Please enter a valid reason for reopening (min 5 characters).');
+      return;
+    }
+    setIsSubmittingReopen(true);
+    try {
+      await grievanceService.reopen(ticket.id, reopenReason.trim());
+      toast.success('Ticket successfully reopened within 72h window! Returned for priority review.');
+      setShowReopenModal(false);
+      setReopenReason('');
+      fetchTicketDetails();
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.response?.data?.error || err.message || 'Could not reopen grievance.');
+    } finally {
+      setIsSubmittingReopen(false);
     }
   };
 
@@ -780,23 +840,69 @@ export const GrievanceDetailsPage = ({ user }) => {
                       {ticket.auto_resolution_notes || ticket.resolution_notes || 'Resolved satisfactorily according to institutional guidelines.'}
                     </div>
 
-                    {/* Dispute / Appeal Resolution CTA */}
+                    {/* 72h Reopen Window & Dispute CTA */}
                     {ticket.status !== 'Disputed' && (
-                      <div className="pt-2 flex items-center justify-between border-t border-emerald-500/20">
-                        <div>
-                          <p className="text-xs font-bold text-foreground">Dissatisfied with this resolution?</p>
-                          <p className="text-[10px] text-muted-foreground">You have the right to file a formal dispute appeal to the Department Head / Ombudsman.</p>
+                      <div className="pt-3 border-t border-emerald-500/20 space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs font-bold text-foreground">Dissatisfied or Issue Reoccurred?</p>
+                              {(() => {
+                                const rw = getReopenWindowDetails();
+                                return (
+                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-mono font-bold border ${
+                                    rw.isEligible 
+                                      ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' 
+                                      : 'bg-muted text-muted-foreground border-border'
+                                  }`}>
+                                    ⏱️ {rw.remainingText}
+                                  </span>
+                                );
+                              })()}
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">
+                              You can reopen this ticket within 72 hours of resolution, or file a formal dispute appeal to the Ombudsman.
+                            </p>
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            {getReopenWindowDetails().isEligible && (
+                              <button
+                                type="button"
+                                onClick={() => setShowReopenModal(true)}
+                                className="px-3.5 py-1.5 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/30 text-orange-300 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                              >
+                                <RotateCcw size={13} />
+                                <span>Reopen Ticket</span>
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setShowAppealModal(true)}
+                              className="px-3.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold transition-all cursor-pointer"
+                            >
+                              Dispute & Appeal
+                            </button>
+                          </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setShowAppealModal(true)}
-                          className="px-3.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold transition-all cursor-pointer"
-                        >
-                          Dispute & Appeal
-                        </button>
                       </div>
                     )}
                   </div>
+
+                  {ticket.status === 'Reopened' && (
+                    <div className="p-4 rounded-2xl border border-orange-500/30 bg-orange-500/10 space-y-2">
+                      <div className="flex items-center gap-2 text-orange-400 font-bold text-xs">
+                        <RotateCcw size={16} />
+                        <span>Ticket Reopened (Investigation Cycle #{ticket.reopen_count || 1})</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Student Reopen Reason: <strong className="text-foreground">"{ticket.reopen_reason || 'Resolution incomplete / issue reoccurred.'}"</strong>
+                      </p>
+                      <p className="text-[10px] text-orange-300/80">
+                        This grievance has returned to the officer prioritized queue for expedited remediation.
+                      </p>
+                    </div>
+                  )}
 
                   {ticket.status === 'Disputed' && (
                     <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 space-y-2">
@@ -810,71 +916,226 @@ export const GrievanceDetailsPage = ({ user }) => {
                     </div>
                   )}
 
-                  {/* 5-Star Feedback Rating Box */}
-                  <form onSubmit={handleSubmitFeedback} className="bg-background/50 border border-border rounded-2xl p-5 space-y-4">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
-                      Submit Redressal Satisfaction Rating (CSAT)
-                    </h4>
-                    <div className="flex items-center gap-2">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <button
-                          key={star}
-                          type="button"
-                          onClick={() => setFeedbackRating(star)}
-                          className="p-1 cursor-pointer transition-transform hover:scale-125"
-                        >
-                          <Star 
-                            size={22} 
-                            className={star <= feedbackRating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/40"}
-                          />
-                        </button>
-                      ))}
-                      <span className="text-xs font-mono font-bold text-amber-400 ml-2">{feedbackRating} / 5 Stars</span>
-                    </div>
-
-                    {/* Tag Pills */}
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Satisfaction Tags</label>
-                      <div className="flex flex-wrap gap-1.5">
-                        {['Fast Resolution', 'Helpful Staff', 'Polite Communication', 'High Quality Work', 'Needs Follow-up', 'Delayed Response'].map((tag) => {
-                          const isSelected = feedbackTags.includes(tag);
-                          return (
-                            <button
-                              key={tag}
-                              type="button"
-                              onClick={() => {
-                                setFeedbackTags(prev => isSelected ? prev.filter(t => t !== tag) : [...prev, tag]);
-                              }}
-                              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer border ${
-                                isSelected 
-                                  ? 'bg-primary text-primary-foreground border-primary' 
-                                  : 'bg-muted/40 hover:bg-muted text-muted-foreground border-border'
-                              }`}
-                            >
-                              {tag}
-                            </button>
-                          );
-                        })}
+                  {/* Feedback Card (If Already Reviewed) or Feedback Submission Form */}
+                  {ticket.rating ? (
+                    <div className="bg-surface/80 border border-border/80 rounded-2xl p-5 space-y-4 text-left shadow-xs">
+                      <div className="flex items-center justify-between border-b border-border/50 pb-3">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="text-emerald-400" size={16} />
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                            Your CSAT Redressal Review
+                          </h4>
+                        </div>
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                          Verified Citizen Review
+                        </span>
                       </div>
+
+                      <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star 
+                                key={star}
+                                size={18} 
+                                className={star <= Number(ticket.rating) ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-xs font-mono font-bold text-amber-400">
+                            {ticket.rating} / 5 Stars
+                          </span>
+                        </div>
+
+                        {ticket.nps_score !== null && ticket.nps_score !== undefined && (
+                          <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-background border border-border">
+                            <span className="text-[10px] text-muted-foreground font-semibold">Recommendation NPS:</span>
+                            <span className={`text-xs font-mono font-black ${
+                              Number(ticket.nps_score) >= 9 
+                                ? 'text-emerald-400' 
+                                : Number(ticket.nps_score) >= 7 
+                                ? 'text-amber-400' 
+                                : 'text-rose-400'
+                            }`}>
+                              {ticket.nps_score}/10 {Number(ticket.nps_score) >= 9 ? '(Promoter)' : Number(ticket.nps_score) >= 7 ? '(Passive)' : '(Detractor)'}
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="px-2.5 py-1 rounded-xl bg-background border border-border text-[10px] font-bold text-muted-foreground">
+                          Resolution Status: <strong className={ticket.resolution_satisfied !== false ? 'text-emerald-400' : 'text-amber-400'}>
+                            {ticket.resolution_satisfied !== false ? 'Satisfactorily Resolved' : 'Partially Resolved'}
+                          </strong>
+                        </div>
+                      </div>
+
+                      {Array.isArray(ticket.feedback_tags) && ticket.feedback_tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {ticket.feedback_tags.map(tag => (
+                            <span key={tag} className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-muted/60 text-foreground border border-border/80">
+                              ✓ {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {ticket.feedback_comments && (
+                        <div className="p-3.5 rounded-xl bg-background border border-border/70 text-xs text-foreground italic">
+                          "{ticket.feedback_comments}"
+                        </div>
+                      )}
                     </div>
+                  ) : (
+                    <form onSubmit={handleSubmitFeedback} className="bg-background/50 border border-border rounded-2xl p-5 space-y-4 text-left">
+                      <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                          Submit Redressal Satisfaction Rating (CSAT)
+                        </h4>
+                        <span className="text-[10px] text-muted-foreground font-mono">1-Minute Survey</span>
+                      </div>
 
-                    <textarea
-                      rows={3}
-                      placeholder="Optional feedback comments regarding resolution speed and officer response..."
-                      value={feedbackComments}
-                      onChange={(e) => setFeedbackComments(e.target.value)}
-                      className="w-full bg-background border border-border rounded-xl p-3 text-xs text-foreground outline-none focus:border-primary resize-none"
-                    />
+                      {/* Resolution Satisfied Toggle */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
+                          Was your issue satisfactorily resolved?
+                        </label>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setResolutionSatisfied(true)}
+                            className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                              resolutionSatisfied 
+                                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-xs' 
+                                : 'bg-muted/40 text-muted-foreground border-border hover:bg-muted'
+                            }`}
+                          >
+                            ✅ Yes, Completely Resolved
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setResolutionSatisfied(false)}
+                            className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                              !resolutionSatisfied 
+                                ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 shadow-xs' 
+                                : 'bg-muted/40 text-muted-foreground border-border hover:bg-muted'
+                            }`}
+                          >
+                            ⚠️ Partially / Needs Improvement
+                          </button>
+                        </div>
+                      </div>
 
-                    <button
-                      type="submit"
-                      disabled={isSubmittingFeedback}
-                      className="btn-primary px-5 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-2 cursor-pointer"
-                    >
-                      {isSubmittingFeedback ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                      <span>Submit Feedback & Close</span>
-                    </button>
-                  </form>
+                      {/* 5-Star Rating */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
+                          Overall Satisfaction (1-5 Stars)
+                        </label>
+                        <div className="flex items-center gap-2">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <button
+                              key={star}
+                              type="button"
+                              onClick={() => setFeedbackRating(star)}
+                              className="p-1 cursor-pointer transition-transform hover:scale-125"
+                            >
+                              <Star 
+                                size={22} 
+                                className={star <= feedbackRating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"}
+                              />
+                            </button>
+                          ))}
+                          <span className="text-xs font-mono font-bold text-amber-400 ml-2">
+                            {feedbackRating} / 5 Stars ({
+                              feedbackRating === 5 ? 'Outstanding' :
+                              feedbackRating === 4 ? 'Good' :
+                              feedbackRating === 3 ? 'Acceptable' :
+                              feedbackRating === 2 ? 'Poor' : 'Very Poor'
+                            })
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* NPS Score (0-10) */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
+                            How likely are you to recommend our redressal system? (NPS 0-10)
+                          </label>
+                          <span className="text-[10px] font-mono font-bold text-primary">Score: {npsScore}/10</span>
+                        </div>
+                        <div className="grid grid-cols-11 gap-1">
+                          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => {
+                            const isSelected = npsScore === val;
+                            return (
+                              <button
+                                key={val}
+                                type="button"
+                                onClick={() => setNpsScore(val)}
+                                className={`py-1.5 text-center text-xs font-bold rounded-lg border transition-all cursor-pointer ${
+                                  isSelected
+                                    ? val >= 9 
+                                      ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm'
+                                      : val >= 7
+                                      ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-sm'
+                                      : 'bg-rose-500 text-white border-rose-600 shadow-sm'
+                                    : 'bg-background hover:bg-muted text-muted-foreground border-border'
+                                }`}
+                              >
+                                {val}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <div className="flex items-center justify-between text-[9px] text-muted-foreground px-1">
+                          <span>0 = Not at all likely</span>
+                          <span>10 = Extremely likely</span>
+                        </div>
+                      </div>
+
+                      {/* Tag Pills */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Satisfaction Highlights</label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {['Fast Resolution', 'Helpful Staff', 'Polite Communication', 'High Quality Work', 'Clear Communication', 'Needs Follow-up', 'Delayed Response'].map((tag) => {
+                            const isSelected = feedbackTags.includes(tag);
+                            return (
+                              <button
+                                key={tag}
+                                type="button"
+                                onClick={() => {
+                                  setFeedbackTags(prev => isSelected ? prev.filter(t => t !== tag) : [...prev, tag]);
+                                }}
+                                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer border ${
+                                  isSelected 
+                                    ? 'bg-primary text-primary-foreground border-primary' 
+                                    : 'bg-muted/40 hover:bg-muted text-muted-foreground border-border'
+                                }`}
+                              >
+                                {tag}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <textarea
+                        rows={3}
+                        placeholder="Share any comments on resolution quality, speed, or staff helpfulness..."
+                        value={feedbackComments}
+                        onChange={(e) => setFeedbackComments(e.target.value)}
+                        className="w-full bg-background border border-border rounded-xl p-3 text-xs text-foreground outline-none focus:border-primary resize-none"
+                      />
+
+                      <button
+                        type="submit"
+                        disabled={isSubmittingFeedback}
+                        className="btn-primary px-5 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-md"
+                      >
+                        {isSubmittingFeedback ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                        <span>Submit CSAT & Close Ticket</span>
+                      </button>
+                    </form>
+                  )}
                 </div>
               ) : (
                 <div className="p-6 rounded-2xl border border-amber-500/20 bg-amber-500/5 flex gap-3">
@@ -982,6 +1243,80 @@ export const GrievanceDetailsPage = ({ user }) => {
                   >
                     {isSubmittingAppeal ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
                     <span>Submit Appeal</span>
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 72h Reopen Modal */}
+      <AnimatePresence>
+        {showReopenModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-surface border border-border rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 text-left"
+            >
+              <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                <div className="flex items-center gap-2.5 text-orange-400">
+                  <RotateCcw size={20} />
+                  <h3 className="text-base font-heading font-black uppercase tracking-tight text-foreground">
+                    Reopen Grievance Ticket
+                  </h3>
+                </div>
+                <button 
+                  type="button" 
+                  onClick={() => setShowReopenModal(false)}
+                  className="p-1 rounded-lg text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="p-3.5 bg-orange-500/10 border border-orange-500/20 rounded-xl space-y-1">
+                <p className="text-xs font-bold text-orange-300">
+                  ⏱️ 72-Hour Reopen Window Active ({getReopenWindowDetails().remainingText})
+                </p>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  If the problem reoccurred or the resolution was unsatisfactory, you can reopen ticket <strong className="text-foreground">#{ticket?.ticket_id}</strong>. This will return it to the designated department coordinator with prioritized urgency.
+                </p>
+              </div>
+
+              <form onSubmit={handleReopenSubmit} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
+                    Why is this ticket still unresolved? (Minimum 5 characters)
+                  </label>
+                  <textarea
+                    rows={4}
+                    required
+                    placeholder="Describe what is still broken or why the resolution was incomplete..."
+                    value={reopenReason}
+                    onChange={(e) => setReopenReason(e.target.value)}
+                    className="w-full bg-background border border-border rounded-xl p-3 text-xs text-foreground outline-none focus:border-orange-400 resize-none"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-2 border-t border-border/60">
+                  <button 
+                    type="button"
+                    onClick={() => setShowReopenModal(false)}
+                    disabled={isSubmittingReopen}
+                    className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    disabled={isSubmittingReopen}
+                    className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-slate-950 text-xs font-bold rounded-xl flex items-center gap-2 cursor-pointer shadow-md"
+                  >
+                    {isSubmittingReopen ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+                    <span>Confirm & Reopen Ticket</span>
                   </button>
                 </div>
               </form>

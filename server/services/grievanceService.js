@@ -679,7 +679,7 @@ const grievanceService = {
     return grievanceRepository.getTimeline(id);
   },
 
-  async submitFeedback(id, rating, comments, user, ip, userAgent, feedbackTags = []) {
+  async submitFeedback(id, rating, comments, user, ip, userAgent, feedbackTags = [], npsScore = null, resolutionSatisfied = true) {
     const ticket = await grievanceRepository.findById(id);
     if (!ticket) {
       throw new Error('Grievance not found');
@@ -695,11 +695,19 @@ const grievanceService = {
     // Automated CSAT sentiment score: 4-5 is positive (+1), 3 is neutral (0), 1-2 is negative (-1)
     let sentimentScore = numericRating >= 4 ? 1 : (numericRating === 3 ? 0 : -1);
 
+    const parsedNps = (npsScore !== null && npsScore !== undefined && npsScore !== '')
+      ? Math.max(0, Math.min(10, parseInt(npsScore, 10)))
+      : null;
+
+    const isSatisfied = resolutionSatisfied !== undefined ? Boolean(resolutionSatisfied) : true;
+
     const updates = {
       rating: numericRating,
       feedback_comments: comments || '',
       feedback_tags: Array.isArray(feedbackTags) ? feedbackTags : [],
       sentiment_score: sentimentScore,
+      nps_score: parsedNps,
+      resolution_satisfied: isSatisfied,
       status: 'Closed',
       updated_at: new Date().toISOString()
     };
@@ -709,12 +717,14 @@ const grievanceService = {
     cacheManager.invalidate(`public:track:${ticket.id}`);
 
     // Timeline event
+    const npsText = parsedNps !== null ? ` | NPS: ${parsedNps}/10` : '';
+    const satText = isSatisfied ? 'Satisfied' : 'Unsatisfied';
     await grievanceRepository.addTimelineEvent({
       grievance_id: id,
       status: 'Closed',
       activity_type: 'feedback',
       performed_by: user.id,
-      notes: `CSAT Feedback submitted: Rating ${numericRating}/5. Tags: ${(updates.feedback_tags || []).join(', ') || 'None'}. Comments: ${comments || 'None'}. Ticket closed.`
+      notes: `CSAT Feedback submitted: Rating ${numericRating}/5${npsText} (${satText}). Tags: ${(updates.feedback_tags || []).join(', ') || 'None'}. Comments: ${comments || 'None'}. Ticket closed.`
     });
 
     // Audit Log
@@ -723,7 +733,100 @@ const grievanceService = {
       'GRIEVANCE_FEEDBACK_SUBMITTED',
       ip,
       userAgent,
-      { ticket_id: ticket.ticket_id, rating: numericRating, sentiment: sentimentScore, comments }
+      { 
+        ticket_id: ticket.ticket_id, 
+        rating: numericRating, 
+        nps_score: parsedNps, 
+        resolution_satisfied: isSatisfied,
+        sentiment: sentimentScore, 
+        comments 
+      }
+    );
+
+    return updatedTicket;
+  },
+
+  /**
+   * Reopen a resolved grievance within the 72-hour grace period.
+   * Enforces 72-hour time boundary from resolution timestamp.
+   */
+  async reopenGrievance(id, reason, user, ip, userAgent) {
+    const ticket = await grievanceRepository.findById(id);
+    if (!ticket) {
+      const err = new Error('Grievance ticket not found.');
+      err.status = 404;
+      throw err;
+    }
+
+    const isOwner = ticket.user_id === user.id || (user.email && ticket.email === user.email);
+    const isAdmin = user.role === 'admin' || user.role === 'super admin';
+    if (!isOwner && !isAdmin) {
+      const err = new Error('Access Denied: You are not authorized to reopen this grievance.');
+      err.status = 403;
+      throw err;
+    }
+
+    const validPriorStatuses = ['Resolved', 'Closed', 'AUTO_RESOLVED'];
+    if (!validPriorStatuses.includes(ticket.status)) {
+      const err = new Error(`Cannot reopen ticket #${ticket.ticket_id} because its current status is '${ticket.status}'. Only resolved or closed tickets can be reopened.`);
+      err.status = 400;
+      throw err;
+    }
+
+    if (!reason || typeof reason !== 'string' || reason.trim().length < 5) {
+      const err = new Error('A detailed reason (at least 5 characters) is required to reopen this grievance.');
+      err.status = 400;
+      throw err;
+    }
+
+    // Enforce 72-Hour Reopen Window
+    const resolutionTimestamp = ticket.resolved_at || ticket.updated_at || ticket.created_at;
+    if (resolutionTimestamp) {
+      const elapsedHours = (Date.now() - new Date(resolutionTimestamp).getTime()) / (1000 * 60 * 60);
+      if (elapsedHours > 72 && !isAdmin) {
+        const err = new Error('Reopen window expired: Grievances can only be reopened within 72 hours of resolution. Please submit a new grievance or file an official appeal.');
+        err.status = 400;
+        throw err;
+      }
+    }
+
+    const newReopenCount = (parseInt(ticket.reopen_count, 10) || 0) + 1;
+    const updates = {
+      status: 'Reopened',
+      reopen_reason: reason.trim(),
+      reopened_at: new Date().toISOString(),
+      reopen_count: newReopenCount,
+      updated_at: new Date().toISOString()
+    };
+
+    const updatedTicket = await grievanceRepository.update(id, updates);
+    cacheManager.invalidate(`public:track:${ticket.ticket_id}`);
+    cacheManager.invalidate(`public:track:${ticket.id}`);
+
+    // Timeline Event
+    await grievanceRepository.addTimelineEvent({
+      grievance_id: id,
+      status: 'Reopened',
+      activity_type: 'reopened',
+      performed_by: user.id,
+      notes: `Grievance Reopened by student within 72h window (Reopen #${newReopenCount}). Justification: "${reason.trim()}". Ticket returned to departmental queue for expedited review.`
+    });
+
+    // System Alert
+    await grievanceRepository.addSystemAlert({
+      type: 'GRIEVANCE_REOPENED',
+      message: `TICKET REOPENED: Citizen #${ticket.ticket_id} reopened resolution within 72h: "${reason.trim()}"`,
+      priority: 'high',
+      metadata: { ticket_id: ticket.ticket_id, reason: reason.trim(), reopen_count: newReopenCount }
+    });
+
+    // Audit Log
+    await logAudit(
+      user.id,
+      'GRIEVANCE_REOPENED',
+      ip,
+      userAgent,
+      { ticket_id: ticket.ticket_id, reopen_reason: reason.trim(), reopen_count: newReopenCount }
     );
 
     return updatedTicket;

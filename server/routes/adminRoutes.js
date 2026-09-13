@@ -23,7 +23,8 @@ const {
   replayDeadLetterJob,
   clearDeadLetterQueue,
   getDatabaseDiagnostics,
-  getLiveOpsTelemetry
+  getLiveOpsTelemetry,
+  getCsatAnalytics
 } = require('../controllers/adminController');
 const { authenticateToken, authorizeRoles, authorizePermissions } = require('../middleware/authMiddleware');
 const { 
@@ -227,5 +228,8 @@ router.get('/database/diagnostics', authorizePermissions('view_analytics'), getD
 
 // --- 9. Real-Time LiveOps Telemetry Matrix ---
 router.get('/telemetry/live-matrix', authorizePermissions('view_analytics'), getLiveOpsTelemetry);
+
+// --- 10. Student Grievance Feedback & CSAT Analytics ---
+router.get('/analytics/csat', authorizePermissions('view_analytics'), getCsatAnalytics);
 
 module.exports = router;

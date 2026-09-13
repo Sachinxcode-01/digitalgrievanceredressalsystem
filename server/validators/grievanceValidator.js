@@ -107,6 +107,26 @@ const validateFeedback = [
     .optional()
     .trim()
     .isLength({ max: 2000 }).withMessage('Feedback comments cannot exceed 2000 characters'),
+  body('nps_score')
+    .optional({ nullable: true })
+    .isInt({ min: 0, max: 10 }).withMessage('NPS score must be an integer between 0 and 10'),
+  body('resolution_satisfied')
+    .optional()
+    .isBoolean().withMessage('resolution_satisfied must be a boolean'),
+  body('feedback_tags')
+    .optional()
+    .isArray().withMessage('feedback_tags must be an array of tag strings'),
+  validate
+];
+
+/**
+ * Validation rules for reopening a resolved grievance within 72h
+ */
+const validateReopenGrievance = [
+  body('reason')
+    .trim()
+    .notEmpty().withMessage('A valid justification is required to reopen a grievance')
+    .isLength({ min: 5, max: 1000 }).withMessage('Reopen reason must be between 5 and 1000 characters'),
   validate
 ];
 
@@ -116,5 +136,6 @@ module.exports = {
   validateAssignGrievance,
   validateEscalateGrievance,
   validateComment,
-  validateFeedback
+  validateFeedback,
+  validateReopenGrievance
 };

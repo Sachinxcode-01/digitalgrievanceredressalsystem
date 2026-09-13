@@ -124,7 +124,7 @@ const getGrievanceTimeline = async (req, res, next) => {
  * Handle user feedback and satisfaction rating submission.
  */
 const submitFeedback = async (req, res, next) => {
-  const { rating, feedback_comments, feedback_tags } = req.body;
+  const { rating, feedback_comments, feedback_tags, nps_score, resolution_satisfied } = req.body;
   try {
     const updatedTicket = await grievanceService.submitFeedback(
       req.params.id,
@@ -133,7 +133,28 @@ const submitFeedback = async (req, res, next) => {
       req.user,
       req.ip,
       req.headers['user-agent'],
-      feedback_tags
+      feedback_tags,
+      nps_score,
+      resolution_satisfied
+    );
+    res.json(updatedTicket);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Handle citizen reopening of a resolved grievance within the 72h window.
+ */
+const reopenGrievance = async (req, res, next) => {
+  const { reason } = req.body;
+  try {
+    const updatedTicket = await grievanceService.reopenGrievance(
+      req.params.id,
+      reason,
+      req.user,
+      req.ip,
+      req.headers['user-agent']
     );
     res.json(updatedTicket);
   } catch (err) {
@@ -190,6 +211,7 @@ module.exports = {
   checkSLABreaches,
   getGrievanceTimeline,
   submitFeedback,
+  reopenGrievance,
   deleteGrievance,
   upvoteGrievance,
   getCommunityClusters

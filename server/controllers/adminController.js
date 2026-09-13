@@ -993,6 +993,19 @@ const getLiveOpsTelemetry = async (req, res, next) => {
   }
 };
 
+/**
+ * Retrieve CSAT satisfaction, Net Promoter Score, and Reopen Rate analytics
+ */
+const getCsatAnalytics = async (req, res, next) => {
+  const reportService = require('../services/reportService');
+  try {
+    const analytics = await reportService.getCsatAnalytics();
+    res.json({ success: true, analytics });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   broadcastToAll,
   getHealthMetrics,
@@ -1016,6 +1029,7 @@ module.exports = {
   replayDeadLetterJob,
   clearDeadLetterQueue,
   getDatabaseDiagnostics,
-  getLiveOpsTelemetry
+  getLiveOpsTelemetry,
+  getCsatAnalytics
 };
 

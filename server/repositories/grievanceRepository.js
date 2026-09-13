@@ -151,11 +151,12 @@ const grievanceRepository = {
       'appeal_reason', 'appeal_date', 'appeal_status', 'escalation_tier',
       'tier_escalated_at', 'escalated_to', 'upvote_count', 'upvoted_by',
       'proof_hash', 'secret_passkey', 'is_emergency', 'frustration_index',
-      'auto_resolution_notes'
+      'auto_resolution_notes', 'nps_score', 'resolution_satisfied',
+      'reopen_reason', 'reopened_at', 'reopen_count'
     ];
 
     const sanitizedPayload = {
-      id: `g-gen-${Date.now()}`,
+      id: grievanceData.id || `g-gen-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       created_at: new Date().toISOString(),
       upvote_count: grievanceData.upvote_count || 1,
       upvoted_by: grievanceData.upvoted_by || (grievanceData.user_id ? [grievanceData.user_id] : [])
@@ -198,7 +199,8 @@ const grievanceRepository = {
       'appeal_reason', 'appeal_date', 'appeal_status', 'escalation_tier',
       'tier_escalated_at', 'escalated_to', 'updated_at',
       'proof_hash', 'secret_passkey', 'is_emergency', 'frustration_index',
-      'auto_resolution_notes'
+      'auto_resolution_notes', 'nps_score', 'resolution_satisfied',
+      'reopen_reason', 'reopened_at', 'reopen_count'
     ];
 
     const sanitizedUpdates = {};
