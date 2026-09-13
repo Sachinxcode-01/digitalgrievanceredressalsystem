@@ -6,7 +6,7 @@ import {
   MapPin, CheckCircle, HelpCircle, Loader2, Calendar, ClipboardList, 
   AlertCircle, History, Info, Trash2, Star, Send, ThumbsUp, Smartphone,
   Plus, Paperclip, UploadCloud, Eye, ExternalLink, X, Image as ImageIcon,
-  Zap, Copy, RotateCcw
+  Zap, Copy, RotateCcw, Lock, FileText
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '../../lib/supabase';
@@ -66,6 +66,11 @@ export const GrievanceDetailsPage = ({ user }) => {
   const [showEvidenceUploader, setShowEvidenceUploader] = useState(false);
   const [selectedEvidenceFile, setSelectedEvidenceFile] = useState(null);
   const [isUploadingEvidence, setIsUploadingEvidence] = useState(false);
+
+  // Clarification states
+  const [clarificationReply, setClarificationReply] = useState('');
+  const [clarificationFile, setClarificationFile] = useState(null);
+  const [isSubmittingClarification, setIsSubmittingClarification] = useState(false);
 
   const fetchTicketDetails = async () => {
     try {
@@ -278,6 +283,35 @@ export const GrievanceDetailsPage = ({ user }) => {
     }
   };
 
+  const handleClarificationSubmit = async (e) => {
+    e.preventDefault();
+    if (!clarificationReply.trim()) {
+      return toast.error('Please write a clarification response for the investigating officer.');
+    }
+    setIsSubmittingClarification(true);
+    try {
+      let attachmentUrl = null;
+      if (clarificationFile) {
+        attachmentUrl = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (ev) => resolve(ev.target.result);
+          reader.readAsDataURL(clarificationFile);
+        });
+      }
+
+      const updated = await grievanceService.submitClarification(ticket.id, clarificationReply.trim(), attachmentUrl);
+      toast.success('Clarification submitted! SLA resolution timer has resumed.');
+      setClarificationReply('');
+      setClarificationFile(null);
+      setTicket(updated);
+      fetchTicketDetails();
+    } catch (err) {
+      toast.error(err.response?.data?.error || err.message || 'Failed to submit clarification.');
+    } finally {
+      setIsSubmittingClarification(false);
+    }
+  };
+
   const handleUploadEvidence = async () => {
     if (!selectedEvidenceFile) {
       toast.error('Please select a document or photo to upload.');
@@ -469,6 +503,79 @@ export const GrievanceDetailsPage = ({ user }) => {
               The original resolution was contested. Re-investigation has been mandated to the senior institutional ombudsman.
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Active Clarification Request Banner & Reply Form */}
+      {ticket.status === 'Pending User Response' && (
+        <div className="p-5 rounded-2xl bg-linear-to-r from-amber-500/15 via-surface to-amber-500/10 border border-amber-500/40 shadow-lg shadow-amber-500/5 space-y-4 text-left">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                <Clock size={18} />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-amber-300">
+                    Action Required: Officer Requested Clarification
+                  </h4>
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-500/25 text-amber-200 border border-amber-500/40">
+                    ⏸️ SLA Paused
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  The investigating officer has requested additional details before proceeding. The SLA resolution countdown is temporarily paused.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-xl bg-background/90 border border-amber-500/20 space-y-1.5">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-400 block">
+              Officer Question / Instruction:
+            </span>
+            <p className="text-xs text-foreground font-medium italic">
+              "{ticket.clarification_requested || 'Please provide additional details regarding your grievance.'}"
+            </p>
+          </div>
+
+          {/* Citizen Reply Form */}
+          <form onSubmit={handleClarificationSubmit} className="space-y-3 pt-1">
+            <div>
+              <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+                Your Clarification Response
+              </label>
+              <textarea
+                rows={3}
+                value={clarificationReply}
+                onChange={(e) => setClarificationReply(e.target.value)}
+                placeholder="Type your response or provide the requested details here..."
+                className="w-full p-3 rounded-xl bg-background border border-border text-foreground text-xs placeholder:text-muted-foreground/60 focus:outline-none focus:border-amber-500"
+                required
+              />
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+              <label className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-dashed border-border hover:border-amber-500/50 bg-background/50 hover:bg-amber-500/5 transition-all cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+                <Paperclip size={13} className="text-amber-400" />
+                <span className="truncate max-w-xs">{clarificationFile ? clarificationFile.name : 'Attach document/photo (Optional)'}</span>
+                <input
+                  type="file"
+                  onChange={(e) => setClarificationFile(e.target.files?.[0] || null)}
+                  className="hidden"
+                />
+              </label>
+
+              <button
+                type="submit"
+                disabled={isSubmittingClarification || !clarificationReply.trim()}
+                className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold flex items-center gap-2 cursor-pointer shadow-md shadow-amber-600/20 disabled:opacity-50"
+              >
+                {isSubmittingClarification ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                <span>Transmit Response & Resume SLA</span>
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
@@ -839,6 +946,73 @@ export const GrievanceDetailsPage = ({ user }) => {
                     <div className="p-4 rounded-xl bg-background/80 border border-border text-xs text-foreground font-medium whitespace-pre-wrap leading-relaxed">
                       {ticket.auto_resolution_notes || ticket.resolution_notes || 'Resolved satisfactorily according to institutional guidelines.'}
                     </div>
+
+                    {/* Root Cause Classification Tag */}
+                    {ticket.root_cause && (
+                      <div className="flex items-center gap-2 pt-1">
+                        <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-bold">Root Cause / Classification:</span>
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                          🏷️ {ticket.root_cause}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Verified Resolution Proof Attachment */}
+                    {ticket.resolution_proof_url && (
+                      <div className="p-4 rounded-xl bg-background/90 border border-emerald-500/30 space-y-2.5 text-left">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold">
+                            <CheckCircle size={14} />
+                            <span>Verified Officer Resolution Proof & Work Order Evidence</span>
+                          </div>
+                          <a
+                            href={ticket.resolution_proof_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            download={`resolution-proof-${ticket.ticket_id}`}
+                            className="text-[10px] text-primary hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                          >
+                            <span>Open / Download</span> &rarr;
+                          </a>
+                        </div>
+                        {ticket.resolution_proof_url.startsWith('data:image') || ticket.resolution_proof_url.match(/\.(jpg|jpeg|png|webp)($|\?)/i) ? (
+                          <div className="pt-1">
+                            <img
+                              src={ticket.resolution_proof_url}
+                              alt="Resolution Proof"
+                              className="max-h-72 w-auto rounded-lg border border-border shadow-xs object-contain cursor-pointer hover:opacity-95 transition-opacity"
+                              onClick={() => window.open(ticket.resolution_proof_url, '_blank')}
+                            />
+                          </div>
+                        ) : (
+                          <div className="p-3 bg-surface rounded-lg border border-border flex items-center gap-3 text-xs">
+                            <FileText size={20} className="text-emerald-400" />
+                            <div>
+                              <p className="font-bold text-foreground">Signed Service Sheet / Work Order Dossier</p>
+                              <span className="text-[10px] font-mono text-muted-foreground">Certified institutional record</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Internal Confidential Officer Notes (Staff Only) */}
+                    {ticket.internal_notes && ['officer', 'staff', 'faculty', 'admin', 'super admin'].includes(user?.role?.toLowerCase()) && (
+                      <div className="p-4 rounded-xl bg-indigo-950/20 border border-indigo-500/30 space-y-2 text-left">
+                        <div className="flex items-center gap-1.5 text-indigo-400 text-xs font-bold">
+                          <Lock size={13} />
+                          <span>Confidential Internal Officer Audit Notes (Staff Clearance Only)</span>
+                        </div>
+                        <p className="text-xs text-foreground font-mono bg-background/60 p-3 rounded-lg border border-border whitespace-pre-wrap leading-relaxed">
+                          {ticket.internal_notes}
+                        </p>
+                        {ticket.sla_total_paused_ms > 0 && (
+                          <p className="text-[10px] font-mono text-muted-foreground">
+                            ⏱️ Total SLA time paused during investigation: {Math.round(ticket.sla_total_paused_ms / 60000)} minutes
+                          </p>
+                        )}
+                      </div>
+                    )}
 
                     {/* 72h Reopen Window & Dispute CTA */}
                     {ticket.status !== 'Disputed' && (

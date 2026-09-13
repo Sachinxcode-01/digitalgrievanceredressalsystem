@@ -6,7 +6,8 @@ import {
   Activity, ChevronRight, ChevronLeft, FileDown, Loader2,
   RefreshCw, UserCheck, Layers, FileText, Check, ArrowRight,
   MessageSquare, Send, Bot, AlertCircle, Phone, Mail, Building,
-  Filter, Play, CheckSquare, CornerDownRight, ThumbsUp
+  Filter, Play, CheckSquare, CornerDownRight, ThumbsUp,
+  Lock, UploadCloud, Image as ImageIcon, Paperclip
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../../lib/supabase';
@@ -40,6 +41,10 @@ export const OfficerDashboardPage = ({ sessionUser, userProfile, onLogout }) => 
   // Resolution Modal State
   const [showResolveModal, setShowResolveModal] = useState(false);
   const [resolutionNotes, setResolutionNotes] = useState('');
+  const [internalNotes, setInternalNotes] = useState('');
+  const [rootCause, setRootCause] = useState('Facility / Hardware Maintenance');
+  const [resolutionProofFile, setResolutionProofFile] = useState(null);
+  const [resolutionProofPreview, setResolutionProofPreview] = useState('');
   const [isSubmittingResolution, setIsSubmittingResolution] = useState(false);
   const [aiGeneratingResolution, setAiGeneratingResolution] = useState(false);
 
@@ -47,6 +52,11 @@ export const OfficerDashboardPage = ({ sessionUser, userProfile, onLogout }) => 
   const [showEscalateModal, setShowEscalateModal] = useState(false);
   const [escalationReason, setEscalationReason] = useState('');
   const [isSubmittingEscalation, setIsSubmittingEscalation] = useState(false);
+
+  // Clarification / SLA Pause Modal State
+  const [showClarifyModal, setShowClarifyModal] = useState(false);
+  const [customClarificationText, setCustomClarificationText] = useState('');
+  const [isSubmittingClarify, setIsSubmittingClarify] = useState(false);
 
   const officerId = sessionUser?.id;
   const officerEmail = sessionUser?.email;
@@ -121,8 +131,12 @@ export const OfficerDashboardPage = ({ sessionUser, userProfile, onLogout }) => 
   // Status transition handler (1-click action buttons)
   const handleQuickStatusUpdate = async (ticketId, nextStatus, notes = '') => {
     try {
-      await grievanceService.updateStatus(ticketId, nextStatus, notes);
-      toast.success(`Status updated to "${nextStatus}"`);
+      const options = {};
+      if (nextStatus === 'Pending User Response') {
+        options.clarification_question = notes || 'Additional details required to continue investigation.';
+      }
+      await grievanceService.updateStatus(ticketId, nextStatus, notes, options);
+      toast.success(nextStatus === 'Pending User Response' ? 'Clarification requested & SLA countdown paused!' : `Status updated to "${nextStatus}"`);
 
       // Trigger Web Push & Simulated SMS Alert
       webPushService.triggerMilestoneAlert({
@@ -140,6 +154,58 @@ export const OfficerDashboardPage = ({ sessionUser, userProfile, onLogout }) => 
     }
   };
 
+  // Proof File Select Handler
+  const handleResolutionProofSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        return toast.error('Resolution proof file cannot exceed 5MB');
+      }
+      setResolutionProofFile(file);
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setResolutionProofPreview(ev.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Custom Clarification Submit (Pauses SLA)
+  const handleCustomClarificationSubmit = async (e) => {
+    e.preventDefault();
+    if (!customClarificationText.trim()) {
+      return toast.error('Please specify the question or details needed from the citizen.');
+    }
+
+    setIsSubmittingClarify(true);
+    try {
+      await grievanceService.updateStatus(
+        selectedTicket.id,
+        'Pending User Response',
+        customClarificationText.trim(),
+        { clarification_question: customClarificationText.trim() }
+      );
+      toast.success('Clarification requested! SLA paused until citizen responds.');
+
+      webPushService.triggerMilestoneAlert({
+        ticketId: selectedTicket?.ticket_id || selectedTicket.id,
+        status: 'Pending User Response',
+        title: selectedTicket?.title,
+        officerName: sessionUser?.fullName || 'Assigned Officer',
+        department: selectedTicket?.department || officerDept,
+        smsPhone: selectedTicket?.mobile_number || '+1 (555) 019-2834'
+      });
+
+      setShowClarifyModal(false);
+      setCustomClarificationText('');
+      fetchOfficerTickets();
+    } catch (err) {
+      toast.error(err.response?.data?.error || err.message || 'Failed to request clarification.');
+    } finally {
+      setIsSubmittingClarify(false);
+    }
+  };
+
   // Submit Resolution Handler
   const handleConfirmResolution = async (e) => {
     e.preventDefault();
@@ -149,8 +215,12 @@ export const OfficerDashboardPage = ({ sessionUser, userProfile, onLogout }) => 
 
     setIsSubmittingResolution(true);
     try {
-      await grievanceService.updateStatus(selectedTicket.id, 'Resolved', resolutionNotes.trim());
-      toast.success('Grievance marked as Resolved and citizen notified!');
+      await grievanceService.updateStatus(selectedTicket.id, 'Resolved', resolutionNotes.trim(), {
+        resolution_proof_url: resolutionProofPreview || null,
+        internal_notes: internalNotes.trim() || null,
+        root_cause: rootCause || null
+      });
+      toast.success('Grievance marked as Resolved with verified proof dossier!');
 
       // Trigger Resolution Web Push & SMS Alert
       webPushService.triggerMilestoneAlert({
@@ -164,6 +234,9 @@ export const OfficerDashboardPage = ({ sessionUser, userProfile, onLogout }) => 
 
       setShowResolveModal(false);
       setResolutionNotes('');
+      setInternalNotes('');
+      setResolutionProofFile(null);
+      setResolutionProofPreview('');
       fetchOfficerTickets();
     } catch (err) {
       toast.error(err.response?.data?.error || err.message || 'Failed to resolve grievance.');
@@ -519,6 +592,21 @@ export const OfficerDashboardPage = ({ sessionUser, userProfile, onLogout }) => 
                     </span>
                   </div>
 
+                  {selectedTicket.status === 'Pending User Response' && (
+                    <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-2.5 text-xs text-amber-300">
+                      <Clock size={16} className="shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold flex items-center gap-1.5">
+                          <span>SLA Timer Paused</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/30 font-mono">Awaiting Citizen Reply</span>
+                        </p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          Question asked: <span className="text-foreground italic">"{selectedTicket.clarification_requested || 'Additional details needed from citizen.'}"</span>
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* 1-Click Action Buttons */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                     {/* Accept / Start Working */}
@@ -531,14 +619,22 @@ export const OfficerDashboardPage = ({ sessionUser, userProfile, onLogout }) => 
                       <span>Start Working</span>
                     </button>
 
-                    {/* Request Info from Citizen */}
+                    {/* Request Information (Pauses SLA) */}
                     <button
-                      onClick={() => handleQuickStatusUpdate(selectedTicket.id, 'Pending User Response', 'Officer requested additional verification details from citizen.')}
-                      disabled={selectedTicket.status === 'Pending User Response' || selectedTicket.status === 'Resolved'}
-                      className="px-3 py-2.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-xs font-bold flex flex-col items-center justify-center gap-1 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                      onClick={() => {
+                        setCustomClarificationText('');
+                        setShowClarifyModal(true);
+                      }}
+                      disabled={selectedTicket.status === 'Resolved' || selectedTicket.status === 'Closed'}
+                      className={`px-3 py-2.5 rounded-xl border text-xs font-bold flex flex-col items-center justify-center gap-1 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${
+                        selectedTicket.status === 'Pending User Response'
+                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 ring-1 ring-amber-500/40'
+                          : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border-amber-500/30'
+                      }`}
+                      title="Request citizen clarification and pause SLA countdown"
                     >
                       <MessageSquare size={14} />
-                      <span>Request Info</span>
+                      <span>{selectedTicket.status === 'Pending User Response' ? 'Info Pending' : 'Request Info'}</span>
                     </button>
 
                     {/* Escalate Case */}
@@ -700,14 +796,99 @@ export const OfficerDashboardPage = ({ sessionUser, userProfile, onLogout }) => 
                     </div>
                   </div>
 
+                  {/* Root Cause Classification */}
+                  <div>
+                    <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+                      Root Cause Classification
+                    </label>
+                    <select
+                      value={rootCause}
+                      onChange={(e) => setRootCause(e.target.value)}
+                      className="w-full p-2.5 rounded-xl bg-background border border-border text-foreground text-xs focus:outline-none focus:border-primary"
+                    >
+                      <option value="Facility / Hardware Maintenance">🔧 Facility / Hardware Maintenance</option>
+                      <option value="IT Infrastructure & Connectivity">📶 IT Infrastructure & Connectivity</option>
+                      <option value="Academic & Registry Administration">📑 Academic & Registry Administration</option>
+                      <option value="Finance & Accounting Adjustment">💳 Finance & Accounting Adjustment</option>
+                      <option value="Policy & Procedural Clarification">📜 Policy & Procedural Clarification</option>
+                      <option value="Vendor / External Contractor Remediation">🛠️ Vendor / External Contractor Remediation</option>
+                      <option value="Operational Process Correction">⚙️ Operational Process Correction</option>
+                    </select>
+                  </div>
+
                   <textarea
-                    rows={4}
+                    rows={3}
                     value={resolutionNotes}
                     onChange={(e) => setResolutionNotes(e.target.value)}
                     placeholder="Describe specific corrective actions taken to resolve the grievance..."
                     className="w-full p-3 rounded-xl bg-background border border-border text-foreground text-xs placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
                     required
                   />
+
+                  {/* Internal Confidential Officer Notes */}
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex items-center gap-1.5 text-indigo-400">
+                      <Lock size={12} />
+                      <label className="text-[10px] font-mono font-bold uppercase tracking-wider">
+                        Internal Investigation & Audit Notes (Staff Only)
+                      </label>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Confidential officer notes. Stripped from citizen and public tracking responses.
+                    </p>
+                    <textarea
+                      rows={2}
+                      value={internalNotes}
+                      onChange={(e) => setInternalNotes(e.target.value)}
+                      placeholder="e.g., Replacement part charged under Department budget; vendor cautioned on SLA response..."
+                      className="w-full p-2.5 rounded-xl bg-background border border-border text-foreground text-xs placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary font-mono text-[11px]"
+                    />
+                  </div>
+
+                  {/* Resolution Proof File Attachment */}
+                  <div className="space-y-1.5 pt-1">
+                    <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground block">
+                      📎 Resolution Proof Attachment (Photo or Work Order Document)
+                    </label>
+                    {resolutionProofPreview ? (
+                      <div className="p-2.5 rounded-xl bg-background border border-emerald-500/30 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 truncate">
+                          {resolutionProofFile?.type?.startsWith('image/') || resolutionProofPreview.startsWith('data:image') ? (
+                            <img src={resolutionProofPreview} alt="Proof" className="w-10 h-10 object-cover rounded-lg border border-border shrink-0" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                              <FileText size={18} />
+                            </div>
+                          )}
+                          <div className="truncate">
+                            <p className="text-xs font-bold text-foreground truncate">{resolutionProofFile?.name || 'Verified Resolution Proof'}</p>
+                            <span className="text-[9px] font-mono text-emerald-400">Ready for citizen verification</span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setResolutionProofFile(null);
+                            setResolutionProofPreview('');
+                          }}
+                          className="px-2 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-bold transition-all cursor-pointer"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-border hover:border-emerald-500/50 bg-background/50 hover:bg-emerald-500/5 transition-all cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+                        <UploadCloud size={16} className="text-emerald-400" />
+                        <span>Upload Before/After Photo or Signed Work Order (Max 5MB)</span>
+                        <input
+                          type="file"
+                          accept="image/*,.pdf,.doc,.docx"
+                          onChange={handleResolutionProofSelect}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-end gap-3 pt-2">
@@ -727,6 +908,103 @@ export const OfficerDashboardPage = ({ sessionUser, userProfile, onLogout }) => 
                   >
                     Confirm Resolution
                   </AnimatedButton>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* REQUEST CITIZEN CLARIFICATION & PAUSE SLA MODAL */}
+        <AnimatePresence>
+          {showClarifyModal && selectedTicket && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                className="w-full max-w-lg bg-surface border border-amber-500/30 rounded-3xl p-6 shadow-2xl space-y-5 text-left"
+              >
+                <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                  <div className="flex items-center gap-2 text-amber-400">
+                    <MessageSquare size={18} />
+                    <h3 className="text-sm font-bold text-foreground">Request Citizen Clarification (Pause SLA)</h3>
+                  </div>
+                  <button onClick={() => setShowClarifyModal(false)} className="text-muted-foreground hover:text-foreground">
+                    <X size={16} />
+                  </button>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <Clock size={13} />
+                    <span>Automatic SLA Pause Protocol</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Submitting this request transitions ticket status to <strong className="text-foreground">"Pending User Response"</strong> and pauses the resolution timer until the citizen responds.
+                  </p>
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  <p className="text-muted-foreground">
+                    Ticket: <span className="font-bold text-foreground">#{selectedTicket.ticket_id} — {selectedTicket.title}</span>
+                  </p>
+
+                  {/* 1-Click Quick Clarification Templates */}
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground block">
+                      ⚡ Quick Clarification Templates
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { label: '📍 Specific Room / Location', text: 'Please specify the exact room number, floor, or building wing so our on-site team can inspect the issue directly.' },
+                        { label: '📷 Upload Evidence Photo', text: 'Please attach a clear photo or screenshot demonstrating the defect or error condition.' },
+                        { label: '💳 Share Transaction / UTR', text: 'Please reply with your bank transaction UTR reference number or payment receipt copy.' },
+                        { label: '📞 Preferred Callback Window', text: 'Please provide your convenient time window and phone number for a technical verification call.' }
+                      ].map((tmpl, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setCustomClarificationText(tmpl.text)}
+                          className="px-2 py-1 rounded-lg bg-background border border-border hover:border-amber-500/50 hover:bg-amber-500/10 text-[11px] font-medium text-foreground transition-all cursor-pointer"
+                        >
+                          {tmpl.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+                      Information Required from Citizen
+                    </label>
+                    <textarea
+                      rows={4}
+                      value={customClarificationText}
+                      onChange={(e) => setCustomClarificationText(e.target.value)}
+                      placeholder="Enter the specific question or details needed from the citizen..."
+                      className="w-full p-3 rounded-xl bg-background border border-border text-foreground text-xs placeholder:text-muted-foreground/60 focus:outline-none focus:border-amber-500"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowClarifyModal(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground border border-border cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCustomClarificationSubmit}
+                    disabled={isSubmittingClarify}
+                    className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold flex items-center gap-2 cursor-pointer shadow-md shadow-amber-600/20 disabled:opacity-50"
+                  >
+                    {isSubmittingClarify ? <Loader2 size={13} className="animate-spin" /> : <Clock size={13} />}
+                    <span>Request & Pause SLA</span>
+                  </button>
                 </div>
               </motion.div>
             </div>

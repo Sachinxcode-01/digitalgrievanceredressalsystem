@@ -42,9 +42,44 @@ const getGrievanceById = async (req, res, next) => {
  * Transition a grievance status.
  */
 const updateGrievanceStatus = async (req, res, next) => {
-  const { status, resolution_notes } = req.body;
+  const { 
+    status, 
+    resolution_notes, 
+    resolution_proof_url, 
+    internal_notes, 
+    root_cause, 
+    clarification_question 
+  } = req.body;
   try {
-    const updatedTicket = await grievanceService.updateGrievanceStatus(req.params.id, status, resolution_notes, req.user, req.ip, req.headers['user-agent']);
+    const updatedTicket = await grievanceService.updateGrievanceStatus(
+      req.params.id, 
+      status, 
+      resolution_notes, 
+      req.user, 
+      req.ip, 
+      req.headers['user-agent'],
+      { resolution_proof_url, internal_notes, root_cause, clarification_question }
+    );
+    res.json(updatedTicket);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Citizen response to officer clarification request (resumes SLA).
+ */
+const submitClarification = async (req, res, next) => {
+  const { clarification_response, attachment_url } = req.body;
+  try {
+    const updatedTicket = await grievanceService.submitClarification(
+      req.params.id,
+      clarification_response,
+      attachment_url,
+      req.user,
+      req.ip,
+      req.headers['user-agent']
+    );
     res.json(updatedTicket);
   } catch (err) {
     next(err);
@@ -214,7 +249,8 @@ module.exports = {
   reopenGrievance,
   deleteGrievance,
   upvoteGrievance,
-  getCommunityClusters
+  getCommunityClusters,
+  submitClarification
 };
 
 

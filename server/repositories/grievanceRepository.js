@@ -152,7 +152,10 @@ const grievanceRepository = {
       'tier_escalated_at', 'escalated_to', 'upvote_count', 'upvoted_by',
       'proof_hash', 'secret_passkey', 'is_emergency', 'frustration_index',
       'auto_resolution_notes', 'nps_score', 'resolution_satisfied',
-      'reopen_reason', 'reopened_at', 'reopen_count'
+      'reopen_reason', 'reopened_at', 'reopen_count',
+      'resolution_proof_url', 'internal_notes', 'root_cause',
+      'sla_paused_at', 'sla_total_paused_ms',
+      'clarification_requested', 'clarification_response'
     ];
 
     const sanitizedPayload = {
@@ -200,7 +203,10 @@ const grievanceRepository = {
       'tier_escalated_at', 'escalated_to', 'updated_at',
       'proof_hash', 'secret_passkey', 'is_emergency', 'frustration_index',
       'auto_resolution_notes', 'nps_score', 'resolution_satisfied',
-      'reopen_reason', 'reopened_at', 'reopen_count'
+      'reopen_reason', 'reopened_at', 'reopen_count',
+      'resolution_proof_url', 'internal_notes', 'root_cause',
+      'sla_paused_at', 'sla_total_paused_ms',
+      'clarification_requested', 'clarification_response'
     ];
 
     const sanitizedUpdates = {};
@@ -515,7 +521,7 @@ const grievanceRepository = {
       .from('grievances')
       .select('*')
       .lt('sla_due_at', nowString)
-      .not('status', 'in', '("Resolved","Closed","Rejected","Escalated","Draft")');
+      .not('status', 'in', '("Resolved","Closed","Rejected","Escalated","Draft","Pending User Response")');
     if (error) throw error;
     return data || [];
   },

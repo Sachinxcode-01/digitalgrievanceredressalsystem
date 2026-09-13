@@ -14,7 +14,8 @@ const {
   reopenGrievance,
   deleteGrievance,
   upvoteGrievance,
-  getCommunityClusters
+  getCommunityClusters,
+  submitClarification
 } = require('../controllers/grievanceController');
 const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
 const { grievanceSubmissionLimiter } = require('../middleware/rateLimiter');
@@ -24,7 +25,8 @@ const {
   validateAssignGrievance, 
   validateEscalateGrievance,
   validateFeedback,
-  validateReopenGrievance
+  validateReopenGrievance,
+  validateClarificationResponse
 } = require('../validators/grievanceValidator');
 
 router.use(authenticateToken);
@@ -83,6 +85,10 @@ router.post('/:id/reopen', validateReopenGrievance, reopenGrievance);
 // @route   GET /api/v1/grievances/:id/timeline
 // @desc    Fetch timeline log for a grievance
 router.get('/:id/timeline', getGrievanceTimeline);
+
+// @route   POST /api/v1/grievances/:id/clarify
+// @desc    Submit citizen clarification response to officer request (resumes SLA)
+router.post('/:id/clarify', validateClarificationResponse, submitClarification);
 
 // @route   POST /api/v1/grievances/:id/feedback
 // @desc    Submit user satisfaction feedback rating and close ticket

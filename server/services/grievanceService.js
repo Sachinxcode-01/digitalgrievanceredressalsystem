@@ -307,10 +307,17 @@ const grievanceService = {
       throw err;
     }
 
+    // Strip internal_notes for non-officer / non-admin users
+    if (!isAdmin && !isOfficer && !isAssignee) {
+      const sanitized = { ...grievance };
+      delete sanitized.internal_notes;
+      return sanitized;
+    }
+
     return grievance;
   },
 
-  async updateGrievanceStatus(id, status, resolutionNotes, user, ip, userAgent) {
+  async updateGrievanceStatus(id, status, resolutionNotes, user, ip, userAgent, options = {}) {
     const ticket = await grievanceRepository.findById(id);
     if (!ticket) {
       const err = new Error('Grievance not found');
@@ -355,14 +362,42 @@ const grievanceService = {
       throw err;
     }
 
+    const {
+      resolution_proof_url,
+      internal_notes,
+      root_cause,
+      clarification_question
+    } = options || {};
+
     const updates = {
       status,
       updated_at: new Date().toISOString()
     };
 
+    let timelineNotes = status === 'Resolved' ? (resolutionNotes || 'Grievance resolved successfully.') : `Status updated from ${ticket.status} to ${status}`;
+
     if (status === 'Resolved') {
       updates.resolution_notes = resolutionNotes || 'Grievance resolved successfully.';
       updates.resolved_at = new Date().toISOString();
+      if (resolution_proof_url) updates.resolution_proof_url = resolution_proof_url;
+      if (internal_notes) updates.internal_notes = internal_notes;
+      if (root_cause) {
+        updates.root_cause = root_cause;
+        timelineNotes += ` [Root Cause: ${root_cause}]`;
+      }
+      if (ticket.sla_paused_at) {
+        const pauseMs = Date.now() - new Date(ticket.sla_paused_at).getTime();
+        updates.sla_paused_at = null;
+        updates.sla_total_paused_ms = (ticket.sla_total_paused_ms || 0) + pauseMs;
+      }
+    } else if (status === 'Pending User Response') {
+      const question = clarification_question || resolutionNotes || 'Additional clarification requested by investigating officer.';
+      updates.clarification_requested = question;
+      updates.sla_paused_at = new Date().toISOString();
+      if (internal_notes) updates.internal_notes = internal_notes;
+      timelineNotes = `Officer requested citizen clarification: "${question}" (SLA paused)`;
+    } else if (internal_notes) {
+      updates.internal_notes = internal_notes;
     }
 
     const updatedTicket = await grievanceRepository.update(id, updates);
@@ -371,9 +406,9 @@ const grievanceService = {
     await grievanceRepository.addTimelineEvent({
       grievance_id: id,
       status,
-      activity_type: status === 'Resolved' ? 'resolution' : 'status_change',
+      activity_type: status === 'Resolved' ? 'resolution' : (status === 'Pending User Response' ? 'clarification_requested' : 'status_change'),
       performed_by: user.id,
-      notes: status === 'Resolved' ? resolutionNotes : `Status updated from ${ticket.status} to ${status}`
+      notes: timelineNotes
     });
 
     // Audit Log
@@ -828,6 +863,100 @@ const grievanceService = {
       userAgent,
       { ticket_id: ticket.ticket_id, reopen_reason: reason.trim(), reopen_count: newReopenCount }
     );
+
+    return updatedTicket;
+  },
+
+  /**
+   * Submit citizen clarification response to officer request.
+   * Resumes SLA countdown and extends sla_due_at by paused time.
+   */
+  async submitClarification(id, responseText, attachmentUrl, user, ip, userAgent) {
+    const ticket = await grievanceRepository.findById(id);
+    if (!ticket) {
+      const err = new Error('Grievance not found');
+      err.status = 404;
+      throw err;
+    }
+
+    const isAdmin = user && (user.role === 'admin' || user.role === 'super admin');
+    const isOwner = user && (ticket.user_id === user.id || (user.email && ticket.email === user.email));
+
+    if (!isOwner && !isAdmin) {
+      const err = new Error('Access Denied: You are not authorized to respond to this ticket');
+      err.status = 403;
+      throw err;
+    }
+
+    if (ticket.status !== 'Pending User Response') {
+      const err = new Error(`Cannot submit clarification because ticket status is '${ticket.status}'. Clarification is only accepted when pending citizen response.`);
+      err.status = 400;
+      throw err;
+    }
+
+    if (!responseText || responseText.trim().length < 3) {
+      const err = new Error('Please provide a substantive clarification response (at least 3 characters).');
+      err.status = 400;
+      throw err;
+    }
+
+    // Calculate SLA pause duration and extend sla_due_at
+    const now = Date.now();
+    let pauseDurationMs = 0;
+    if (ticket.sla_paused_at) {
+      pauseDurationMs = Math.max(0, now - new Date(ticket.sla_paused_at).getTime());
+    }
+
+    let extendedSlaDueAt = ticket.sla_due_at;
+    if (ticket.sla_due_at && pauseDurationMs > 0) {
+      extendedSlaDueAt = new Date(new Date(ticket.sla_due_at).getTime() + pauseDurationMs).toISOString();
+    }
+
+    const updates = {
+      status: 'In Progress',
+      clarification_response: responseText.trim(),
+      sla_paused_at: null,
+      sla_total_paused_ms: (Number(ticket.sla_total_paused_ms) || 0) + pauseDurationMs,
+      sla_due_at: extendedSlaDueAt,
+      updated_at: new Date().toISOString()
+    };
+
+    if (attachmentUrl) {
+      updates.attachment_url = attachmentUrl;
+    }
+
+    const updatedTicket = await grievanceRepository.update(id, updates);
+
+    // Invalidate cache
+    cacheManager.invalidate(`public:track:${ticket.ticket_id}`);
+    cacheManager.invalidate(`public:track:${ticket.id}`);
+
+    // Timeline event
+    const pauseMinutes = Math.round(pauseDurationMs / 60000);
+    await grievanceRepository.addTimelineEvent({
+      grievance_id: id,
+      status: 'In Progress',
+      activity_type: 'clarification_provided',
+      performed_by: user.id,
+      notes: `Citizen provided clarification: "${responseText.trim()}" (SLA resumed${pauseMinutes > 0 ? `, adjusted +${pauseMinutes}m` : ''})`
+    });
+
+    // Audit log
+    await logAudit(
+      user.id,
+      'GRIEVANCE_CLARIFICATION_SUBMITTED',
+      ip,
+      userAgent,
+      { ticket_id: ticket.ticket_id, pause_duration_ms: pauseDurationMs }
+    );
+
+    // System Alert
+    await grievanceRepository.addSystemAlert({
+      type: 'GRIEVANCE_CLARIFICATION',
+      message: `Citizen answered clarification request for #${ticket.ticket_id}: "${responseText.trim().slice(0, 80)}"`,
+      priority: 'normal',
+      metadata: { ticket_id: ticket.ticket_id, status: 'In Progress', grievance_id: id }
+    });
 
     return updatedTicket;
   },

@@ -138,9 +138,14 @@ export const grievanceService = {
   /**
    * Transition a grievance's workflow status.
    */
-  async updateStatus(id, status, resolutionNotes) {
+  async updateStatus(id, status, resolutionNotes, options = {}) {
+    const payload = {
+      status,
+      resolution_notes: resolutionNotes,
+      ...options
+    };
     try {
-      const response = await apiClient.put(`/grievances/${id}/status`, { status, resolution_notes: resolutionNotes });
+      const response = await apiClient.put(`/grievances/${id}/status`, payload);
       return response.data;
     } catch (err) {
       console.debug('[grievanceService.updateStatus fallback]:', err.message);
@@ -150,10 +155,40 @@ export const grievanceService = {
     if (match) {
       match.status = status;
       match.resolution_notes = resolutionNotes;
+      if (options.resolution_proof_url) match.resolution_proof_url = options.resolution_proof_url;
+      if (options.internal_notes) match.internal_notes = options.internal_notes;
+      if (options.root_cause) match.root_cause = options.root_cause;
+      if (options.clarification_question) match.clarification_requested = options.clarification_question;
+      if (status === 'Pending User Response') match.sla_paused_at = new Date().toISOString();
       localStorage.setItem('resolvenow_local_grievances', JSON.stringify(localData));
       return match;
     }
-    return { id, status, resolution_notes: resolutionNotes };
+    return { id, status, resolution_notes: resolutionNotes, ...options };
+  },
+
+  /**
+   * Submit citizen clarification to resume paused SLA.
+   */
+  async submitClarification(id, responseText, attachmentUrl = null) {
+    try {
+      const response = await apiClient.post(`/grievances/${id}/clarify`, {
+        clarification_response: responseText,
+        attachment_url: attachmentUrl
+      });
+      return response.data;
+    } catch (err) {
+      console.debug('[grievanceService.submitClarification fallback]:', err.message);
+      const localData = getLocalGrievances();
+      const match = localData.find(g => g.id === id || g.ticket_id === id);
+      if (match) {
+        match.status = 'In Progress';
+        match.clarification_response = responseText;
+        match.sla_paused_at = null;
+        localStorage.setItem('resolvenow_local_grievances', JSON.stringify(localData));
+        return match;
+      }
+      throw err;
+    }
   },
 
   /**

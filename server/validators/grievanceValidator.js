@@ -55,6 +55,22 @@ const validateUpdateGrievanceStatus = [
     .optional()
     .trim()
     .isLength({ max: 2000 }).withMessage('Resolution notes cannot exceed 2000 characters'),
+  body('resolution_proof_url')
+    .optional({ nullable: true })
+    .trim()
+    .isLength({ max: 1000 }).withMessage('Resolution proof URL cannot exceed 1000 characters'),
+  body('internal_notes')
+    .optional({ nullable: true })
+    .trim()
+    .isLength({ max: 2000 }).withMessage('Internal audit notes cannot exceed 2000 characters'),
+  body('root_cause')
+    .optional({ nullable: true })
+    .trim()
+    .isLength({ max: 100 }).withMessage('Root cause classification cannot exceed 100 characters'),
+  body('clarification_question')
+    .optional({ nullable: true })
+    .trim()
+    .isLength({ max: 1000 }).withMessage('Clarification question cannot exceed 1000 characters'),
   validate
 ];
 
@@ -130,6 +146,21 @@ const validateReopenGrievance = [
   validate
 ];
 
+/**
+ * Validation rules for citizen clarification response
+ */
+const validateClarificationResponse = [
+  body('clarification_response')
+    .trim()
+    .notEmpty().withMessage('Clarification response message is required')
+    .isLength({ min: 3, max: 2000 }).withMessage('Clarification response must be between 3 and 2000 characters'),
+  body('attachment_url')
+    .optional({ nullable: true })
+    .trim()
+    .isLength({ max: 1000 }).withMessage('Attachment URL cannot exceed 1000 characters'),
+  validate
+];
+
 module.exports = {
   validateCreateGrievance,
   validateUpdateGrievanceStatus,
@@ -137,5 +168,6 @@ module.exports = {
   validateEscalateGrievance,
   validateComment,
   validateFeedback,
-  validateReopenGrievance
+  validateReopenGrievance,
+  validateClarificationResponse
 };
