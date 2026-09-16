@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Send, Sparkles, Loader2, Mic, MicOff, CheckCircle2, 
   MapPin, X, Plus, ArrowLeft, Paperclip, ClipboardList,
-  Copy, ArrowRight, Ticket, Flame, ThumbsUp
+  Copy, ArrowRight, Ticket, Flame, ThumbsUp, Lock, ExternalLink, QrCode
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../../lib/supabase';
@@ -27,6 +27,7 @@ import FileUploadZone from '../../components/ui/FileUploadZone';
 import GuidedTourModal from '../../components/ui/GuidedTourModal';
 import EvidenceOcrScanner from '../../components/ui/EvidenceOcrScanner';
 import KnowledgeDeflector from '../../components/forms/KnowledgeDeflector';
+import TicketQrCodeBadge from '../../components/ui/TicketQrCodeBadge';
 import { HelpCircle, Sparkles as SparklesIcon, CheckCircle, ShieldCheck as ShieldIcon, ArrowRight as ArrowRightIcon } from 'lucide-react';
 
 export const SubmitGrievancePage = ({ user, sessionUser }) => {

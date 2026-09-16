@@ -1,16 +1,32 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import QRCode from 'qrcode';
 import { Printer, QrCode, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export const PrintableQrReceipt = ({ ticket }) => {
+  const [qrSvgUrl, setQrSvgUrl] = useState('');
+
+  const ticketRef = ticket?.ticket_id || ticket?.id || '';
+  const trackingUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/track?ticket=${encodeURIComponent(ticketRef)}`
+    : `https://resolvenow.campus.edu/track?ticket=${encodeURIComponent(ticketRef)}`;
+
+  useEffect(() => {
+    if (!ticketRef) return;
+    QRCode.toDataURL(trackingUrl, {
+      margin: 1,
+      width: 200,
+      color: { dark: '#0f172a', light: '#ffffff' }
+    })
+      .then(url => setQrSvgUrl(url))
+      .catch(() => {});
+  }, [ticketRef, trackingUrl]);
+
   if (!ticket) return null;
 
   const handlePrint = () => {
     window.print();
   };
-
-  const trackingUrl = `https://resolvenow.gov.in/track?ref=${encodeURIComponent(ticket.ticket_id || ticket.id)}`;
-  const qrSvgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(trackingUrl)}&bgcolor=ffffff&color=0f172a&margin=2`;
 
   return (
     <div className="p-4 rounded-2xl bg-surface/90 border border-border shadow-md flex items-center justify-between gap-3 text-left">
