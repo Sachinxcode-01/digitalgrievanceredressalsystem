@@ -14,7 +14,7 @@ import toast from 'react-hot-toast';
 import AnimatedNavbar from '../../components/ui/AnimatedNavbar';
 import CounterCard from '../../components/ui/CounterCard';
 import GlassPanel from '../../components/ui/GlassPanel';
-import { AuroraBackground } from '../../components/ui/BackgroundEffects';
+import { AuroraBackground, ElegantFloatingShape } from '../../components/ui/BackgroundEffects';
 import ProcessFlowDiagram from '../../components/ui/ProcessFlowDiagram';
 import DashboardPreviewMock from '../../components/ui/DashboardPreviewMock';
 import { AiSandboxDemo } from '../../components/ui/AiSandboxDemo';
@@ -115,42 +115,119 @@ export const LandingPage = () => {
     <AuroraBackground>
       <AnimatedNavbar user={user} onLogout={logout} />
 
-      <div className="w-full flex flex-col items-center pt-32 pb-24 px-4 sm:px-6 space-y-32">
+      <div className="w-full flex flex-col items-center pt-32 pb-24 px-4 sm:px-6 space-y-32"
+           style={{ willChange: 'auto' }}>
         
         {/* ========================================================================= */}
         {/* SECTION 1: HERO SECTION */}
         {/* ========================================================================= */}
         <AnimatedSection className="text-center max-w-5xl mx-auto space-y-8">
-          <div className="flex justify-center">
-            <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 shadow-xl shadow-indigo-500/10">
-              <Award size={14} className="animate-pulse text-indigo-400" />
+          {/* ── 21st.dev Hero-Scoped Floating Geometric Shapes ── */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none -z-0" aria-hidden="true">
+            {/* Soft indigo radial orb centered behind the title text */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-gradient-to-b from-indigo-600/18 via-violet-600/8 to-transparent rounded-full blur-[120px]" />
+
+            {/* Hero capsule shapes — scaled slightly smaller than global BG shapes */}
+            <ElegantFloatingShape
+              delay={0.15}
+              width={480}
+              height={100}
+              rotate={10}
+              gradient="from-indigo-400/[0.16] via-blue-400/[0.08]"
+              className="left-[-18%] top-[10%]"
+            />
+            <ElegantFloatingShape
+              delay={0.3}
+              width={420}
+              height={90}
+              rotate={-14}
+              gradient="from-violet-400/[0.15] via-purple-400/[0.07]"
+              className="right-[-15%] top-[30%]"
+            />
+            <ElegantFloatingShape
+              delay={0.5}
+              width={260}
+              height={65}
+              rotate={20}
+              gradient="from-cyan-400/[0.13] via-teal-400/[0.06]"
+              className="right-[-5%] top-[6%]"
+            />
+            <ElegantFloatingShape
+              delay={0.45}
+              width={200}
+              height={55}
+              rotate={-22}
+              gradient="from-rose-400/[0.11] via-pink-400/[0.05]"
+              className="left-[5%] bottom-[0%]"
+            />
+          </div>
+
+          {/* Hero Badge Pill — live indicator */}
+          <div className="flex justify-center relative z-10">
+            <motion.div
+              initial={{ opacity: 0, y: -10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.6, ease: [0.23, 0.86, 0.39, 0.96] }}
+              className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 shadow-xl shadow-indigo-500/10 backdrop-blur-sm"
+            >
+              {/* Animated live dot */}
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500" />
+              </span>
+              <Award size={12} className="text-indigo-400" />
               <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em]">
                 National Redressal Architecture v2.0
               </span>
-            </div>
+            </motion.div>
           </div>
 
-          {/* Hero Titles - Clean Centered Title Without 'R' Box */}
-          <div className="space-y-3">
-            <h1 className="text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-heading font-black tracking-tight leading-none uppercase bg-linear-to-r from-white via-slate-100 to-indigo-200 bg-clip-text text-transparent">
+          {/* Hero Titles */}
+          <div className="space-y-4 relative z-10">
+            <motion.h1
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 1, delay: 0.2, ease: [0.25, 0.4, 0.25, 1] }}
+              className="text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-heading font-black tracking-tight leading-none uppercase bg-gradient-to-br from-white via-slate-100 to-indigo-300 bg-clip-text text-transparent drop-shadow-[0_0_80px_rgba(99,102,241,0.35)]"
+            >
               ResolveNow
-            </h1>
+            </motion.h1>
 
-            <h2 className="text-xl sm:text-3xl md:text-4xl font-heading font-extrabold text-slate-200 tracking-tight max-w-4xl mx-auto">
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 1, delay: 0.4, ease: [0.25, 0.4, 0.25, 1] }}
+              className="text-xl sm:text-3xl md:text-4xl font-heading font-extrabold text-slate-300 tracking-tight max-w-4xl mx-auto"
+            >
               AI-Powered Digital Grievance Redressal System
-            </h2>
+            </motion.h2>
 
-            <div className="pt-2">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.8, delay: 0.65 }}
+              className="pt-2"
+            >
               <HeroTypewriter className="text-base sm:text-2xl md:text-3xl font-mono" />
-            </div>
+            </motion.div>
           </div>
 
-          <p className="text-sm sm:text-base md:text-lg text-slate-300 max-w-2xl mx-auto leading-relaxed font-medium">
+          <motion.p
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.9, delay: 0.75, ease: [0.25, 0.4, 0.25, 1] }}
+            className="text-sm sm:text-base md:text-lg text-slate-400 max-w-2xl mx-auto leading-relaxed font-medium relative z-10"
+          >
             Empowering institutions and citizens with an advanced, zero-trust digital redressal framework. Secure, authoritative, and committed to institutional accountability.
-          </p>
+          </motion.p>
 
-          {/* 4 Required CTA Buttons */}
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
+          {/* CTAs */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.9 }}
+            className="flex flex-wrap items-center justify-center gap-3 pt-4 relative z-10"
+          >
             <Link to={isAuthenticated ? "/submit-grievance" : "/register"}>
               <MotionButton variant="glow" size="lg" rightIcon={ArrowRight}>
                 Submit Grievance
@@ -180,7 +257,7 @@ export const LandingPage = () => {
                 View How It Works
               </MotionButton>
             </a>
-          </div>
+          </motion.div>
 
           {/* Dashboard Hero Preview & Command Operations Showcase */}
           <div className="pt-8 space-y-12">
