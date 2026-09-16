@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import QRCode from 'qrcode';
 import { 
   QrCode, Download, Copy, ExternalLink, Printer, 
-  Smartphone, ShieldCheck, Check, Sparkles, X 
+  Smartphone, ShieldCheck, Check, Sparkles, X, AlertCircle 
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -17,10 +17,8 @@ import toast from 'react-hot-toast';
  * @param {string} [props.className=''] - Additional container styling classes
  */
 export const TicketQrCodeBadge = ({ ticket, variant = 'card', className = '' }) => {
-  const [qrDataUrl, setQrDataUrl] = useState('');
   const [copied, setCopied] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(true);
 
   const ticketId = ticket?.ticket_id || ticket?.id || 'TICKET-ID';
   
@@ -29,11 +27,22 @@ export const TicketQrCodeBadge = ({ ticket, variant = 'card', className = '' }) 
     ? `${window.location.origin}/track?ticket=${encodeURIComponent(ticketId)}`
     : `https://resolvenow.campus.edu/track?ticket=${encodeURIComponent(ticketId)}`;
 
+  const ticketKey = ticket ? `${ticketId}:${trackingUrl}` : null;
+  const [prevTicketKey, setPrevTicketKey] = useState(ticketKey);
+  const [status, setStatus] = useState(ticket ? 'loading' : 'idle');
+  const [qrDataUrl, setQrDataUrl] = useState('');
+
+  // Clear previous QR data and set explicit loading state whenever ticket or trackingUrl changes
+  if (ticketKey !== prevTicketKey) {
+    setPrevTicketKey(ticketKey);
+    setStatus(ticket ? 'loading' : 'idle');
+    setQrDataUrl('');
+  }
+
   useEffect(() => {
     let isMounted = true;
     if (!ticket) return;
 
-    setIsGenerating(true);
     QRCode.toDataURL(trackingUrl, {
       width: 360,
       margin: 2,
@@ -46,12 +55,15 @@ export const TicketQrCodeBadge = ({ ticket, variant = 'card', className = '' }) 
       .then((url) => {
         if (isMounted) {
           setQrDataUrl(url);
-          setIsGenerating(false);
+          setStatus('success');
         }
       })
       .catch((err) => {
         console.error('Failed to render QR Code:', err);
-        if (isMounted) setIsGenerating(false);
+        if (isMounted) {
+          setQrDataUrl('');
+          setStatus('failure');
+        }
       });
 
     return () => {
@@ -82,7 +94,10 @@ export const TicketQrCodeBadge = ({ ticket, variant = 'card', className = '' }) 
   };
 
   const handleDownloadQr = () => {
-    if (!qrDataUrl) return;
+    if (status !== 'success' || !qrDataUrl) {
+      toast.error('QR Pass is not ready for download yet.');
+      return;
+    }
     const a = document.createElement('a');
     a.href = qrDataUrl;
     a.download = `resolvenow-${ticketId}-qr-pass.png`;
@@ -93,6 +108,10 @@ export const TicketQrCodeBadge = ({ ticket, variant = 'card', className = '' }) 
   };
 
   const handlePrint = () => {
+    if (status !== 'success' || !qrDataUrl) {
+      toast.error('Please wait until the QR code has generated.');
+      return;
+    }
     window.print();
   };
 
@@ -139,9 +158,20 @@ export const TicketQrCodeBadge = ({ ticket, variant = 'card', className = '' }) 
                 <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 border-indigo-500" />
                 <div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 border-indigo-500" />
 
-                {isGenerating || !qrDataUrl ? (
-                  <div className="w-8 h-8 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin" />
-                ) : (
+                {status === 'loading' && (
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <div className="w-8 h-8 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin" />
+                    <span className="text-[10px] text-slate-500 font-mono">Generating pass...</span>
+                  </div>
+                )}
+                {status === 'failure' && (
+                  <div className="flex flex-col items-center justify-center gap-1.5 text-center p-2">
+                    <AlertCircle size={24} className="text-rose-500" />
+                    <span className="text-rose-500 font-bold text-xs">Generation Failed</span>
+                    <span className="text-[10px] text-slate-500">Could not render QR code</span>
+                  </div>
+                )}
+                {status === 'success' && qrDataUrl && (
                   <img
                     src={qrDataUrl}
                     alt={`QR Tracking Pass for ${ticketId}`}
@@ -159,7 +189,8 @@ export const TicketQrCodeBadge = ({ ticket, variant = 'card', className = '' }) 
                 <button
                   type="button"
                   onClick={handleDownloadQr}
-                  className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md cursor-pointer"
+                  disabled={status !== 'success' || !qrDataUrl}
+                  className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md cursor-pointer"
                 >
                   <Download size={13} />
                   <span>Save Pass</span>
@@ -208,7 +239,8 @@ export const TicketQrCodeBadge = ({ ticket, variant = 'card', className = '' }) 
           <button
             type="button"
             onClick={handleDownloadQr}
-            className="px-3 py-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all"
+            disabled={status !== 'success' || !qrDataUrl}
+            className="px-3 py-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 disabled:opacity-40 disabled:cursor-not-allowed border border-indigo-500/30 text-indigo-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all"
             title="Download QR code PNG image"
           >
             <Download size={13} />
@@ -235,9 +267,20 @@ export const TicketQrCodeBadge = ({ ticket, variant = 'card', className = '' }) 
           <div className="absolute -bottom-1 -left-1 w-3.5 h-3.5 border-b-2 border-l-2 border-indigo-500" />
           <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 border-b-2 border-r-2 border-indigo-500" />
 
-          {isGenerating || !qrDataUrl ? (
-            <div className="w-6 h-6 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin" />
-          ) : (
+          {status === 'loading' && (
+            <div className="flex flex-col items-center justify-center gap-1.5">
+              <div className="w-6 h-6 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin" />
+              <span className="text-[9px] text-slate-500 font-mono">Generating...</span>
+            </div>
+          )}
+          {status === 'failure' && (
+            <div className="flex flex-col items-center justify-center gap-1 text-center p-1">
+              <AlertCircle size={18} className="text-rose-500" />
+              <span className="text-rose-500 font-semibold text-[11px]">Failed</span>
+              <span className="text-[9px] text-slate-500">QR unavailable</span>
+            </div>
+          )}
+          {status === 'success' && qrDataUrl && (
             <img
               src={qrDataUrl}
               alt={`QR code for ticket ${ticketId}`}
