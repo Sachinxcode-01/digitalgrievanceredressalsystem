@@ -123,9 +123,9 @@ export const LandingPage = () => {
         {/* ========================================================================= */}
         <AnimatedSection className="text-center max-w-5xl mx-auto space-y-8">
           {/* ── 21st.dev Hero-Scoped Floating Geometric Shapes ── */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none -z-0" aria-hidden="true">
+          <div className="absolute inset-0 overflow-hidden pointer-events-none z-0" aria-hidden="true">
             {/* Soft indigo radial orb centered behind the title text */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-gradient-to-b from-indigo-600/18 via-violet-600/8 to-transparent rounded-full blur-[120px]" />
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-225 h-125 bg-linear-to-b from-indigo-600/18 via-violet-600/8 to-transparent rounded-full blur-[120px]" />
 
             {/* Hero capsule shapes — scaled slightly smaller than global BG shapes */}
             <ElegantFloatingShape
@@ -188,7 +188,7 @@ export const LandingPage = () => {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 1, delay: 0.2, ease: [0.25, 0.4, 0.25, 1] }}
-              className="text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-heading font-black tracking-tight leading-none uppercase bg-gradient-to-br from-white via-slate-100 to-indigo-300 bg-clip-text text-transparent drop-shadow-[0_0_80px_rgba(99,102,241,0.35)]"
+              className="text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-heading font-black tracking-tight leading-none uppercase bg-linear-to-br from-white via-slate-100 to-indigo-300 bg-clip-text text-transparent drop-shadow-[0_0_80px_rgba(99,102,241,0.35)]"
             >
               ResolveNow
             </motion.h1>

@@ -53,8 +53,8 @@ export const ElegantFloatingShape = ({
         <div
           className={`
             absolute inset-0 rounded-full
-            bg-gradient-to-r to-transparent ${gradient}
-            backdrop-blur-[2px] border border-white/[0.12]
+            bg-linear-to-r to-transparent ${gradient}
+            backdrop-blur-[2px] border border-white/12
             shadow-[0_8px_32px_0_rgba(99,102,241,0.12)]
             after:absolute after:inset-0 after:rounded-full
             after:bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.15),transparent_70%)]
@@ -127,19 +127,19 @@ export const ModernTechGrid = ({
       {/* Precision 32px Grid Lines */}
       {(pattern === 'grid' || pattern === 'hybrid') && (
         <div
-          className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:44px_44px] [mask-image:radial-gradient(ellipse_75%_55%_at_50%_25%,#000_60%,transparent_100%)]"
+          className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-size-[44px_44px] mask-[radial-gradient(ellipse_75%_55%_at_50%_25%,#000_60%,transparent_100%)]"
         />
       )}
 
       {/* Modern Subtle Dot Grid */}
       {(pattern === 'dots' || pattern === 'hybrid') && (
         <div
-          className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.06)_1px,transparent_1px)] bg-[size:28px_28px] [mask-image:radial-gradient(ellipse_80%_60%_at_50%_30%,#000_50%,transparent_100%)] opacity-80"
+          className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.06)_1px,transparent_1px)] bg-size-[28px_28px] mask-[radial-gradient(ellipse_80%_60%_at_50%_30%,#000_50%,transparent_100%)] opacity-80"
         />
       )}
 
       {/* Top Atmospheric Horizon Glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-96 bg-gradient-to-b from-indigo-500/10 via-purple-500/5 to-transparent blur-3xl" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-96 bg-linear-to-b from-indigo-500/10 via-purple-500/5 to-transparent blur-3xl" />
     </div>
   );
 };
@@ -162,7 +162,7 @@ export const AuroraBackground = ({
       {/* 21st.dev Background Scene Layer */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
         {/* Deep ambient gradient backdrop */}
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-[#030712] to-indigo-950/40" />
+        <div className="absolute inset-0 bg-linear-to-br from-slate-950 via-[#030712] to-indigo-950/40" />
 
         {/* Dynamic Subtle Tech Grid */}
         {showGrid && <ModernTechGrid pattern="hybrid" />}
@@ -223,15 +223,15 @@ export const AuroraBackground = ({
         )}
 
         {/* Soft Multi-Stop Radial Orbs (GPU accelerated) */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-gradient-to-b from-indigo-600/15 to-purple-600/10 rounded-full blur-[160px] animate-pulse pointer-events-none" />
-        <div className="absolute top-2/3 right-1/4 w-[600px] h-[600px] bg-gradient-to-tr from-cyan-500/12 to-blue-600/10 rounded-full blur-[170px] pointer-events-none" />
-        <div className="absolute bottom-10 left-10 w-[500px] h-[500px] bg-gradient-to-tr from-violet-600/10 to-indigo-600/8 rounded-full blur-[150px] pointer-events-none" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-175 h-175 bg-linear-to-b from-indigo-600/15 to-purple-600/10 rounded-full blur-[160px] animate-pulse pointer-events-none" />
+        <div className="absolute top-2/3 right-1/4 w-150 h-150 bg-linear-to-tr from-cyan-500/12 to-blue-600/10 rounded-full blur-[170px] pointer-events-none" />
+        <div className="absolute bottom-10 left-10 w-125 h-125 bg-linear-to-tr from-violet-600/10 to-indigo-600/8 rounded-full blur-[150px] pointer-events-none" />
 
         {/* Interactive Smooth Cursor Spotlight */}
         {showSpotlight && <InteractiveSpotlight size={700} color="rgba(99, 102, 241, 0.10)" />}
 
         {/* Vignette Overlay for Crisp Readability */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#030712]/90 pointer-events-none" />
+        <div className="absolute inset-0 bg-linear-to-b from-transparent via-transparent to-[#030712]/90 pointer-events-none" />
       </div>
 
       {/* Main Content Container with Above-Backdrop Elevation */}
@@ -253,7 +253,7 @@ export const MeshGradientBackground = ({ children, className = '' }) => {
           y: [0, -30, 0],
         }}
         transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }}
-        className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-gradient-to-br from-indigo-600/25 to-purple-600/20 blur-[130px] pointer-events-none"
+        className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-linear-to-br from-indigo-600/25 to-purple-600/20 blur-[130px] pointer-events-none"
       />
       <motion.div
         animate={{
@@ -262,7 +262,7 @@ export const MeshGradientBackground = ({ children, className = '' }) => {
           y: [0, 40, 0],
         }}
         transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
-        className="absolute bottom-[-10%] right-[-10%] w-[55vw] h-[55vw] rounded-full bg-gradient-to-tl from-cyan-500/20 to-blue-600/20 blur-[140px] pointer-events-none"
+        className="absolute bottom-[-10%] right-[-10%] w-[55vw] h-[55vw] rounded-full bg-linear-to-tl from-cyan-500/20 to-blue-600/20 blur-[140px] pointer-events-none"
       />
       <motion.div
         animate={{
