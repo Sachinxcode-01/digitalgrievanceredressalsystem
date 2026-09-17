@@ -336,7 +336,7 @@ export const WhistleblowerPortalPage = () => {
 
               <button
                 onClick={handlePanicExit}
-                className="group px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-lg shadow-rose-600/30 border border-rose-400/40 transition-all cursor-pointer"
+                className="group px-3.5 py-1.5 rounded-xl bg-linear-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-lg shadow-rose-600/30 border border-rose-400/40 transition-all cursor-pointer"
                 title="Immediately exits to neutral Wikipedia portal and clears screen memory (Press ESC key)"
                 type="button"
               >
@@ -354,12 +354,12 @@ export const WhistleblowerPortalPage = () => {
             transition={{ delay: 0.1 }}
             className="text-center space-y-4 pt-2"
           >
-            <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-gradient-to-r from-purple-500/10 via-indigo-500/15 to-purple-500/10 border border-purple-500/30 text-purple-300 text-[11px] font-mono font-bold uppercase tracking-widest shadow-xl shadow-purple-500/10">
+            <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-linear-to-r from-purple-500/10 via-indigo-500/15 to-purple-500/10 border border-purple-500/30 text-purple-300 text-[11px] font-mono font-bold uppercase tracking-widest shadow-xl shadow-purple-500/10">
               <Lock size={13} className="text-purple-400 animate-pulse" />
               <span>Zero-Knowledge Cryptographic Vault &bull; SHA-256 Ledger</span>
             </div>
 
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-heading font-black text-transparent bg-clip-text bg-gradient-to-b from-white via-slate-100 to-slate-400 tracking-tight">
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-heading font-black text-transparent bg-clip-text bg-linear-to-b from-white via-slate-100 to-slate-400 tracking-tight">
               Confidential Whistleblower Vault
             </h1>
             <p className="text-slate-400 font-medium text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
@@ -477,7 +477,7 @@ export const WhistleblowerPortalPage = () => {
                     {isActive && (
                       <motion.div
                         layoutId="activeTabPill"
-                        className="absolute inset-0 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 shadow-md shadow-purple-500/30 border border-purple-400/40"
+                        className="absolute inset-0 rounded-xl bg-linear-to-r from-purple-600 to-indigo-600 shadow-md shadow-purple-500/30 border border-purple-400/40"
                         transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                       />
                     )}
@@ -503,7 +503,7 @@ export const WhistleblowerPortalPage = () => {
                   >
                     <MotionCard className="p-6 sm:p-8 space-y-6 text-left border-purple-500/40 shadow-2xl shadow-purple-500/20 bg-slate-950/90 backdrop-blur-2xl" tilt={false}>
                       <div className="flex items-center gap-4 border-b border-white/10 pb-5">
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-purple-600 to-emerald-500 p-0.5 shadow-lg shadow-purple-500/30 shrink-0">
+                        <div className="w-14 h-14 rounded-2xl bg-linear-to-tr from-purple-600 to-emerald-500 p-0.5 shadow-lg shadow-purple-500/30 shrink-0">
                           <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center text-emerald-400">
                             <CheckCircle2 size={28} className="animate-bounce" />
                           </div>
@@ -663,7 +663,7 @@ export const WhistleblowerPortalPage = () => {
                                   onClick={() => setCategory(cat.id)}
                                   className={`p-3 rounded-xl text-left border transition-all cursor-pointer relative overflow-hidden ${
                                     isSelected
-                                      ? `bg-gradient-to-br ${cat.color} ring-1 ring-purple-500/50 shadow-lg shadow-purple-500/10`
+                                      ? `bg-linear-to-br ${cat.color} ring-1 ring-purple-500/50 shadow-lg shadow-purple-500/10`
                                       : 'bg-slate-900/60 border-white/10 text-slate-400 hover:text-white hover:bg-slate-900/90'
                                   }`}
                                 >
@@ -781,7 +781,7 @@ export const WhistleblowerPortalPage = () => {
                         </div>
 
                         {/* Submit & Safe-Harbor Bar */}
-                        <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-white/10 pt-5">
+                        <div className="pt-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-white/10">
                           <div className="text-[11px] font-mono text-slate-400 flex items-center gap-2">
                             <ShieldCheck size={16} className="text-emerald-400 shrink-0" />
                             <span>Statutory Protection under UGC Whistleblower Code</span>
