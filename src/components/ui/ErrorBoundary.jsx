@@ -57,6 +57,12 @@ export class ErrorBoundary extends React.Component {
                  Return to Landing
                </button>
                <button 
+                 onClick={() => window.location.href = '/maintenance'}
+                 className="w-full sm:w-auto px-8 py-4 rounded-xl border border-amber-500/20 hover:bg-amber-500/10 transition-all text-xs font-black uppercase tracking-widest text-amber-400 cursor-pointer"
+               >
+                 System Diagnostics
+               </button>
+               <button 
                  onClick={async () => {
                    await supabase.auth.signOut();
                    localStorage.removeItem('demo-session');

@@ -29,6 +29,8 @@ const PublicHashVerificationPage = React.lazy(() => import('./pages/public/Publi
 const AdminHealthPage = React.lazy(() => import('./pages/analytics/AdminHealthPage').then(m => ({ default: m.AdminHealthPage })));
 const KnowledgeBasePage = React.lazy(() => import('./pages/public/KnowledgeBasePage'));
 const PredictiveInsightsPage = React.lazy(() => import('./pages/analytics/PredictiveInsightsPage'));
+const NotFoundPage = React.lazy(() => import('./pages/public/NotFoundPage'));
+const MaintenancePage = React.lazy(() => import('./pages/public/MaintenancePage'));
 
 // --- New Clerk Auth & Settings Pages ---
 const RegisterPage = React.lazy(() => import('./pages/auth/RegisterPage'));
@@ -177,6 +179,7 @@ function AppContent() {
               <Route path="/admin" element={<AuthRoute redirectTo="/admin/dashboard"><AdminLoginPage /></AuthRoute>} />
               <Route path="/admin-login" element={<AuthRoute redirectTo="/admin/dashboard"><AdminLoginPage /></AuthRoute>} />
               <Route path="/submit-grievance" element={<Navigate to="/grievances/submit" replace />} />
+              <Route path="/submit" element={<Navigate to="/grievances/submit" replace />} />
               <Route path="/register" element={<AuthRoute><RegisterPage /></AuthRoute>} />
               <Route path="/signup" element={<AuthRoute><RegisterPage /></AuthRoute>} />
               <Route path="/verify-otp" element={<AuthRoute><VerifyOtpPage /></AuthRoute>} />
@@ -510,7 +513,11 @@ function AppContent() {
                 }
               />
 
-              <Route path="*" element={<Navigate to="/" />} />
+              {/* System Resilience, 404 & Maintenance Views */}
+              <Route path="/maintenance" element={<MaintenancePage />} />
+              <Route path="/500" element={<MaintenancePage />} />
+              <Route path="/404" element={<NotFoundPage />} />
+              <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
         </Router>
