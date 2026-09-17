@@ -39,7 +39,7 @@ export const NotFoundPage = () => {
 
     // Check if it's a ticket ID (e.g., #TKT-2026-..., TKT-..., or pure digits)
     if (clean.toUpperCase().includes('TKT') || clean.startsWith('#')) {
-      navigate(`/track?token=${encodeURIComponent(clean.replace('#', ''))}`);
+      navigate(`/public-status?token=${encodeURIComponent(clean.replace('#', ''))}`);
     } else {
       navigate(`/knowledge-base?q=${encodeURIComponent(clean)}`);
     }

@@ -25,7 +25,7 @@ import TrackingTimeline from '../../components/ui/TrackingTimeline';
 
 export const PublicStatusPage = () => {
   const [searchParams] = useSearchParams();
-  const [ticketId, setTicketId] = useState(searchParams.get('ticket') || '');
+  const [ticketId, setTicketId] = useState(searchParams.get('token') || searchParams.get('ticket') || '');
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -71,7 +71,7 @@ export const PublicStatusPage = () => {
   };
 
   useEffect(() => {
-    const paramTicket = searchParams.get('ticket');
+    const paramTicket = searchParams.get('token') || searchParams.get('ticket');
     if (paramTicket) {
       setTicketId(paramTicket);
       fetchTicketDetails(paramTicket);

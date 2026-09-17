@@ -40,7 +40,8 @@ export const MaintenancePage = () => {
       const res = await fetch(`${apiBase}/health`, { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
-        setIsOnline(data.status === 'healthy' || data.status === 'ok' || data.online !== false);
+        const healthyStatus = data.status === 'healthy' || data.status === 'ok';
+        setIsOnline(typeof data.online === 'boolean' ? data.online : healthyStatus);
       } else {
         setIsOnline(false);
       }
