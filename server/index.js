@@ -182,6 +182,7 @@ app.use('/api/v1/messaging', messagingRoutes);
 const distPath = path.join(__dirname, '../dist');
 app.use(express.static(distPath, {
   setHeaders: (res, filePath) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
     if (filePath.endsWith('.html') || filePath.endsWith('sw.js') || filePath.endsWith('manifest.json')) {
       res.setHeader('Cache-Control', 'no-cache');
     } else if (filePath.includes('assets')) {
