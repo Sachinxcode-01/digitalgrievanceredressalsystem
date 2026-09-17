@@ -22,15 +22,11 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { AnimatedPage } from '../../components/ui/AnimatedPage';
+import { useTheme } from '../../app/providers/ThemeProvider';
 
 export const PrivacyPolicyPage = () => {
   const [activeSection, setActiveSection] = useState('overview');
-  const [theme, setTheme] = useState(() => localStorage.getItem('app-theme') || 'ocean');
-
-  useEffect(() => {
-    document.body.className = theme === 'midnight' ? 'theme-midnight' : '';
-    localStorage.setItem('app-theme', theme);
-  }, [theme]);
+  const { theme, setTheme, toggleTheme } = useTheme();
 
   const sections = [
     { id: 'overview', title: '1. Executive Overview', icon: ShieldCheck },
@@ -73,7 +69,7 @@ export const PrivacyPolicyPage = () => {
           </button>
 
           <button 
-            onClick={() => setTheme(prev => prev === 'ocean' ? 'midnight' : 'ocean')}
+            onClick={toggleTheme}
             className="p-2.5 text-slate-400 hover:text-white bg-white/5 border border-white/10 rounded-xl transition-all hover:bg-white/10 cursor-pointer"
             title="Toggle theme mode"
             type="button"

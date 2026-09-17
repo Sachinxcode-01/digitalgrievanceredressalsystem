@@ -23,15 +23,11 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { AnimatedPage } from '../../components/ui/AnimatedPage';
+import { useTheme } from '../../app/providers/ThemeProvider';
 
 export const CitizenCharterPage = () => {
   const [activeTier, setActiveTier] = useState(1);
-  const [theme, setTheme] = useState(() => localStorage.getItem('app-theme') || 'ocean');
-
-  useEffect(() => {
-    document.body.className = theme === 'midnight' ? 'theme-midnight' : '';
-    localStorage.setItem('app-theme', theme);
-  }, [theme]);
+  const { theme, setTheme, toggleTheme } = useTheme();
 
   const handlePrint = () => {
     window.print();
@@ -103,7 +99,7 @@ export const CitizenCharterPage = () => {
           </button>
 
           <button 
-            onClick={() => setTheme(prev => prev === 'ocean' ? 'midnight' : 'ocean')}
+            onClick={toggleTheme}
             className="p-2.5 text-slate-400 hover:text-white bg-white/5 border border-white/10 rounded-xl transition-all hover:bg-white/10 cursor-pointer"
             title="Toggle theme mode"
             type="button"
@@ -147,7 +143,7 @@ export const CitizenCharterPage = () => {
             </div>
             <h3 className="font-heading font-bold text-white text-sm">Time-Bound Redressal</h3>
             <p className="text-slate-400 text-xs leading-relaxed font-sans">
-              Complaints are acknowledged within milliseconds and acted upon within statutory 24 to 48 hours by designated officers.
+              Complaints are acknowledged within 5 minutes and acted upon within statutory 24 to 48 hours by designated officers.
             </p>
           </div>
 

@@ -6,6 +6,7 @@ import { isMisconfigured } from './lib/supabase';
 import { Toaster } from 'react-hot-toast';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { AuthProvider, useAuth } from './app/providers/AuthProvider';
+import { ThemeProvider, useTheme } from './app/providers/ThemeProvider';
 import { ProtectedRoute } from './app/routes/ProtectedRoute';
 import { RoleGuard } from './app/routes/RoleGuard';
 import { OfflineBanner } from './components/ui/OfflineBanner';
@@ -124,12 +125,7 @@ const AuthRoute = ({ children, redirectTo }) => {
 
 function AppContent() {
   const { user, logout } = useAuth();
-  const [theme, setTheme] = useState(localStorage.getItem('app-theme') || 'ocean');
-
-  useEffect(() => {
-    document.body.className = theme === 'midnight' ? 'theme-midnight' : '';
-    localStorage.setItem('app-theme', theme);
-  }, [theme]);
+  const { theme, setTheme } = useTheme();
 
   if (isMisconfigured) return <SetupError />;
 
@@ -551,7 +547,9 @@ function App() {
       signUpFallbackRedirectUrl="/dashboard"
     >
       <AuthProvider>
-        <AppContent />
+        <ThemeProvider>
+          <AppContent />
+        </ThemeProvider>
       </AuthProvider>
     </ClerkProvider>
   );

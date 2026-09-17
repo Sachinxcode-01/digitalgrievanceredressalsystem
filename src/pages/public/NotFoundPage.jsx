@@ -20,17 +20,13 @@ import { AnimatedPage } from '../../components/ui/AnimatedPage';
 import { GlassPanel } from '../../components/ui/GlassPanel';
 import AnimatedButton from '../../components/ui/AnimatedButton';
 import { useAuth } from '../../app/providers/AuthProvider';
+import { useTheme } from '../../app/providers/ThemeProvider';
 
 export const NotFoundPage = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
-  const [theme, setTheme] = useState(() => localStorage.getItem('app-theme') || 'ocean');
-
-  useEffect(() => {
-    document.body.className = theme === 'midnight' ? 'theme-midnight' : '';
-    localStorage.setItem('app-theme', theme);
-  }, [theme]);
+  const { theme, toggleTheme } = useTheme();
 
   const handleSearchOrJump = (e) => {
     e.preventDefault();
@@ -117,7 +113,7 @@ export const NotFoundPage = () => {
 
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => setTheme(prev => prev === 'ocean' ? 'midnight' : 'ocean')}
+            onClick={toggleTheme}
             className="p-2.5 text-slate-400 hover:text-white bg-white/5 border border-white/10 rounded-xl transition-all hover:bg-white/10"
             title="Toggle theme mode"
             type="button"

@@ -20,18 +20,14 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { AnimatedPage } from '../../components/ui/AnimatedPage';
+import { useTheme } from '../../app/providers/ThemeProvider';
 
 export const MaintenancePage = () => {
   const [loading, setLoading] = useState(false);
   const [isOnline, setIsOnline] = useState(false);
   const [lastChecked, setLastChecked] = useState(null);
   const [countdown, setCountdown] = useState(30);
-  const [theme, setTheme] = useState(() => localStorage.getItem('app-theme') || 'ocean');
-
-  useEffect(() => {
-    document.body.className = theme === 'midnight' ? 'theme-midnight' : '';
-    localStorage.setItem('app-theme', theme);
-  }, [theme]);
+  const { theme, toggleTheme } = useTheme();
 
   const probeBackendHealth = async () => {
     setLoading(true);
@@ -127,7 +123,7 @@ export const MaintenancePage = () => {
           </Link>
 
           <button 
-            onClick={() => setTheme(prev => prev === 'ocean' ? 'midnight' : 'ocean')}
+            onClick={toggleTheme}
             className="p-2.5 text-slate-400 hover:text-white bg-white/5 border border-white/10 rounded-xl transition-all hover:bg-white/10"
             title="Toggle theme mode"
             type="button"
