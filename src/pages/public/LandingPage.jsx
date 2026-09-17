@@ -720,6 +720,8 @@ export const LandingPage = () => {
                 <li><Link to="/public-status" className="hover:text-white">Track Ticket</Link></li>
                 <li><Link to="/submit-grievance" className="hover:text-white">File Grievance</Link></li>
                 <li><Link to="/officers" className="hover:text-white">Officers Directory</Link></li>
+                <li><Link to="/whistleblower" className="hover:text-white">Whistleblower Vault</Link></li>
+                <li><Link to="/emergency" className="hover:text-white">Emergency & Safety</Link></li>
                 <li><Link to="/feedback" className="hover:text-white">CSAT & Feedback</Link></li>
                 <li><Link to="/appeal" className="hover:text-white">File Formal Appeal</Link></li>
                 <li><Link to="/privacy" className="hover:text-white">Privacy Policy</Link></li>
@@ -756,6 +758,10 @@ export const LandingPage = () => {
               <Link to="/feedback" className="hover:text-slate-300 transition-colors">Feedback</Link>
               <span>•</span>
               <Link to="/appeal" className="hover:text-slate-300 transition-colors">Appeal</Link>
+              <span>•</span>
+              <Link to="/whistleblower" className="hover:text-slate-300 transition-colors">Whistleblower</Link>
+              <span>•</span>
+              <Link to="/emergency" className="hover:text-slate-300 transition-colors">Emergency</Link>
               <span>•</span>
               <Link to="/privacy" className="hover:text-slate-300 transition-colors">Privacy</Link>
               <span>•</span>

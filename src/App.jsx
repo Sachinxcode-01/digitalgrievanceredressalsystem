@@ -38,6 +38,8 @@ const FeedbackHubPage = React.lazy(() => import('./pages/public/FeedbackHubPage'
 const AppealGrievancePage = React.lazy(() => import('./pages/grievances/AppealGrievancePage'));
 const OfficerDirectoryPage = React.lazy(() => import('./pages/public/OfficerDirectoryPage'));
 const OfficerGrievanceQueuePage = React.lazy(() => import('./pages/officer/OfficerGrievanceQueuePage').then(m => ({ default: m.OfficerGrievanceQueuePage })));
+const WhistleblowerPortalPage = React.lazy(() => import('./pages/public/WhistleblowerPortalPage'));
+const EmergencySafetyPage = React.lazy(() => import('./pages/public/EmergencySafetyPage'));
 
 // --- New Clerk Auth & Settings Pages ---
 const RegisterPage = React.lazy(() => import('./pages/auth/RegisterPage'));
@@ -188,6 +190,12 @@ function AppContent() {
               <Route path="/officers" element={<OfficerDirectoryPage />} />
               <Route path="/directory" element={<Navigate to="/officers" replace />} />
               <Route path="/contact" element={<Navigate to="/officers" replace />} />
+              <Route path="/whistleblower" element={<WhistleblowerPortalPage />} />
+              <Route path="/confidential" element={<Navigate to="/whistleblower" replace />} />
+              <Route path="/vault" element={<Navigate to="/whistleblower" replace />} />
+              <Route path="/emergency" element={<EmergencySafetyPage />} />
+              <Route path="/safety" element={<Navigate to="/emergency" replace />} />
+              <Route path="/sos" element={<Navigate to="/emergency" replace />} />
               
               {/* Auth Gates */}
               <Route path="/sso-callback" element={<SsoCallbackPage />} />

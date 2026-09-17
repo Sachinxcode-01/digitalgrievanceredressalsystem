@@ -5,7 +5,7 @@ import {
   Search, Plus, LayoutDashboard, Ticket, FileText, 
   ShieldCheck, Landmark, Activity, HelpCircle, Sun, 
   Moon, ArrowRight, CornerDownLeft, Sparkles, Building2,
-  Clock, Hash, X, HeartHandshake, Scale
+  Clock, Hash, X, HeartHandshake, Scale, Lock, AlertTriangle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -61,6 +61,8 @@ export const CommandPalette = () => {
     { id: 'nav-appeal', category: 'Navigation', title: 'Grievance Appellate Tribunal', icon: Scale, action: () => navigate('/appeal') },
     { id: 'nav-officers', category: 'Navigation', title: 'Grievance Redressal Officers Directory', icon: Building2, action: () => navigate('/officers') },
     { id: 'nav-officer-queue', category: 'Navigation', title: 'Officer Triage & Grievance Queue', icon: Ticket, badge: 'Staff / Officer', action: () => navigate('/officer/grievances') },
+    { id: 'nav-whistleblower', category: 'Navigation', title: 'Confidential Whistleblower Vault', icon: Lock, badge: 'Zero-Trace', action: () => navigate('/whistleblower') },
+    { id: 'nav-emergency', category: 'Navigation', title: 'Emergency Crisis Hotlines & Safety SOS', icon: AlertTriangle, badge: '24x7 Urgent', action: () => navigate('/emergency') },
 
     // Department Quick Filters
     { id: 'dept-it', category: 'Departments', title: 'IT Support & Campus Wi-Fi', icon: Building2, action: () => navigate('/grievances?category=IT+Support') },
