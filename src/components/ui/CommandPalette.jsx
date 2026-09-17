@@ -5,7 +5,7 @@ import {
   Search, Plus, LayoutDashboard, Ticket, FileText, 
   ShieldCheck, Landmark, Activity, HelpCircle, Sun, 
   Moon, ArrowRight, CornerDownLeft, Sparkles, Building2,
-  Clock, Hash, X
+  Clock, Hash, X, HeartHandshake, Scale
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -57,6 +57,8 @@ export const CommandPalette = () => {
     { id: 'nav-status', category: 'Navigation', title: 'System SLA & Health Status', icon: Activity, action: () => navigate('/status') },
     { id: 'nav-privacy', category: 'Navigation', title: 'Privacy & Data Retention Policy', icon: ShieldCheck, action: () => navigate('/privacy') },
     { id: 'nav-terms', category: 'Navigation', title: 'Citizen Charter & Terms of Redressal', icon: FileText, action: () => navigate('/terms') },
+    { id: 'nav-feedback', category: 'Navigation', title: 'Citizen Satisfaction & CSAT Hub', icon: HeartHandshake, action: () => navigate('/feedback') },
+    { id: 'nav-appeal', category: 'Navigation', title: 'Grievance Appellate Tribunal', icon: Scale, action: () => navigate('/appeal') },
 
     // Department Quick Filters
     { id: 'dept-it', category: 'Departments', title: 'IT Support & Campus Wi-Fi', icon: Building2, action: () => navigate('/grievances?category=IT+Support') },

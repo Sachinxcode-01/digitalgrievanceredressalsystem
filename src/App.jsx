@@ -34,6 +34,8 @@ const NotFoundPage = React.lazy(() => import('./pages/public/NotFoundPage'));
 const MaintenancePage = React.lazy(() => import('./pages/public/MaintenancePage'));
 const PrivacyPolicyPage = React.lazy(() => import('./pages/public/PrivacyPolicyPage'));
 const CitizenCharterPage = React.lazy(() => import('./pages/public/CitizenCharterPage'));
+const FeedbackHubPage = React.lazy(() => import('./pages/public/FeedbackHubPage'));
+const AppealGrievancePage = React.lazy(() => import('./pages/grievances/AppealGrievancePage'));
 
 // --- New Clerk Auth & Settings Pages ---
 const RegisterPage = React.lazy(() => import('./pages/auth/RegisterPage'));
@@ -162,10 +164,13 @@ function AppContent() {
               <Route path="/public-status" element={<PublicStatusPage />} />
               <Route path="/track" element={<Navigate to="/public-status" replace />} />
               <Route path="/status" element={<StatusPage />} />
+              <Route path="/system-status" element={<Navigate to="/status" replace />} />
               <Route path="/transparency" element={<PublicTransparencyPage />} />
               <Route path="/leaderboard" element={<PublicTransparencyPage />} />
               <Route path="/scorecard" element={<PublicTransparencyPage />} />
               <Route path="/verify-hash" element={<PublicHashVerificationPage />} />
+              <Route path="/verify-proof" element={<PublicHashVerificationPage />} />
+              <Route path="/proof" element={<Navigate to="/verify-proof" replace />} />
               <Route path="/hash-inspector" element={<PublicHashVerificationPage />} />
                <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
               <Route path="/help" element={<Navigate to="/knowledge-base" replace />} />
@@ -175,6 +180,9 @@ function AppContent() {
               <Route path="/terms" element={<CitizenCharterPage />} />
               <Route path="/citizen-charter" element={<Navigate to="/terms" replace />} />
               <Route path="/charter" element={<Navigate to="/terms" replace />} />
+              <Route path="/feedback" element={<FeedbackHubPage />} />
+              <Route path="/csat" element={<Navigate to="/feedback" replace />} />
+              <Route path="/survey" element={<Navigate to="/feedback" replace />} />
               
               {/* Auth Gates */}
               <Route path="/sso-callback" element={<SsoCallbackPage />} />
@@ -444,6 +452,30 @@ function AppContent() {
                     <RoleGuard allowedRoles={['student', 'officer', 'faculty', 'staff', 'admin', 'super admin']} fallback={<Navigate to="/login" />}>
                       <Layout user={user} onLogout={logout} theme={theme} setTheme={setTheme}>
                         <GrievanceDetailsPage sessionUser={user} />
+                      </Layout>
+                    </RoleGuard>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/grievances/:id/appeal"
+                element={
+                  <ProtectedRoute>
+                    <RoleGuard allowedRoles={['student', 'officer', 'faculty', 'staff', 'admin', 'super admin']} fallback={<Navigate to="/login" />}>
+                      <Layout user={user} onLogout={logout} theme={theme} setTheme={setTheme}>
+                        <AppealGrievancePage />
+                      </Layout>
+                    </RoleGuard>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/appeal"
+                element={
+                  <ProtectedRoute>
+                    <RoleGuard allowedRoles={['student', 'officer', 'faculty', 'staff', 'admin', 'super admin']} fallback={<Navigate to="/login" />}>
+                      <Layout user={user} onLogout={logout} theme={theme} setTheme={setTheme}>
+                        <AppealGrievancePage />
                       </Layout>
                     </RoleGuard>
                   </ProtectedRoute>
