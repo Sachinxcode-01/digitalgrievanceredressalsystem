@@ -222,6 +222,8 @@ function AppContent() {
               />
 
               {/* Officer / Departmental Dashboard */}
+              <Route path="/officer" element={<Navigate to="/officer/dashboard" replace />} />
+              <Route path="/officer/grievances" element={<Navigate to="/officer/dashboard" replace />} />
               <Route 
                 path="/officer/dashboard" 
                 element={

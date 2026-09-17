@@ -14,6 +14,8 @@ export const Layout = ({ children, user, onLogout, theme, setTheme }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isAdmin = user?.role === 'admin' || user?.role === 'super admin';
+  const roleLower = user?.role?.toLowerCase();
+  const isOfficer = roleLower === 'officer' || roleLower === 'faculty' || roleLower === 'staff';
 
   const navItems = isAdmin 
     ? [
@@ -27,6 +29,16 @@ export const Layout = ({ children, user, onLogout, theme, setTheme }) => {
         { path: '/admin/health', icon: Activity, label: 'Analytics' },
         { path: '/admin/compliance', icon: Shield, label: 'Compliance' },
         { path: '/admin/audit', icon: ShieldAlert, label: 'Audit Logs' },
+        { path: '/security', icon: Settings, label: 'Settings' },
+      ]
+    : isOfficer
+    ? [
+        { path: '/officer/dashboard', icon: LayoutDashboard, label: 'Officer Desk' },
+        { path: '/grievances', icon: Ticket, label: 'Tickets Queue' },
+        { path: '/admin/predictive', icon: TrendingUp, label: 'Predictive SLA' },
+        { path: '/reports', icon: FileBarChart, label: 'Reports & Export' },
+        { path: '/knowledge-base', icon: BookOpen, label: 'Help Center' },
+        { path: '/profile', icon: User, label: 'Officer Profile' },
         { path: '/security', icon: Settings, label: 'Settings' },
       ]
     : [
@@ -135,7 +147,7 @@ export const Layout = ({ children, user, onLogout, theme, setTheme }) => {
             </button>
             
             <h2 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-              Sector / <span className="text-foreground">{isAdmin ? 'Admin Console' : 'User Console'}</span>
+              Sector / <span className="text-foreground">{isAdmin ? 'Admin Console' : (isOfficer ? 'Officer Console' : 'Citizen Console')}</span>
               <span className="hidden sm:inline-block w-px h-3 bg-border mx-1" />
               <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border transition-all ${
                 isSystemHealthy 
