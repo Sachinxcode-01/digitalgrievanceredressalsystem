@@ -16,10 +16,15 @@ import {
   Mail,
   PhoneCall,
   Clock,
-  ExternalLink
+  ExternalLink,
+  FileSearch,
+  Sparkles,
+  Server
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { AnimatedPage } from '../../components/ui/AnimatedPage';
+import { AuroraBackground } from '../../components/ui/BackgroundEffects';
+import MotionCard from '../../components/ui/MotionCard';
+import AnimatedButton from '../../components/ui/AnimatedButton';
 import { useTheme } from '../../app/providers/ThemeProvider';
 
 export const MaintenancePage = () => {
@@ -97,206 +102,193 @@ export const MaintenancePage = () => {
   ];
 
   return (
-    <AnimatedPage className={`min-h-screen w-full relative overflow-x-hidden ${theme === 'midnight' ? 'bg-slate-950 text-slate-100' : 'bg-slate-900 text-slate-100'}`}>
-      {/* Background ambient mesh */}
-      <div className="absolute inset-0 bg-grid-pattern opacity-[0.03] pointer-events-none" />
-      <div className="absolute top-1/4 left-1/4 w-125 h-125 bg-amber-500/10 rounded-full blur-[160px] pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-150 h-150 bg-indigo-600/10 rounded-full blur-[180px] pointer-events-none" />
+    <AuroraBackground className="min-h-screen">
+      <div className="relative z-10 w-full min-h-screen py-8 px-4 sm:px-6 lg:px-8 flex flex-col">
+        <div className="max-w-4xl mx-auto w-full space-y-8 my-auto pt-4 pb-16">
 
-      {/* Top Bar Floating Controls */}
-      <header className="relative z-30 max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
-        <Link 
-          to="/" 
-          className="inline-flex items-center gap-2 text-xs font-mono font-bold tracking-widest text-slate-400 hover:text-white uppercase transition-colors"
-        >
-          <ChevronLeft size={16} />
-          Portal Gateway
-        </Link>
+          {/* Top Bar Floating Controls */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <Link 
+              to="/" 
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-white border border-white/10 text-xs font-mono font-bold transition-all cursor-pointer shadow-lg"
+            >
+              <ChevronLeft size={14} />
+              <span>Portal Gateway</span>
+            </Link>
 
-        <div className="flex items-center gap-3">
-          <Link
-            to="/status"
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-xs font-mono font-bold text-slate-300 transition-colors"
-          >
-            <Activity size={13} className="text-emerald-400" />
-            <span>Full Telemetry</span>
-          </Link>
-
-          <button 
-            onClick={toggleTheme}
-            className="p-2.5 text-slate-400 hover:text-white bg-white/5 border border-white/10 rounded-xl transition-all hover:bg-white/10"
-            title="Toggle theme mode"
-            type="button"
-            aria-label="Toggle theme mode"
-          >
-            {theme === 'ocean' ? <Moon size={15} /> : <Sun size={15} />}
-          </button>
-        </div>
-      </header>
-
-      {/* Main Content Area */}
-      <main className="relative z-20 max-w-3xl mx-auto px-4 sm:px-6 pb-20 pt-4 flex flex-col items-center text-center">
-        
-        {/* Status Pill Badge */}
-        <motion.div
-          initial={{ scale: 0.85, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.4 }}
-          className="mb-6"
-        >
-          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-mono font-bold uppercase tracking-widest shadow-lg shadow-amber-500/10">
-            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-            <span>Scheduled Institutional Maintenance</span>
-          </div>
-        </motion.div>
-
-        {/* Central Wrench Graphic */}
-        <motion.div
-          initial={{ y: 15, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.1, duration: 0.45 }}
-          className="relative flex items-center justify-center mb-6"
-        >
-          <div className="absolute w-36 h-36 rounded-full bg-linear-to-tr from-amber-500/20 via-orange-500/20 to-indigo-500/20 blur-xl" />
-          <div className="relative z-10 w-24 h-24 rounded-3xl bg-slate-950/80 border border-white/15 backdrop-blur-xl shadow-2xl flex flex-col items-center justify-center">
-            <Wrench className="w-10 h-10 text-amber-400 animate-bounce" style={{ animationDuration: '3s' }} />
-          </div>
-        </motion.div>
-
-        {/* Heading & Summary */}
-        <motion.div
-          initial={{ y: 15, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.2, duration: 0.45 }}
-          className="space-y-3 max-w-lg mx-auto"
-        >
-          <h1 className="text-3xl sm:text-4xl font-heading font-black tracking-tight text-white">
-            System Upgrades in Progress
-          </h1>
-          <p className="text-slate-400 text-xs sm:text-sm leading-relaxed font-sans">
-            The ResolveNow platform is currently undergoing scheduled infrastructure hardening, cryptographic ledger synchronization, and SLA engine optimization.
-          </p>
-        </motion.div>
-
-        {/* Live Re-connection Probe Card */}
-        <motion.div
-          initial={{ y: 15, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.3, duration: 0.45 }}
-          className="w-full mt-8 p-5 sm:p-6 rounded-2xl bg-slate-950/70 border border-white/10 backdrop-blur-xl shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4"
-        >
-          <div className="flex items-center gap-3.5 text-left">
-            <div className={`p-2.5 rounded-xl ${isOnline ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
-              <Activity size={20} className={loading ? 'animate-spin' : ''} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-heading font-bold text-white">
-                  Cluster Status: {isOnline ? 'Nodes Online & Accessible' : 'Maintenance Mode Active'}
-                </span>
-                <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider ${isOnline ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
-                  {isOnline ? 'READY' : `SYNC (${countdown}s)`}
-                </span>
-              </div>
-              <p className="text-[11px] font-mono text-slate-400 mt-0.5">
-                Last heartbeat: {lastChecked ? lastChecked.toLocaleTimeString() : 'Checking...'}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5 w-full sm:w-auto">
-            {isOnline ? (
+            <div className="flex items-center gap-3 flex-wrap">
               <Link
-                to="/"
-                className="w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-heading font-bold uppercase tracking-wider transition-all shadow-md shadow-emerald-600/30 flex items-center justify-center gap-2"
+                to="/verify-proof"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-white/10 text-xs font-mono transition-all"
               >
-                <CheckCircle2 size={14} />
-                <span>Return to Portal</span>
+                <FileSearch size={13} className="text-cyan-400" />
+                <span>Verify Proof</span>
               </Link>
-            ) : (
-              <button
-                onClick={probeBackendHealth}
-                disabled={loading}
-                className="w-full sm:w-auto px-4 py-2 bg-white/10 hover:bg-white/15 text-white rounded-xl text-xs font-heading font-bold uppercase tracking-wider transition-all border border-white/10 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              <Link
+                to="/status"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-white/10 text-xs font-mono transition-all"
               >
-                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-                <span>Probe Connectivity</span>
+                <Activity size={13} className="text-emerald-400" />
+                <span>Telemetry Status</span>
+              </Link>
+              <button 
+                onClick={toggleTheme}
+                className="p-2 text-slate-400 hover:text-white bg-slate-900/80 border border-white/10 rounded-xl transition-all hover:bg-slate-800 cursor-pointer"
+                title="Toggle theme mode"
+                type="button"
+                aria-label="Toggle theme mode"
+              >
+                {theme === 'ocean' ? <Moon size={14} /> : <Sun size={14} />}
               </button>
-            )}
-          </div>
-        </motion.div>
-
-        {/* Node Subsystems Health Matrix */}
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.4, duration: 0.5 }}
-          className="w-full mt-8 text-left"
-        >
-          <div className="flex items-center justify-between mb-3 px-1">
-            <h2 className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-400">
-              Infrastructure Node Health Matrix
-            </h2>
-            <span className="text-[10px] font-mono text-slate-500">Zero-Data-Loss Protected</span>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {systemNodes.map((node, i) => (
-              <div 
-                key={i} 
-                className="p-4 rounded-xl bg-slate-950/50 border border-white/5 flex items-center justify-between"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-white/5 text-slate-300 border border-white/10">
-                    <node.icon size={16} />
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-heading font-bold text-white">{node.name}</h3>
-                    <p className="text-[10px] font-mono text-slate-500">{node.role}</p>
-                  </div>
-                </div>
-                <span className="text-[9px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300">
-                  {node.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* Emergency Helpdesk & SLA Guarantee Notice */}
-        <div className="mt-12 p-6 rounded-2xl bg-indigo-950/30 border border-indigo-500/20 text-left w-full space-y-3">
-          <div className="flex items-center gap-2 text-indigo-300 text-xs font-mono font-bold uppercase tracking-wider">
-            <ShieldAlert size={15} />
-            <span>Statutory SLA Assurance</span>
-          </div>
-          <p className="text-xs text-slate-400 leading-relaxed font-sans">
-            All running SLA countdown timers for submitted complaints are securely frozen during maintenance periods. Resolution deadlines are automatically extended to match downtime, preventing unfair SLA breaches.
-          </p>
-          <div className="pt-2 border-t border-indigo-500/10 flex flex-wrap gap-4 text-xs font-mono text-slate-400">
-            <span className="flex items-center gap-1.5">
-              <Mail size={12} className="text-indigo-400" />
-              Emergency Ops: <strong className="text-white">ops@resolvenow.gov.in</strong>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <PhoneCall size={12} className="text-indigo-400" />
-              Hotline: <strong className="text-white">1800-REDRESS</strong>
-            </span>
-          </div>
-        </div>
-
-        {/* Return Button */}
-        <div className="mt-8">
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 text-xs font-mono font-bold text-slate-400 hover:text-white uppercase tracking-wider transition-colors"
+          {/* Hero Maintenance Card */}
+          <MotionCard 
+            className="p-8 sm:p-12 text-center relative overflow-hidden"
+            glow={true}
           >
-            <span>Return to Landing Portal</span>
-            <ExternalLink size={12} />
-          </Link>
-        </div>
+            {/* Ambient amber glow */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 
-      </main>
-    </AnimatedPage>
+            {/* Status Pill Badge */}
+            <div className="relative inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[11px] font-mono font-bold uppercase tracking-widest shadow-lg shadow-amber-500/10 mb-6">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+              <span>Scheduled Institutional Maintenance</span>
+            </div>
+
+            {/* Central Wrench Graphic */}
+            <div className="relative flex items-center justify-center my-4">
+              <div className="w-24 h-24 rounded-3xl bg-slate-950/80 border border-white/15 backdrop-blur-xl shadow-2xl flex flex-col items-center justify-center">
+                <Wrench className="w-11 h-11 text-amber-400 animate-bounce" style={{ animationDuration: '3s' }} />
+                <span className="text-[9px] font-mono font-black text-amber-400 uppercase tracking-widest mt-1">UPGRADING</span>
+              </div>
+            </div>
+
+            {/* Title & Description */}
+            <h1 className="text-3xl sm:text-4xl font-heading font-black tracking-tight text-white mt-4">
+              System Upgrades in Progress
+            </h1>
+            <p className="text-slate-400 text-xs sm:text-sm leading-relaxed max-w-xl mx-auto font-sans mt-3">
+              The ResolveNow grievance cluster is undergoing scheduled infrastructure hardening, cryptographic ledger synchronization, and SLA engine optimization.
+            </p>
+
+            {/* Live Re-connection Probe Bar */}
+            <div className="mt-8 p-5 sm:p-6 rounded-2xl bg-slate-950/80 border border-white/10 backdrop-blur-xl flex flex-col sm:flex-row items-center justify-between gap-4 text-left">
+              <div className="flex items-center gap-3.5">
+                <div className={`p-2.5 rounded-xl ${isOnline ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
+                  <Activity size={20} className={loading ? 'animate-spin' : ''} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-heading font-bold text-white">
+                      Cluster Status: {isOnline ? 'Nodes Online & Accessible' : 'Maintenance Mode Active'}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider ${isOnline ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
+                      {isOnline ? 'READY' : `SYNC (${countdown}s)`}
+                    </span>
+                  </div>
+                  <p className="text-[11px] font-mono text-slate-400 mt-0.5">
+                    Last heartbeat: {lastChecked ? lastChecked.toLocaleTimeString() : 'Checking node...'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                {isOnline ? (
+                  <Link to="/" className="w-full sm:w-auto">
+                    <AnimatedButton
+                      variant="primary"
+                      size="sm"
+                      className="w-full sm:w-auto flex items-center justify-center gap-2"
+                    >
+                      <CheckCircle2 size={14} />
+                      <span>Return to Portal</span>
+                    </AnimatedButton>
+                  </Link>
+                ) : (
+                  <AnimatedButton
+                    onClick={probeBackendHealth}
+                    disabled={loading}
+                    variant="outline"
+                    size="sm"
+                    className="w-full sm:w-auto flex items-center justify-center gap-2"
+                  >
+                    <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                    <span>Probe Connectivity</span>
+                  </AnimatedButton>
+                )}
+              </div>
+            </div>
+          </MotionCard>
+
+          {/* Node Subsystems Health Matrix */}
+          <div className="space-y-3 text-left">
+            <div className="flex items-center justify-between px-1">
+              <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-slate-400">
+                Infrastructure Node Health Matrix
+              </h2>
+              <span className="text-[10px] font-mono text-slate-500">Zero-Data-Loss Protected</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {systemNodes.map((node, i) => (
+                <MotionCard 
+                  key={i} 
+                  className="p-4 flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-white/5 text-slate-300 border border-white/10">
+                      <node.icon size={18} />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-heading font-bold text-white">{node.name}</h3>
+                      <p className="text-[11px] font-mono text-slate-500">{node.role}</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold uppercase px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-slate-300">
+                    {node.status}
+                  </span>
+                </MotionCard>
+              ))}
+            </div>
+          </div>
+
+          {/* Emergency Helpdesk & SLA Guarantee Notice */}
+          <MotionCard className="p-6 bg-indigo-950/30 border border-indigo-500/20 text-left space-y-3">
+            <div className="flex items-center gap-2 text-indigo-300 text-xs font-mono font-bold uppercase tracking-wider">
+              <ShieldAlert size={16} />
+              <span>Statutory SLA Assurance</span>
+            </div>
+            <p className="text-xs text-slate-400 leading-relaxed font-sans">
+              All active SLA countdown timers for submitted complaints are securely frozen during maintenance periods. Resolution deadlines are automatically extended to match downtime, preventing unfair SLA penalties.
+            </p>
+            <div className="pt-3 border-t border-indigo-500/15 flex flex-wrap gap-5 text-xs font-mono text-slate-400">
+              <span className="flex items-center gap-2">
+                <Mail size={13} className="text-indigo-400" />
+                Emergency Ops: <strong className="text-white">ops@resolvenow.gov.in</strong>
+              </span>
+              <span className="flex items-center gap-2">
+                <PhoneCall size={13} className="text-indigo-400" />
+                Hotline: <strong className="text-white">1800-REDRESS</strong>
+              </span>
+            </div>
+          </MotionCard>
+
+          {/* Return Button */}
+          <div className="text-center pt-2">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-2 text-xs font-mono font-bold text-slate-400 hover:text-white uppercase tracking-wider transition-colors"
+            >
+              <span>Return to Landing Portal</span>
+              <ExternalLink size={12} />
+            </Link>
+          </div>
+
+        </div>
+      </div>
+    </AuroraBackground>
   );
 };
 
