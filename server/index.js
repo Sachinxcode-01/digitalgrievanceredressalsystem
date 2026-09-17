@@ -102,7 +102,17 @@ if (clerkKey && clerkKey.startsWith('pk_')) {
   });
 }
 
-// 4. Main Health Check
+// 4. Lightweight Keep-Alive & Cloud Probe Route (UptimeRobot / Render / Kubernetes)
+app.get(['/health', '/healthz'], (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Server is healthy',
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor(process.uptime())
+  });
+});
+
+// Deep System Health Check (Database & Metrics)
 app.get('/api/health', async (req, res) => {
   const supabase = require('./config/supabase');
   let dbStatus = 'online';
