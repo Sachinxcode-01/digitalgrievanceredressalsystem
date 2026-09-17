@@ -587,12 +587,10 @@ function AppContent() {
   );
 }
 
-function App() {
-  const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+const FALLBACK_CLERK_KEY = 'pk_test_Zml0dGluZy1veC00Ny5jbGVyay5hY2NvdW50cy5kZXYk';
 
-  if (!publishableKey) {
-    console.error("Clerk Publishable Key is missing!");
-  }
+function App() {
+  const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || FALLBACK_CLERK_KEY;
 
   return (
     <ClerkProvider 
