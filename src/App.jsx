@@ -36,6 +36,8 @@ const PrivacyPolicyPage = React.lazy(() => import('./pages/public/PrivacyPolicyP
 const CitizenCharterPage = React.lazy(() => import('./pages/public/CitizenCharterPage'));
 const FeedbackHubPage = React.lazy(() => import('./pages/public/FeedbackHubPage'));
 const AppealGrievancePage = React.lazy(() => import('./pages/grievances/AppealGrievancePage'));
+const OfficerDirectoryPage = React.lazy(() => import('./pages/public/OfficerDirectoryPage'));
+const OfficerGrievanceQueuePage = React.lazy(() => import('./pages/officer/OfficerGrievanceQueuePage').then(m => ({ default: m.OfficerGrievanceQueuePage })));
 
 // --- New Clerk Auth & Settings Pages ---
 const RegisterPage = React.lazy(() => import('./pages/auth/RegisterPage'));
@@ -183,6 +185,9 @@ function AppContent() {
               <Route path="/feedback" element={<FeedbackHubPage />} />
               <Route path="/csat" element={<Navigate to="/feedback" replace />} />
               <Route path="/survey" element={<Navigate to="/feedback" replace />} />
+              <Route path="/officers" element={<OfficerDirectoryPage />} />
+              <Route path="/directory" element={<Navigate to="/officers" replace />} />
+              <Route path="/contact" element={<Navigate to="/officers" replace />} />
               
               {/* Auth Gates */}
               <Route path="/sso-callback" element={<SsoCallbackPage />} />
@@ -227,7 +232,18 @@ function AppContent() {
 
               {/* Officer / Departmental Dashboard */}
               <Route path="/officer" element={<Navigate to="/officer/dashboard" replace />} />
-              <Route path="/officer/grievances" element={<Navigate to="/officer/dashboard" replace />} />
+              <Route 
+                path="/officer/grievances" 
+                element={
+                  <ProtectedRoute>
+                    <RoleGuard allowedRoles={['officer', 'faculty', 'staff', 'admin', 'super admin']} fallback={<Navigate to="/dashboard" />}>
+                      <Layout user={user} onLogout={logout} theme={theme} setTheme={setTheme}>
+                        <OfficerGrievanceQueuePage user={user} sessionUser={user} />
+                      </Layout>
+                    </RoleGuard>
+                  </ProtectedRoute>
+                } 
+              />
               <Route 
                 path="/officer/dashboard" 
                 element={

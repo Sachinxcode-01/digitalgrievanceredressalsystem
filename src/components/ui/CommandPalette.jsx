@@ -59,6 +59,8 @@ export const CommandPalette = () => {
     { id: 'nav-terms', category: 'Navigation', title: 'Citizen Charter & Terms of Redressal', icon: FileText, action: () => navigate('/terms') },
     { id: 'nav-feedback', category: 'Navigation', title: 'Citizen Satisfaction & CSAT Hub', icon: HeartHandshake, action: () => navigate('/feedback') },
     { id: 'nav-appeal', category: 'Navigation', title: 'Grievance Appellate Tribunal', icon: Scale, action: () => navigate('/appeal') },
+    { id: 'nav-officers', category: 'Navigation', title: 'Grievance Redressal Officers Directory', icon: Building2, action: () => navigate('/officers') },
+    { id: 'nav-officer-queue', category: 'Navigation', title: 'Officer Triage & Grievance Queue', icon: Ticket, badge: 'Staff / Officer', action: () => navigate('/officer/grievances') },
 
     // Department Quick Filters
     { id: 'dept-it', category: 'Departments', title: 'IT Support & Campus Wi-Fi', icon: Building2, action: () => navigate('/grievances?category=IT+Support') },

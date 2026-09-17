@@ -34,7 +34,8 @@ export const Layout = ({ children, user, onLogout, theme, setTheme }) => {
     : isOfficer
     ? [
         { path: '/officer/dashboard', icon: LayoutDashboard, label: 'Officer Desk' },
-        { path: '/grievances', icon: Ticket, label: 'Tickets Queue' },
+        { path: '/officer/grievances', icon: Ticket, label: 'Department Queue' },
+        { path: '/officers', icon: Building2, label: 'Officers Directory' },
         { path: '/admin/predictive', icon: TrendingUp, label: 'Predictive SLA' },
         { path: '/reports', icon: FileBarChart, label: 'Reports & Export' },
         { path: '/knowledge-base', icon: BookOpen, label: 'Help Center' },
