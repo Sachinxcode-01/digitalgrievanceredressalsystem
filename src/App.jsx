@@ -31,6 +31,8 @@ const KnowledgeBasePage = React.lazy(() => import('./pages/public/KnowledgeBaseP
 const PredictiveInsightsPage = React.lazy(() => import('./pages/analytics/PredictiveInsightsPage'));
 const NotFoundPage = React.lazy(() => import('./pages/public/NotFoundPage'));
 const MaintenancePage = React.lazy(() => import('./pages/public/MaintenancePage'));
+const PrivacyPolicyPage = React.lazy(() => import('./pages/public/PrivacyPolicyPage'));
+const CitizenCharterPage = React.lazy(() => import('./pages/public/CitizenCharterPage'));
 
 // --- New Clerk Auth & Settings Pages ---
 const RegisterPage = React.lazy(() => import('./pages/auth/RegisterPage'));
@@ -169,9 +171,14 @@ function AppContent() {
               <Route path="/scorecard" element={<PublicTransparencyPage />} />
               <Route path="/verify-hash" element={<PublicHashVerificationPage />} />
               <Route path="/hash-inspector" element={<PublicHashVerificationPage />} />
-              <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
+               <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
               <Route path="/help" element={<Navigate to="/knowledge-base" replace />} />
               <Route path="/faq" element={<Navigate to="/knowledge-base" replace />} />
+              <Route path="/privacy" element={<PrivacyPolicyPage />} />
+              <Route path="/privacy-policy" element={<Navigate to="/privacy" replace />} />
+              <Route path="/terms" element={<CitizenCharterPage />} />
+              <Route path="/citizen-charter" element={<Navigate to="/terms" replace />} />
+              <Route path="/charter" element={<Navigate to="/terms" replace />} />
               
               {/* Auth Gates */}
               <Route path="/sso-callback" element={<SsoCallbackPage />} />

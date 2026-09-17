@@ -55,6 +55,8 @@ export const CommandPalette = () => {
     { id: 'nav-transparency', category: 'Navigation', title: 'Public Transparency Scorecard', icon: ShieldCheck, badge: 'Leaderboard', action: () => navigate('/transparency') },
     { id: 'nav-verify', category: 'Navigation', title: 'Cryptographic Hash Verifier', icon: Hash, action: () => navigate('/verify-hash') },
     { id: 'nav-status', category: 'Navigation', title: 'System SLA & Health Status', icon: Activity, action: () => navigate('/status') },
+    { id: 'nav-privacy', category: 'Navigation', title: 'Privacy & Data Retention Policy', icon: ShieldCheck, action: () => navigate('/privacy') },
+    { id: 'nav-terms', category: 'Navigation', title: 'Citizen Charter & Terms of Redressal', icon: FileText, action: () => navigate('/terms') },
 
     // Department Quick Filters
     { id: 'dept-it', category: 'Departments', title: 'IT Support & Campus Wi-Fi', icon: Building2, action: () => navigate('/grievances?category=IT+Support') },

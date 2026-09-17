@@ -719,6 +719,8 @@ export const LandingPage = () => {
               <ul className="space-y-1.5 text-slate-400">
                 <li><Link to="/public-status" className="hover:text-white">Track Ticket</Link></li>
                 <li><Link to="/submit-grievance" className="hover:text-white">File Grievance</Link></li>
+                <li><Link to="/privacy" className="hover:text-white">Privacy Policy</Link></li>
+                <li><Link to="/terms" className="hover:text-white">Citizen Charter</Link></li>
                 <li><Link to="/login" className="hover:text-white">Portal Sign In</Link></li>
                 <li><Link to="/admin-login" className="hover:text-white">Admin Clearance</Link></li>
               </ul>
@@ -747,7 +749,13 @@ export const LandingPage = () => {
               <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               <span>ResolveNow Kernel v2.0 • ISO-27001 Certified</span>
             </div>
-            <p>© {new Date().getFullYear()} Government of Digital India. All rights reserved.</p>
+            <div className="flex items-center gap-4">
+              <Link to="/privacy" className="hover:text-slate-300 transition-colors">Privacy Policy</Link>
+              <span>•</span>
+              <Link to="/terms" className="hover:text-slate-300 transition-colors">Citizen Charter</Link>
+              <span>•</span>
+              <p>© {new Date().getFullYear()} Government of Digital India. All rights reserved.</p>
+            </div>
           </div>
         </footer>
 
