@@ -3,12 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, BookOpen, Wifi, Wrench, GraduationCap, DollarSign, 
   ShieldAlert, Sparkles, ChevronDown, PhoneCall, ExternalLink, 
-  HelpCircle, ArrowRight, CheckCircle2, FileText, ArrowLeft, Mail
+  HelpCircle, ArrowRight, CheckCircle2, FileText, ChevronLeft, Mail,
+  X, Activity, ShieldCheck
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import AnimatedPage from '../../components/ui/AnimatedPage';
-import GlassPanel from '../../components/ui/GlassPanel';
+import { AuroraBackground } from '../../components/ui/BackgroundEffects';
 import MotionCard from '../../components/ui/MotionCard';
+import AnimatedButton from '../../components/ui/AnimatedButton';
 
 const CATEGORIES = [
   { id: 'all', label: 'All Resources', icon: BookOpen },
@@ -128,214 +129,267 @@ export const KnowledgeBasePage = () => {
   }, [selectedCategory, searchQuery]);
 
   return (
-    <AnimatedPage className="min-h-screen bg-background text-foreground pb-20">
-      {/* Hero Header */}
-      <div className="relative overflow-hidden border-b border-border/50 bg-surface/30 backdrop-blur-md pt-12 pb-16 px-4 sm:px-6 lg:px-8">
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-primary-bright/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="max-w-5xl mx-auto text-center space-y-4 relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-bright/10 border border-primary-bright/20 text-primary-bright text-xs font-bold uppercase tracking-wider">
-            <Sparkles className="w-3.5 h-3.5" />
-            Citizen Self-Service Portal
-          </div>
-          <h1 className="text-3xl sm:text-5xl font-heading font-black tracking-tight text-foreground">
-            How can we help you today?
-          </h1>
-          <p className="text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto">
-            Search our comprehensive knowledge base of university standard operating procedures, policies, and instant troubleshooting guides.
-          </p>
+    <AuroraBackground className="min-h-screen">
+      <div className="relative z-10 w-full min-h-screen py-8 px-4 sm:px-6 lg:px-8 flex flex-col">
+        <div className="max-w-6xl mx-auto w-full space-y-8 my-auto pt-4 pb-16">
+          
+          {/* Top Control Bar */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <Link 
+              to="/" 
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-white border border-white/10 text-xs font-mono font-bold transition-all cursor-pointer"
+            >
+              <ChevronLeft size={14} />
+              <span>Portal Gateway</span>
+            </Link>
 
-          {/* Search Bar */}
-          <div className="max-w-2xl mx-auto pt-4">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Link
+                to="/officers"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-white/10 text-xs font-mono font-medium transition-all"
+              >
+                <BookOpen size={13} className="text-cyan-400" />
+                <span>Officers Directory</span>
+              </Link>
+              <Link
+                to="/status"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-white/10 text-xs font-mono font-medium transition-all"
+              >
+                <Activity size={13} className="text-emerald-400" />
+                <span>System Status</span>
+              </Link>
+              <Link
+                to="/verify-hash"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-white/10 text-xs font-mono font-medium transition-all"
+              >
+                <ShieldCheck size={13} className="text-indigo-400" />
+                <span>Verify Proof</span>
+              </Link>
+            </div>
+          </div>
+
+          {/* Hero Header */}
+          <div className="text-center space-y-3 pt-2">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[11px] font-mono font-bold uppercase tracking-widest shadow-lg shadow-indigo-500/10">
+              <Sparkles size={14} className="text-indigo-400 animate-pulse" />
+              <span>Citizen Self-Service Knowledge Base</span>
+            </div>
+
+            <h1 className="text-3xl sm:text-5xl font-heading font-black text-white tracking-tight">
+              Instant Knowledge & Policy Guides
+            </h1>
+            <p className="text-slate-400 font-medium text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
+              Explore university standard operating procedures, examination rules, hostel guidelines, and automated troubleshooting workflows.
+            </p>
+          </div>
+
+          {/* Search Bar & Category Chips */}
+          <MotionCard className="p-6 space-y-4" tilt={false}>
             <div className="relative">
-              <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search solutions (e.g., Wi-Fi login, fee receipt, attendance, medical leave)..."
+                placeholder="Search solutions (e.g. Wi-Fi setup, attendance condonation, fee receipt, hostel repair)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-surface/80 border border-border/80 text-foreground placeholder:text-muted-foreground/60 text-sm focus:outline-none focus:ring-2 focus:ring-primary-bright/30 focus:border-primary-bright shadow-lg backdrop-blur-xl transition-all"
+                className="w-full pl-11 pr-10 py-3.5 bg-slate-950/90 border border-white/10 rounded-xl font-mono text-xs sm:text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 transition-colors shadow-inner"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground font-semibold px-2 py-1 rounded-md bg-muted/40"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
                 >
-                  Clear
+                  <X size={16} />
                 </button>
               )}
             </div>
-          </div>
-        </div>
-      </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
-        {/* Category Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-          {CATEGORIES.map((cat) => {
-            const Icon = cat.icon;
-            const isSelected = selectedCategory === cat.id;
-            return (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => setSelectedCategory(cat.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                  isSelected
-                    ? 'bg-primary-bright text-white shadow-md shadow-primary-bright/20 font-bold'
-                    : 'bg-surface/60 hover:bg-surface border border-border/60 text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                {cat.label}
-              </button>
-            );
-          })}
-        </div>
+            {/* Category Pills */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
+              {CATEGORIES.map((cat) => {
+                const Icon = cat.icon;
+                const isSelected = selectedCategory === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setSelectedCategory(cat.id)}
+                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-mono font-bold whitespace-nowrap transition-all border cursor-pointer ${
+                      isSelected
+                        ? 'bg-indigo-600 border-indigo-400 text-white shadow-lg shadow-indigo-600/30'
+                        : 'bg-slate-950/60 border-white/10 text-slate-400 hover:text-white hover:bg-slate-800'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    <span>{cat.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </MotionCard>
 
-        {/* Knowledge Articles Grid */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-              <FileText className="w-4 h-4 text-primary-bright" />
-              {selectedCategory === 'all' ? 'Featured Guides & Solutions' : `${selectedCategory} Guides`}
-              <span className="text-xs font-normal text-muted-foreground">({filteredArticles.length} found)</span>
-            </h2>
-            <Link
-              to="/grievances/submit"
-              className="text-xs font-semibold text-primary-bright hover:underline flex items-center gap-1"
-            >
-              Cannot find solution? Submit Grievance <ArrowRight className="w-3 h-3" />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredArticles.map((article) => {
-              const isExpanded = expandedArticle === article.id;
-              return (
-                <MotionCard
-                  key={article.id}
-                  className="p-5 border border-border/80 bg-surface/70 backdrop-blur-md rounded-2xl flex flex-col justify-between hover:border-primary-bright/40 transition-all shadow-sm"
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-primary-bright/10 text-primary-bright border border-primary-bright/20">
-                        {article.category}
-                      </span>
-                      <span className="text-[11px] text-muted-foreground">
-                        {article.views} reads
-                      </span>
-                    </div>
-
-                    <h3 className="text-base font-bold text-foreground leading-snug">
-                      {article.title}
-                    </h3>
-
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      {article.summary}
-                    </p>
-
-                    <div className="flex flex-wrap gap-1.5 pt-1">
-                      {article.tags.map(tag => (
-                        <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-muted/40 text-muted-foreground">
-                          #{tag}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="pt-4 mt-4 border-t border-border/50">
-                    <button
-                      type="button"
-                      onClick={() => setExpandedArticle(isExpanded ? null : article.id)}
-                      className="w-full py-2 px-3 rounded-xl bg-primary-bright/5 hover:bg-primary-bright/10 text-primary-bright text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                    >
-                      {isExpanded ? 'Collapse Solution' : 'Read Full Standard Operating Procedure'}
-                      <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    <AnimatePresence>
-                      {isExpanded && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          className="mt-3 pt-3 space-y-3 text-xs text-foreground/90 border-t border-border/40"
-                        >
-                          <div className="bg-background/80 p-3.5 rounded-xl border border-border/60 whitespace-pre-line leading-relaxed font-sans text-xs">
-                            {article.content}
-                          </div>
-
-                          {article.faq && (
-                            <div className="space-y-2 pt-2">
-                              <p className="font-bold text-[11px] uppercase tracking-wider text-muted-foreground">Frequently Asked Questions</p>
-                              {article.faq.map((f, i) => (
-                                <div key={i} className="p-2.5 rounded-lg bg-surface/50 border border-border/40 space-y-1">
-                                  <p className="font-semibold text-foreground text-xs">Q: {f.q}</p>
-                                  <p className="text-muted-foreground text-xs leading-relaxed">A: {f.a}</p>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                </MotionCard>
-              );
-            })}
-          </div>
-
-          {filteredArticles.length === 0 && (
-            <div className="p-12 text-center rounded-2xl border border-border/80 bg-surface/40 space-y-3">
-              <HelpCircle className="w-8 h-8 text-muted-foreground mx-auto" />
-              <p className="text-sm font-semibold text-foreground">No articles match your search query.</p>
-              <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                Need immediate human assistance? Submit a formal grievance and an officer will be dispatched under SLA.
-              </p>
+          {/* Articles Section Header */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm sm:text-base font-heading font-black text-white flex items-center gap-2">
+                <FileText className="w-4 h-4 text-indigo-400" />
+                <span>{selectedCategory === 'all' ? 'Featured Guides & Solutions' : `${selectedCategory} Guides`}</span>
+                <span className="text-xs font-mono text-slate-500">({filteredArticles.length} found)</span>
+              </h2>
               <Link
-                to="/grievances/submit"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-bright text-white text-xs font-bold"
+                to="/submit-grievance"
+                className="text-xs font-mono font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
               >
-                Submit Grievance Now
+                <span>Cannot find solution? File Grievance</span>
+                <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>
-          )}
-        </div>
 
-        {/* Campus Emergency Helplines Card */}
-        <div className="p-6 rounded-2xl border border-rose-500/30 bg-rose-500/5 backdrop-blur-md relative overflow-hidden">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            {/* Articles Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredArticles.map((article) => {
+                const isExpanded = expandedArticle === article.id;
+                return (
+                  <MotionCard
+                    key={article.id}
+                    className="p-5 flex flex-col justify-between"
+                    tilt={false}
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+                          {article.category}
+                        </span>
+                        <span className="text-[11px] font-mono text-slate-500">
+                          {article.views} reads
+                        </span>
+                      </div>
+
+                      <h3 className="text-base font-heading font-black text-white leading-snug">
+                        {article.title}
+                      </h3>
+
+                      <p className="text-xs text-slate-400 leading-relaxed font-sans">
+                        {article.summary}
+                      </p>
+
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {article.tags.map(tag => (
+                          <span key={tag} className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-slate-950/80 border border-white/5 text-slate-400">
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="pt-4 mt-4 border-t border-white/10">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedArticle(isExpanded ? null : article.id)}
+                        className="w-full py-2 px-3 rounded-xl bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-300 text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-indigo-500/20"
+                      >
+                        <span>{isExpanded ? 'Collapse Solution' : 'Read Full Standard Operating Procedure'}</span>
+                        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                      </button>
+
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="mt-3 pt-3 space-y-3 text-xs text-slate-300 border-t border-white/10 overflow-hidden"
+                          >
+                            <div className="bg-slate-950/90 p-4 rounded-xl border border-white/10 whitespace-pre-line leading-relaxed font-sans text-xs text-slate-300 shadow-inner">
+                              {article.content}
+                            </div>
+
+                            {article.faq && (
+                              <div className="space-y-2 pt-2">
+                                <p className="font-bold text-[10px] uppercase font-mono tracking-wider text-slate-400">Frequently Asked Questions</p>
+                                {article.faq.map((f, i) => (
+                                  <div key={i} className="p-3 rounded-xl bg-slate-950/60 border border-white/10 space-y-1">
+                                    <p className="font-bold text-white text-xs">Q: {f.q}</p>
+                                    <p className="text-slate-400 text-xs leading-relaxed font-sans">A: {f.a}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </MotionCard>
+                );
+              })}
+            </div>
+
+            {filteredArticles.length === 0 && (
+              <MotionCard className="p-12 text-center space-y-3" tilt={false}>
+                <HelpCircle className="w-8 h-8 text-slate-500 mx-auto" />
+                <p className="text-sm font-bold text-white">No articles match your search query.</p>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto font-sans">
+                  Need immediate human assistance? Submit a formal grievance and an officer will be dispatched under statutory SLA.
+                </p>
+                <div className="pt-2">
+                  <Link to="/submit-grievance">
+                    <AnimatedButton variant="glow" size="sm">
+                      Submit Grievance Now
+                    </AnimatedButton>
+                  </Link>
+                </div>
+              </MotionCard>
+            )}
+          </div>
+
+          {/* Campus Emergency Helplines Card */}
+          <div className="p-6 rounded-2xl border border-rose-500/30 bg-rose-500/5 backdrop-blur-md relative overflow-hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0">
                 <PhoneCall className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-foreground">24/7 Campus Emergency Quick Dial</h3>
-                <p className="text-xs text-muted-foreground">For life-safety, medical emergencies, or urgent security threats.</p>
+                <h3 className="text-base font-bold text-white font-heading">24/7 Campus Emergency Quick Dial</h3>
+                <p className="text-xs text-slate-400 font-sans">For life-safety, medical emergencies, or urgent security threats.</p>
               </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
               <a
-                href="tel:100"
-                className="px-3 py-1.5 rounded-lg bg-rose-500 text-white text-xs font-bold flex items-center gap-1.5 hover:bg-rose-600 transition-colors shadow-sm"
+                href="tel:01128991000"
+                className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold font-mono flex items-center gap-1.5 transition-colors shadow-sm"
               >
                 <PhoneCall className="w-3.5 h-3.5" />
-                Security SOS: Ext. 100
+                <span>Security: Ext. 100</span>
               </a>
-              <a
-                href="tel:108"
-                className="px-3 py-1.5 rounded-lg bg-surface border border-border text-foreground text-xs font-semibold flex items-center gap-1.5 hover:bg-muted transition-colors"
+              <Link
+                to="/emergency"
+                className="px-3.5 py-2 rounded-xl bg-slate-900 border border-white/10 hover:bg-slate-800 text-slate-300 text-xs font-mono font-semibold flex items-center gap-1.5 transition-colors"
               >
-                <PhoneCall className="w-3.5 h-3.5 text-emerald-400" />
-                Health Clinic: Ext. 104
-              </a>
+                <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
+                <span>All Helplines</span>
+              </Link>
             </div>
           </div>
+
+          {/* Footer */}
+          <footer className="pt-6 border-t border-white/5 text-center text-xs font-mono text-slate-500 space-y-2">
+            <p>&copy; {new Date().getFullYear()} ResolveNow Citizen Redressal System &bull; Institutional Knowledge Base</p>
+            <div className="flex items-center justify-center gap-4 text-[11px] text-slate-400">
+              <Link to="/officers" className="hover:text-white">Officers Directory</Link>
+              <span>•</span>
+              <Link to="/whistleblower" className="hover:text-white">Whistleblower Vault</Link>
+              <span>•</span>
+              <Link to="/terms" className="hover:text-white">Citizen Charter</Link>
+              <span>•</span>
+              <Link to="/privacy" className="hover:text-white">Privacy Policy</Link>
+            </div>
+          </footer>
+
         </div>
       </div>
-    </AnimatedPage>
+    </AuroraBackground>
   );
 };
 

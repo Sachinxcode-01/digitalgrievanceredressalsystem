@@ -10,11 +10,8 @@ import {
   Ambulance, 
   Building2, 
   ChevronLeft, 
-  ChevronRight, 
   Clock, 
   ArrowRight, 
-  Sun, 
-  Moon, 
   FileText, 
   CheckCircle2, 
   Siren, 
@@ -27,8 +24,9 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AnimatedPage } from '../../components/ui/AnimatedPage';
-import { useTheme } from '../../app/providers/ThemeProvider';
+import { AuroraBackground } from '../../components/ui/BackgroundEffects';
+import MotionCard from '../../components/ui/MotionCard';
+import AnimatedButton from '../../components/ui/AnimatedButton';
 import { grievanceService } from '../../services/grievanceService';
 import toast from 'react-hot-toast';
 
@@ -110,7 +108,7 @@ const SAFETY_PROTOCOLS = [
     steps: [
       'Do not remain isolated — immediately move towards a populated campus area or warden office.',
       'Call the National Anti-Ragging Helpline (1800-180-5522) or Chief Proctor directly.',
-      'Submit an instant SOS report below. The system bypasses normal tiers and dispatches an emergency alert directly to the Dean and Proctor.',
+      'Submit an instant SOS report below. The system bypasses normal queues and dispatches an emergency alert directly to the Dean and Proctor.',
       'You are legally protected from academic or disciplinary retaliation under Supreme Court guidelines.'
     ]
   },
@@ -142,7 +140,6 @@ const SAFETY_PROTOCOLS = [
 
 export const EmergencySafetyPage = () => {
   const navigate = useNavigate();
-  const { theme, toggleTheme } = useTheme();
 
   // Fast SOS Trigger State
   const [sosLocation, setSosLocation] = useState('');
@@ -172,7 +169,7 @@ export const EmergencySafetyPage = () => {
       setSosDispatched(true);
       toast.success('EMERGENCY SOS DISPATCHED: Security and Proctor alerted.');
     } catch (err) {
-      console.error('SOS fallback:', err);
+      console.warn('SOS fallback:', err);
       setSosDispatched(true);
       toast.success('Emergency alert recorded. Please call the Security Room directly!');
     } finally {
@@ -181,260 +178,264 @@ export const EmergencySafetyPage = () => {
   };
 
   return (
-    <AnimatedPage>
-      <div className="min-h-screen bg-background text-foreground transition-colors duration-300 flex flex-col items-center justify-start p-4 sm:p-6 md:p-8 relative overflow-hidden font-sans">
-        
-        {/* Urgent Emergency Ambient Red Pulsing Aura */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-96 bg-linear-to-b from-rose-500/15 via-amber-500/5 to-transparent blur-3xl pointer-events-none -z-10 animate-pulse" />
-
-        {/* Top Control Bar */}
-        <div className="w-full max-w-6xl flex items-center justify-between gap-4 mb-6">
-          <Link 
-            to="/" 
-            className="inline-flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-lg border border-border/50 hover:bg-surface-elevated/40"
-          >
-            <ChevronLeft size={14} />
-            Back to Portal
-          </Link>
-
-          <div className="flex items-center gap-3">
-            <Link
-              to="/whistleblower"
-              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors"
+    <AuroraBackground className="min-h-screen">
+      <div className="relative z-10 w-full min-h-screen py-8 px-4 sm:px-6 lg:px-8 flex flex-col">
+        <div className="max-w-6xl mx-auto w-full space-y-8 my-auto pt-4 pb-16">
+          
+          {/* Top Control Bar */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <Link 
+              to="/" 
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-white border border-white/10 text-xs font-mono font-bold transition-all cursor-pointer"
             >
-              <ShieldAlert size={13} />
-              Anonymous Whistleblower
+              <ChevronLeft size={14} />
+              <span>Portal Gateway</span>
             </Link>
-            <div className="hidden sm:block h-3 w-px bg-border/60" />
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-xl border border-border/60 bg-surface-elevated/60 hover:bg-surface-elevated text-muted-foreground hover:text-foreground transition-colors"
-              title={`Switch Theme`}
-              type="button"
-            >
-              {theme === 'ocean' ? <Moon size={16} /> : <Sun size={16} />}
-            </button>
-          </div>
-        </div>
 
-        {/* Emergency Broadcast Ticker Banner */}
-        <div className="w-full max-w-6xl mb-8 p-4 rounded-2xl bg-rose-600/10 border border-rose-500/30 text-rose-300 flex items-center justify-between gap-4 backdrop-blur-md shadow-lg">
-          <div className="flex items-center gap-3">
-            <Siren size={22} className="text-rose-400 animate-bounce shrink-0" />
-            <div>
-              <p className="text-xs font-bold text-white uppercase tracking-wider font-heading">
-                Live 24x7 Campus Rapid Crisis Redressal Network
-              </p>
-              <p className="text-[11px] text-rose-300/80 font-mono">
-                For immediate life-threatening events, dial Security (+91 011 2899-1000) or 112 directly.
-              </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Link
+                to="/whistleblower"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-mono font-medium transition-all"
+              >
+                <ShieldAlert size={13} className="text-purple-400" />
+                <span>Anonymous Whistleblower</span>
+              </Link>
+              <Link
+                to="/officers"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-white/10 text-xs font-mono font-medium transition-all"
+              >
+                <Building2 size={13} className="text-cyan-400" />
+                <span>Officers Directory</span>
+              </Link>
             </div>
           </div>
-          <a
-            href="tel:01128991000"
-            className="hidden sm:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-rose-600 text-white text-xs font-bold font-mono uppercase tracking-wider shadow-md hover:bg-rose-500 transition-all shrink-0"
-          >
-            <PhoneCall size={14} />
-            Dial Security Now
-          </a>
-        </div>
 
-        {/* Hero Title */}
-        <div className="w-full max-w-6xl text-center space-y-3 mb-8">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-heading font-black tracking-tight text-foreground">
-            Emergency Hotlines & Crisis Redressal
-          </h1>
-          <p className="text-muted-foreground text-xs sm:text-sm md:text-base max-w-2xl mx-auto leading-relaxed">
-            One-tap direct access to campus safety units, emergency ambulances, anti-ragging authorities, and mental health crisis counselling.
-          </p>
-        </div>
+          {/* Emergency Broadcast Ticker Banner */}
+          <div className="p-4 rounded-2xl bg-rose-600/15 border border-rose-500/40 text-rose-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 backdrop-blur-xl shadow-lg shadow-rose-600/10">
+            <div className="flex items-center gap-3">
+              <Siren size={24} className="text-rose-400 animate-bounce shrink-0" />
+              <div>
+                <p className="text-xs font-bold text-white uppercase tracking-wider font-heading">
+                  Live 24x7 Campus Rapid Crisis Redressal Network
+                </p>
+                <p className="text-[11px] text-rose-200/80 font-mono">
+                  For immediate life-threatening events, dial Security (+91 011 2899-1000) or 112 directly.
+                </p>
+              </div>
+            </div>
+            <a
+              href="tel:01128991000"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold font-mono uppercase tracking-wider shadow-lg shadow-rose-600/30 transition-all shrink-0 cursor-pointer"
+            >
+              <PhoneCall size={14} />
+              <span>Dial Security Now</span>
+            </a>
+          </div>
 
-        {/* Emergency Direct-Dial Bento Grid */}
-        <div className="w-full max-w-6xl mb-12">
+          {/* Hero Title */}
+          <div className="text-center space-y-3 pt-2">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[11px] font-mono font-bold uppercase tracking-widest shadow-lg shadow-rose-500/10">
+              <Activity size={14} className="text-rose-400 animate-pulse" />
+              <span>Statutory Emergency Helpline & Crisis Triage</span>
+            </div>
+
+            <h1 className="text-3xl sm:text-5xl font-heading font-black text-white tracking-tight">
+              Emergency Hotlines & Rapid Response
+            </h1>
+            <p className="text-slate-400 font-medium text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
+              One-tap direct access to campus safety units, emergency ambulances, anti-ragging authorities, and mental health crisis counselling.
+            </p>
+          </div>
+
+          {/* Emergency Direct-Dial Bento Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {EMERGENCY_CONTACTS.map((item) => (
-              <div
+              <MotionCard
                 key={item.id}
-                className="p-6 rounded-2xl bg-surface-elevated/70 border border-border/70 hover:border-rose-500/40 hover:shadow-xl transition-all duration-300 flex flex-col justify-between space-y-4"
+                className="p-6 flex flex-col justify-between space-y-4 border-rose-500/20 hover:border-rose-500/40"
+                tilt={false}
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-400 border border-rose-500/20">
                       {item.badge}
                     </span>
-                    <span className="text-[10px] font-mono text-muted-foreground">
+                    <span className="text-[10px] font-mono text-slate-400">
                       {item.available}
                     </span>
                   </div>
 
-                  <h3 className="text-base font-heading font-black text-foreground">
+                  <h3 className="text-base font-heading font-black text-white">
                     {item.title}
                   </h3>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-slate-400 leading-relaxed font-sans">
                     {item.subtitle}
                   </p>
 
-                  <div className="pt-2 text-xs font-mono text-muted-foreground space-y-1">
+                  <div className="pt-2 text-xs font-mono text-slate-400 space-y-1">
                     <div className="flex items-center gap-2">
                       <MapPin size={13} className="text-rose-400 shrink-0" />
-                      <span className="truncate">{item.location}</span>
+                      <span className="truncate text-slate-300">{item.location}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-border/50 flex items-center justify-between gap-3">
-                  <span className="text-xs font-mono font-bold text-foreground truncate">
+                <div className="pt-3 border-t border-white/10 flex items-center justify-between gap-3">
+                  <span className="text-xs font-mono font-bold text-white truncate">
                     {item.phone}
                   </span>
                   <a
                     href={item.direct}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold font-mono transition-all shadow-md shrink-0"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold font-mono transition-all shadow-md shadow-rose-600/30 shrink-0"
                   >
                     <PhoneCall size={13} />
-                    <span>Call</span>
+                    <span>Call Now</span>
                   </a>
                 </div>
-              </div>
+              </MotionCard>
             ))}
           </div>
-        </div>
 
-        {/* Fast 2-Hour SLA SOS Dispatch Form */}
-        <div className="w-full max-w-4xl mb-12">
-          <div className="p-6 sm:p-8 rounded-3xl bg-surface-elevated/80 border border-rose-500/30 shadow-2xl text-left space-y-6">
-            <div className="flex items-center justify-between border-b border-border/60 pb-4 flex-wrap gap-2">
-              <div>
-                <h3 className="text-lg font-heading font-black text-foreground flex items-center gap-2">
-                  <ShieldAlert size={20} className="text-rose-500" />
-                  <span>Fast Crisis SOS Grievance (2-Hour Statutory SLA)</span>
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Submitting an SOS trigger automatically bypasses standard queues and pages on-duty proctors and security supervisors.
-                </p>
+          {/* Fast 2-Hour SLA SOS Dispatch Form */}
+          <div className="max-w-4xl mx-auto w-full">
+            <MotionCard className="p-6 sm:p-8 space-y-6 text-left border-rose-500/40 shadow-2xl shadow-rose-500/10" tilt={false}>
+              <div className="flex items-center justify-between border-b border-white/10 pb-4 flex-wrap gap-2">
+                <div>
+                  <h3 className="text-lg font-heading font-black text-white flex items-center gap-2">
+                    <ShieldAlert size={20} className="text-rose-400" />
+                    <span>Fast Crisis SOS Grievance (2-Hour Statutory SLA)</span>
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Submitting an SOS trigger automatically bypasses standard queues and pages on-duty proctors and security supervisors.
+                  </p>
+                </div>
+                <span className="text-[10px] font-mono text-rose-300 uppercase tracking-widest px-2.5 py-1 rounded-full bg-rose-500/20 border border-rose-500/40 font-bold">
+                  Direct Dispatch Active
+                </span>
               </div>
-              <span className="text-[10px] font-mono text-rose-400 uppercase tracking-widest px-2.5 py-1 rounded bg-rose-500/10 border border-rose-500/20 font-bold">
-                Direct Dispatch Active
-              </span>
+
+              {sosDispatched ? (
+                <div className="p-6 rounded-2xl bg-slate-950/80 border border-emerald-500/40 text-center space-y-3">
+                  <CheckCircle2 size={36} className="mx-auto text-emerald-400" />
+                  <h4 className="text-base font-bold text-white font-heading">
+                    SOS Signal Dispatched to Proctorial Control
+                  </h4>
+                  <p className="text-xs text-slate-400 max-w-md mx-auto">
+                    A rapid intervention ticket has been registered. If you are in immediate physical danger, stay on call with the Campus Security Desk.
+                  </p>
+                  <div className="pt-2">
+                    <button
+                      onClick={() => setSosDispatched(false)}
+                      className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold font-mono transition-all cursor-pointer"
+                    >
+                      Send Additional Details
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleInstantSos} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-300 font-mono uppercase tracking-wider">
+                        Current Exact Location *
+                      </label>
+                      <input
+                        type="text"
+                        value={sosLocation}
+                        onChange={(e) => setSosLocation(e.target.value)}
+                        placeholder="e.g. Hostel 4 Mess Quadrangle or Library 2nd Floor"
+                        required
+                        className="w-full px-4 py-3 bg-slate-950/90 border border-white/10 rounded-xl text-white placeholder:text-slate-500 text-xs sm:text-sm focus:outline-none focus:border-rose-500 transition-all font-sans"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-300 font-mono uppercase tracking-wider">
+                        Nature of Crisis *
+                      </label>
+                      <input
+                        type="text"
+                        value={sosDetails}
+                        onChange={(e) => setSosDetails(e.target.value)}
+                        placeholder="e.g. Threat of violence, severe medical collapse, harassment"
+                        required
+                        className="w-full px-4 py-3 bg-slate-950/90 border border-white/10 rounded-xl text-white placeholder:text-slate-500 text-xs sm:text-sm focus:outline-none focus:border-rose-500 transition-all font-sans"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex items-center justify-between gap-4 flex-wrap">
+                    <span className="text-[11px] font-mono text-slate-400">
+                      ⚡ Automated 2-Hour Escalation SLA Triggered
+                    </span>
+
+                    <AnimatedButton
+                      type="submit"
+                      variant="danger"
+                      size="md"
+                      isLoading={submittingSos}
+                      leftIcon={Send}
+                    >
+                      Transmit Emergency SOS
+                    </AnimatedButton>
+                  </div>
+                </form>
+              )}
+            </MotionCard>
+          </div>
+
+          {/* Safety & Redressal Protocols */}
+          <div className="space-y-4 text-left">
+            <h3 className="text-lg font-heading font-black text-white">
+              Standard Campus Emergency Protocols
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {SAFETY_PROTOCOLS.map((prot) => {
+                const Icon = prot.icon;
+                return (
+                  <MotionCard
+                    key={prot.id}
+                    className="p-5 space-y-3"
+                    tilt={false}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Icon size={18} className={prot.color} />
+                      <h4 className="text-xs font-bold text-white font-heading">
+                        {prot.title}
+                      </h4>
+                    </div>
+                    <ul className="space-y-2 text-[11px] text-slate-400 leading-relaxed pl-1 font-sans">
+                      {prot.steps.map((st, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-600 mt-1.5 shrink-0" />
+                          <span>{st}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </MotionCard>
+                );
+              })}
             </div>
-
-            {sosDispatched ? (
-              <div className="p-6 rounded-2xl bg-surface border border-emerald-500/40 text-center space-y-3">
-                <CheckCircle2 size={36} className="mx-auto text-emerald-400" />
-                <h4 className="text-base font-bold text-foreground font-heading">
-                  SOS Signal Dispatched to Proctorial Control
-                </h4>
-                <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                  A rapid intervention ticket has been registered. If you are in immediate physical danger, stay on call with the Campus Security Desk.
-                </p>
-                <div className="pt-2">
-                  <button
-                    onClick={() => setSosDispatched(false)}
-                    className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold"
-                  >
-                    Send Additional Details
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <form onSubmit={handleInstantSos} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-foreground font-mono uppercase tracking-wider">
-                      Current Exact Location *
-                    </label>
-                    <input
-                      type="text"
-                      value={sosLocation}
-                      onChange={(e) => setSosLocation(e.target.value)}
-                      placeholder="e.g. Hostel 4 Mess Quadrangle or Library 2nd Floor"
-                      required
-                      className="w-full px-4 py-2.5 rounded-xl bg-surface border border-border text-foreground placeholder:text-muted-foreground/60 text-xs focus:outline-hidden focus:border-rose-500 transition-all"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-foreground font-mono uppercase tracking-wider">
-                      Nature of Crisis *
-                    </label>
-                    <input
-                      type="text"
-                      value={sosDetails}
-                      onChange={(e) => setSosDetails(e.target.value)}
-                      placeholder="e.g. Threat of violence, severe medical collapse, harassment"
-                      required
-                      className="w-full px-4 py-2.5 rounded-xl bg-surface border border-border text-foreground placeholder:text-muted-foreground/60 text-xs focus:outline-hidden focus:border-rose-500 transition-all"
-                    />
-                  </div>
-                </div>
-
-                <div className="pt-2 flex items-center justify-between gap-4">
-                  <span className="text-[11px] font-mono text-muted-foreground">
-                    ⚡ Automated 2-Hour Escalation SLA Triggered
-                  </span>
-                  <button
-                    type="submit"
-                    disabled={submittingSos}
-                    className="px-6 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-rose-600/30 transition-all disabled:opacity-50"
-                  >
-                    <Send size={14} />
-                    <span>{submittingSos ? 'Broadcasting SOS...' : 'Transmit Emergency SOS'}</span>
-                  </button>
-                </div>
-              </form>
-            )}
           </div>
+
+          {/* Footer */}
+          <footer className="pt-6 border-t border-white/5 text-center text-xs font-mono text-slate-500 space-y-2">
+            <p>&copy; {new Date().getFullYear()} ResolveNow Crisis Dispatch &bull; Mandated Campus Safety Redressal Console</p>
+            <div className="flex items-center justify-center gap-4 text-[11px] text-slate-400">
+              <Link to="/officers" className="hover:text-white">Officers Directory</Link>
+              <span>•</span>
+              <Link to="/whistleblower" className="hover:text-white">Whistleblower Vault</Link>
+              <span>•</span>
+              <Link to="/terms" className="hover:text-white">Citizen Charter</Link>
+              <span>•</span>
+              <Link to="/privacy" className="hover:text-white">Privacy Policy</Link>
+            </div>
+          </footer>
+
         </div>
-
-        {/* Safety & Redressal Protocols */}
-        <div className="w-full max-w-6xl space-y-4 mb-12 text-left">
-          <h3 className="text-lg font-heading font-black text-foreground">
-            Standard Campus Emergency Protocols
-          </h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {SAFETY_PROTOCOLS.map((prot) => {
-              const Icon = prot.icon;
-              return (
-                <div
-                  key={prot.id}
-                  className="p-5 rounded-2xl bg-surface-elevated/60 border border-border/60 space-y-3"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Icon size={18} className={prot.color} />
-                    <h4 className="text-xs font-bold text-foreground font-heading">
-                      {prot.title}
-                    </h4>
-                  </div>
-                  <ul className="space-y-2 text-[11px] text-muted-foreground leading-relaxed pl-1">
-                    {prot.steps.map((st, i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-border mt-1.5 shrink-0" />
-                        <span>{st}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Footer */}
-        <footer className="w-full max-w-6xl pt-6 border-t border-border/40 text-center text-xs font-mono text-muted-foreground space-y-2">
-          <p>© {new Date().getFullYear()} ResolveNow Crisis Dispatch • Mandated Campus Safety Redressal Console</p>
-          <div className="flex items-center justify-center gap-4 text-[11px]">
-            <Link to="/officers" className="hover:text-foreground">Officers Directory</Link>
-            <span>•</span>
-            <Link to="/whistleblower" className="hover:text-foreground">Whistleblower Vault</Link>
-            <span>•</span>
-            <Link to="/terms" className="hover:text-foreground">Citizen Charter</Link>
-            <span>•</span>
-            <Link to="/privacy" className="hover:text-foreground">Privacy Policy</Link>
-          </div>
-        </footer>
-
       </div>
-    </AnimatedPage>
+    </AuroraBackground>
   );
 };
 
