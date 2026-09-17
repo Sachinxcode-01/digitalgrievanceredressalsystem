@@ -1,4 +1,6 @@
 /* global describe, it, expect, jest */
+process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'https://example.supabase.co';
+process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'sb_secret_test_service_role_key';
 const { executeWithRetry } = require('../config/supabase');
 const aiService = require('../services/aiService');
 
