@@ -33,16 +33,6 @@ const isOriginAllowed = (origin) => {
     return true;
   }
 
-  // 3. Render deployments (e.g., https://digitalgrievanceredressalsystem.onrender.com)
-  if (/^https:\/\/[a-zA-Z0-9-]+\.onrender\.com$/.test(normalized)) {
-    return true;
-  }
-
-  // 4. Vercel preview & production deployments
-  if (/^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/.test(normalized)) {
-    return true;
-  }
-
   return false;
 };
 

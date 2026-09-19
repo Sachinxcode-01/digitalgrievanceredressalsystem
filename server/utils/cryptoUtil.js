@@ -49,9 +49,12 @@ function generateAnonymousPasskey() {
  * @returns {boolean}
  */
 function verifyGrievanceHash(payload, expectedHash) {
-  if (!expectedHash) return false;
+  if (!expectedHash || typeof expectedHash !== 'string') return false;
   const computedHash = generateGrievanceHash(payload);
-  return computedHash.toLowerCase() === expectedHash.toLowerCase();
+  const compBuf = Buffer.from(computedHash.toLowerCase());
+  const expBuf = Buffer.from(expectedHash.toLowerCase());
+  if (compBuf.length !== expBuf.length) return false;
+  return crypto.timingSafeEqual(compBuf, expBuf);
 }
 
 module.exports = {

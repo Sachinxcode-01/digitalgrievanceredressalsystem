@@ -11,8 +11,11 @@ router.use(chatLimiter);
 router.post('/', optionalAuth, async (req, res, next) => {
   try {
     const { message } = req.body;
-    if (!message) {
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
       return res.status(400).json({ reply: "I didn't quite catch that." });
+    }
+    if (message.length > 2000) {
+      return res.status(400).json({ reply: "Message length exceeds maximum allowable limit of 2000 characters." });
     }
     
     const reply = await aiService.getChatResponse(message);
@@ -27,8 +30,11 @@ router.post('/', optionalAuth, async (req, res, next) => {
 router.post('/stream', optionalAuth, async (req, res, next) => {
   try {
     const { message } = req.body;
-    if (!message) {
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
       return res.status(400).json({ error: "Message is required" });
+    }
+    if (message.length > 2000) {
+      return res.status(400).json({ error: "Message length exceeds maximum allowable limit of 2000 characters." });
     }
 
     res.setHeader('Content-Type', 'text/event-stream');

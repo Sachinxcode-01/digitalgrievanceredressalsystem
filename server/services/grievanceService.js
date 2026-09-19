@@ -37,7 +37,7 @@ const grievanceService = {
     let scopedDepartment = null;
 
     const isAdmin = user.role === 'admin' || user.role === 'super admin';
-    const isOfficer = user.role === 'officer' || user.role === 'faculty' || user.role === 'staff';
+    const isOfficer = user.role === 'officer';
 
     if (isAdmin) {
       if (queryUserId) {
@@ -52,8 +52,11 @@ const grievanceService = {
     } else if (isOfficer) {
       // Officers view department-specific grievances or their own assignments
       scopedDepartment = user.department || queryDepartment || null;
+      if (!scopedDepartment) {
+        scopedUserId = user.id;
+      }
     } else {
-      // Students and general citizens are strictly isolated to their own grievances
+      // Students, faculty, and general citizens are strictly isolated to their own grievances
       scopedUserId = user.id;
     }
 
@@ -298,7 +301,7 @@ const grievanceService = {
 
     const isAdmin = user.role === 'admin' || user.role === 'super admin';
     const isAssignee = grievance.assigned_to === user.id || (user.email && grievance.assigned_to === user.email);
-    const isOfficer = user.role === 'officer' || user.role === 'faculty' || user.role === 'staff';
+    const isOfficer = user.role === 'officer' && (user.department === grievance.department || !grievance.department || isAssignee);
     const isOwner = grievance.user_id === user.id || (user.email && grievance.email === user.email);
 
     if (!isAdmin && !isOwner && !isAssignee && !isOfficer) {
@@ -327,13 +330,23 @@ const grievanceService = {
 
     const isAdmin = user.role === 'admin' || user.role === 'super admin';
     const isAssignee = ticket.assigned_to === user.id || (user.email && ticket.assigned_to === user.email);
-    const isOfficer = user.role === 'officer' || user.role === 'faculty' || user.role === 'staff';
+    const isOfficer = user.role === 'officer' && (user.department === ticket.department || !ticket.department || isAssignee);
     const isOwner = ticket.user_id === user.id || (user.email && ticket.email === user.email);
 
     if (!isAdmin && !isAssignee && !isOfficer && !isOwner) {
       const err = new Error('Access Denied: Not authorized to update grievance status');
       err.status = 403;
       throw err;
+    }
+
+    if (!isAdmin && !isAssignee && !isOfficer) {
+      // Regular citizen owner can only submit a draft or cancel a pending/draft ticket
+      const ownerAllowed = (ticket.status === 'Draft' && status === 'Submitted') || (['Submitted', 'Pending', 'Draft'].includes(ticket.status) && status === 'Closed');
+      if (!ownerAllowed) {
+        const err = new Error('Access Denied: Grievance submitters cannot transition operational or resolution statuses.');
+        err.status = 403;
+        throw err;
+      }
     }
 
     // Enforce state transition rules
@@ -702,7 +715,7 @@ const grievanceService = {
 
     const isAdmin = user.role === 'admin' || user.role === 'super admin';
     const isAssignee = ticket.assigned_to === user.id || (user.email && ticket.assigned_to === user.email);
-    const isOfficer = user.role === 'officer' || user.role === 'faculty' || user.role === 'staff';
+    const isOfficer = user.role === 'officer' && (user.department === ticket.department || !ticket.department || isAssignee);
     const isOwner = ticket.user_id === user.id || (user.email && ticket.email === user.email);
 
     if (!isAdmin && !isOwner && !isAssignee && !isOfficer) {
@@ -1059,13 +1072,16 @@ const grievanceService = {
     }
 
     const ticket = await grievanceRepository.findByTicketId(ticketKey);
-    if (!ticket) {
+    if (!ticket || !ticket.is_anonymous || !ticket.secret_passkey) {
       const err = new Error('Anonymous grievance not found.');
       err.status = 404;
       throw err;
     }
 
-    if (ticket.secret_passkey && ticket.secret_passkey !== secretPasskey) {
+    const expected = Buffer.from(String(ticket.secret_passkey));
+    const actual = Buffer.from(String(secretPasskey));
+    const isMatch = expected.length === actual.length && require('crypto').timingSafeEqual(expected, actual);
+    if (!isMatch) {
       const err = new Error('Invalid secret passkey for this anonymous grievance.');
       err.status = 403;
       throw err;

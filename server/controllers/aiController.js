@@ -137,7 +137,9 @@ const smartRouteHandler = async (req, res) => {
 const checkDuplicates = async (req, res) => {
   try {
     const grievanceRepository = require('../repositories/grievanceRepository');
-    const existingGrievances = await grievanceRepository.getAll();
+    // Scope search candidates to the user's own tickets to prevent exfiltrating other citizens' private grievances
+    const userScopeId = (req.user?.role === 'admin' || req.user?.role === 'super admin') ? null : (req.user?.id || 'anon');
+    const existingGrievances = await grievanceRepository.getAll(userScopeId);
     const result = await aiService.checkDuplicateGrievance(req.body, existingGrievances);
     res.json(result);
   } catch (err) {

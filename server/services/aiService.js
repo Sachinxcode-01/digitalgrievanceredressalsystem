@@ -941,15 +941,23 @@ Respond ONLY with valid JSON in this exact structure:
       if (parsed && typeof parsed.is_duplicate === 'boolean') {
         const matched = candidateTickets.find(t => t.ticket_id === parsed.matching_ticket_id || t.id === parsed.matching_ticket_id);
         const isDupe = parsed.is_duplicate && (parsed.match_confidence || 0) >= 60;
-        const matchingTicket = matched || (isDupe ? candidateTickets[0] : null);
+        const rawMatch = matched || (isDupe ? candidateTickets[0] : null);
+        const safeMatch = rawMatch ? {
+          id: rawMatch.id,
+          ticket_id: rawMatch.ticket_id,
+          title: rawMatch.title,
+          category: rawMatch.category,
+          status: rawMatch.status,
+          created_at: rawMatch.created_at
+        } : null;
 
         return {
           isDuplicate: isDupe,
           is_duplicate: isDupe,
           similarityScore: parsed.match_confidence || 0,
           match_confidence: parsed.match_confidence || 0,
-          matchingTicket: isDupe ? matchingTicket : null,
-          matching_ticket: isDupe ? matchingTicket : null,
+          matchingTicket: isDupe ? safeMatch : null,
+          matching_ticket: isDupe ? safeMatch : null,
           reason: parsed.reason || 'Semantic similarity analysis completed.'
         };
       }
@@ -987,13 +995,22 @@ Respond ONLY with valid JSON in this exact structure:
     }
 
     const isDuplicate = highestScore >= 50;
+    const safeBestMatch = bestMatch ? {
+      id: bestMatch.id,
+      ticket_id: bestMatch.ticket_id,
+      title: bestMatch.title,
+      category: bestMatch.category,
+      status: bestMatch.status,
+      created_at: bestMatch.created_at
+    } : null;
+
     return {
       isDuplicate,
       is_duplicate: isDuplicate,
       similarityScore: highestScore,
       match_confidence: highestScore,
-      matchingTicket: isDuplicate ? bestMatch : null,
-      matching_ticket: isDuplicate ? bestMatch : null,
+      matchingTicket: isDuplicate ? safeBestMatch : null,
+      matching_ticket: isDuplicate ? safeBestMatch : null,
       reason: isDuplicate ? matchReason : 'No duplicate grievances detected.'
     };
   },

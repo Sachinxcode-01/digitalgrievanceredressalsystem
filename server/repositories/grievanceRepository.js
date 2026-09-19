@@ -129,7 +129,7 @@ const grievanceRepository = {
         const { data, error } = await withDbRetry(async () => {
           return await supabase
             .from('grievances')
-            .select('id, ticket_id')
+            .select('*')
             .eq('ticket_id', ticketId)
             .maybeSingle();
         });
@@ -150,7 +150,7 @@ const grievanceRepository = {
       'rating', 'feedback_comments', 'feedback_tags', 'sentiment_score',
       'appeal_reason', 'appeal_date', 'appeal_status', 'escalation_tier',
       'tier_escalated_at', 'escalated_to', 'upvote_count', 'upvoted_by',
-      'proof_hash', 'secret_passkey', 'is_emergency', 'frustration_index',
+      'proof_hash', 'secret_passkey', 'is_anonymous', 'is_emergency', 'frustration_index',
       'auto_resolution_notes', 'nps_score', 'resolution_satisfied',
       'reopen_reason', 'reopened_at', 'reopen_count',
       'resolution_proof_url', 'internal_notes', 'root_cause',

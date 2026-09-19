@@ -28,6 +28,13 @@ router.get('/track/:ticketId', async (req, res, next) => {
       });
     }
 
+    // Confidential whistleblower grievances cannot be tracked via the public identifier tracker
+    if (rawTicket.is_anonymous) {
+      return res.status(403).json({
+        error: 'This is a confidential whistleblower grievance. Please access this ticket via the Anonymous Passkey Tracker portal using your secret passkey.'
+      });
+    }
+
     const proofHash = rawTicket.proof_hash || generateGrievanceHash({
       ticket_key: rawTicket.ticket_id,
       subject: rawTicket.title,

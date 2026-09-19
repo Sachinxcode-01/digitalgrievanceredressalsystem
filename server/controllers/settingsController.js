@@ -6,6 +6,14 @@ const settingsRepository = require('../repositories/settingsRepository');
 const grievanceRepository = require('../repositories/grievanceRepository');
 const notificationRepository = require('../repositories/notificationRepository');
 
+const SENSITIVE_SETTING_KEYS = new Set([
+  'smtp_password',
+  'sms_password',
+  'gemini_api_key',
+  'openrouter_api_key',
+  'nvidia_api_key'
+]);
+
 /**
  * Retrieve all system settings, grouped by category
  * GET /api/v1/admin/settings
@@ -20,10 +28,12 @@ const getSettings = async (req, res, next) => {
       if (!groupedSettings[item.category]) {
         groupedSettings[item.category] = [];
       }
+      const isSecret = SENSITIVE_SETTING_KEYS.has(item.key);
       groupedSettings[item.category].push({
         key: item.key,
-        value: item.value,
-        description: item.description
+        value: (isSecret && item.value) ? '••••••••' : item.value,
+        description: item.description,
+        isSensitive: isSecret
       });
     });
 
@@ -45,7 +55,15 @@ const updateSettings = async (req, res, next) => {
   }
 
   try {
-    await configService.updateSettings(settingsObject, req.user.id);
+    const filteredSettings = { ...settingsObject };
+    for (const [k, v] of Object.entries(filteredSettings)) {
+      if (SENSITIVE_SETTING_KEYS.has(k) && (v === '••••••••' || v === '' || v === null)) {
+        delete filteredSettings[k];
+      }
+    }
+    if (Object.keys(filteredSettings).length > 0) {
+      await configService.updateSettings(filteredSettings, req.user.id);
+    }
     res.json({ message: 'System configurations saved successfully' });
   } catch (err) {
     next(err);

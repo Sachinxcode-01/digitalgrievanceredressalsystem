@@ -63,8 +63,8 @@ router.delete('/:id', deleteGrievance);
 // @desc    Update status of a grievance
 router.put('/:id/status', validateUpdateGrievanceStatus, updateGrievanceStatus);
 router.patch('/:id/status', validateUpdateGrievanceStatus, updateGrievanceStatus);
-router.put('/:id', updateGrievanceStatus);
-router.patch('/:id', updateGrievanceStatus);
+router.put('/:id', validateUpdateGrievanceStatus, updateGrievanceStatus);
+router.patch('/:id', validateUpdateGrievanceStatus, updateGrievanceStatus);
 
 // @route   PUT /api/v1/grievances/:id/assign
 // @desc    Assign grievance to officer / department

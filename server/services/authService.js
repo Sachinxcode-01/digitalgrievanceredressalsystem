@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const userRepository = require('../repositories/userRepository');
 const notificationRepository = require('../repositories/notificationRepository');
 const configService = require('./configService');
@@ -7,6 +8,8 @@ const emailService = require('./emailService');
 const smsService = require('./smsService');
 const sessionService = require('./sessionService');
 const { logAudit, logSecurityEvent } = require('./auditService');
+
+const generateSecureOtp = () => crypto.randomInt(100000, 1000000).toString();
 
 const createError = (message, status) => {
   const err = new Error(message);
@@ -56,7 +59,7 @@ const authService = {
     }).catch(console.error);
 
     // 4. Generate and dispatch OTP
-    const otp          = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp          = generateSecureOtp();
     const otpExpirySec = parseInt(configService.getSetting('otp_expiry_seconds', 300));
     const expiresAt    = new Date(Date.now() + otpExpirySec * 1000).toISOString();
 
@@ -204,7 +207,7 @@ const authService = {
         throw createError(`Please wait ${cooldownSec} seconds before requesting a new login OTP.`, 429);
       }
 
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otp = generateSecureOtp();
       const otpExpirySec = parseInt(configService.getSetting('otp_expiry_seconds', 300));
       const expiresAt = new Date(Date.now() + otpExpirySec * 1000).toISOString();
 
@@ -261,7 +264,7 @@ const authService = {
         };
       }
 
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otp = generateSecureOtp();
       const otpExpirySec = parseInt(configService.getSetting('otp_expiry_seconds', 300));
       const expiresAt = new Date(Date.now() + otpExpirySec * 1000).toISOString();
       
@@ -289,7 +292,7 @@ const authService = {
         throw createError(`Please wait ${cooldownSec} seconds before requesting a new login OTP.`, 429);
       }
 
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otp = generateSecureOtp();
       const otpExpirySec = parseInt(configService.getSetting('otp_expiry_seconds', 300));
       const expiresAt = new Date(Date.now() + otpExpirySec * 1000).toISOString();
 
@@ -336,7 +339,7 @@ const authService = {
 
     await notificationRepository.deleteOtpVerification(email, 'email', targetPurpose);
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = generateSecureOtp();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
     await notificationRepository.insertOtpVerification({
@@ -363,7 +366,7 @@ const authService = {
       return { message: 'If registered, a security reset key has been sent.' };
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = generateSecureOtp();
     const otpExpirySec = parseInt(configService.getSetting('otp_expiry_seconds', 300));
     const expiresAt = new Date(Date.now() + otpExpirySec * 1000).toISOString();
 
@@ -454,7 +457,7 @@ const authService = {
     let user = await userRepository.findByEmail(email);
     if (!user) {
       const salt = await bcrypt.genSalt(10);
-      const passwordHash = await bcrypt.hash('oauth-placeholder-password-' + Math.random().toString(36), salt);
+      const passwordHash = await bcrypt.hash('oauth-placeholder-password-' + crypto.randomBytes(16).toString('hex'), salt);
 
       user = await userRepository.create({
         email,
@@ -514,7 +517,7 @@ const authService = {
         throw createError(`Please wait ${cooldownSec} seconds before requesting a new login OTP.`, 429);
       }
 
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otp = generateSecureOtp();
       const otpExpirySec = parseInt(configService.getSetting('otp_expiry_seconds', 300));
       const expiresAt = new Date(Date.now() + otpExpirySec * 1000).toISOString();
 

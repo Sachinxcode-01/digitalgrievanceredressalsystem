@@ -177,6 +177,20 @@ const updateUserRole = async (req, res, next) => {
   const { role } = req.body;
 
   try {
+    const { data: targetUser } = await supabase
+      .from('users')
+      .select('id, role')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (!targetUser) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    if ((targetUser.role === 'super admin' || role === 'super admin') && req.user.role !== 'super admin') {
+      return res.status(403).json({ error: 'Only Super Admins can alter or assign the Super Admin role.' });
+    }
+
     const { data, error } = await supabase
       .from('users')
       .update({ role })
@@ -313,6 +327,10 @@ const createUser = async (req, res, next) => {
       return res.status(500).json({ error: 'Database service unavailable' });
     }
 
+    if (role === 'super admin' && req.user.role !== 'super admin') {
+      return res.status(403).json({ error: 'Only Super Admins can create Super Admin accounts.' });
+    }
+
     // Convert empty/blank mobile numbers to null
     const finalMobileNumber = (mobileNumber && mobileNumber.trim() !== '') ? mobileNumber.trim() : null;
 
@@ -410,6 +428,10 @@ const updateUser = async (req, res, next) => {
       return res.status(404).json({ error: 'User not found.' });
     }
 
+    if ((userBefore.role === 'super admin' || role === 'super admin') && req.user.role !== 'super admin') {
+      return res.status(403).json({ error: 'Only Super Admins can modify or assign the Super Admin role.' });
+    }
+
     // Update users table
     const userUpdates = {};
     if (email !== undefined) userUpdates.email = email;
@@ -498,6 +520,10 @@ const deleteUser = async (req, res, next) => {
 
     if (id === req.user.id) {
       return res.status(400).json({ error: 'You cannot delete your own administrative account.' });
+    }
+
+    if (user.role === 'super admin' && req.user.role !== 'super admin') {
+      return res.status(403).json({ error: 'Only Super Admins can terminate a Super Admin account.' });
     }
 
     const { error } = await supabase.from('users').delete().eq('id', id);
