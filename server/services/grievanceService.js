@@ -50,10 +50,18 @@ const grievanceService = {
         scopedDepartment = queryDepartment;
       }
     } else if (isOfficer) {
-      // Officers view department-specific grievances or their own assignments
-      scopedDepartment = user.department || queryDepartment || null;
-      if (!scopedDepartment) {
+      // Officers view department-specific grievances only when authorized by server-assigned department
+      if (user.department) {
+        // Only honor queryDepartment when server-side department membership authorizes it
+        if (!queryDepartment || queryDepartment.toLowerCase() === user.department.toLowerCase()) {
+          scopedDepartment = user.department;
+        } else {
+          scopedDepartment = user.department;
+        }
+      } else {
+        // Officers without server-assigned department always use user.id as user scope, regardless of queryDepartment
         scopedUserId = user.id;
+        scopedDepartment = null;
       }
     } else {
       // Students, faculty, and general citizens are strictly isolated to their own grievances
@@ -1087,7 +1095,9 @@ const grievanceService = {
       throw err;
     }
 
-    return ticket;
+    const sanitizedTicket = { ...ticket };
+    delete sanitizedTicket.secret_passkey;
+    return sanitizedTicket;
   },
 
   /**

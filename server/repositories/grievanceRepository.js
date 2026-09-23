@@ -129,7 +129,7 @@ const grievanceRepository = {
         const { data, error } = await withDbRetry(async () => {
           return await supabase
             .from('grievances')
-            .select('*')
+            .select('*') // Includes secret_passkey strictly for internal verification flows
             .eq('ticket_id', ticketId)
             .maybeSingle();
         });
