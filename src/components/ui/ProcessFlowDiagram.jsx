@@ -19,7 +19,7 @@ export const ProcessFlowDiagram = () => {
   return (
     <GlassPanel doubleBezel className="p-8 sm:p-12 overflow-x-auto">
       <div className="text-center max-w-2xl mx-auto mb-10 space-y-2">
-        <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-indigo-400">
+        <span className="text-xs font-mono font-semibold uppercase tracking-wider text-indigo-400">
           Visual System Pipeline
         </span>
         <h3 className="text-2xl sm:text-3xl font-heading font-black text-white">
@@ -30,7 +30,7 @@ export const ProcessFlowDiagram = () => {
         </p>
       </div>
 
-      <div className="flex flex-wrap lg:flex-nowrap items-center justify-between gap-4 min-w-[700px] py-4">
+      <div className="flex flex-wrap lg:flex-nowrap items-center justify-between gap-4 min-w-175 py-4">
         {flowSteps.map((step, idx) => (
           <React.Fragment key={step.id}>
             <motion.div
@@ -39,17 +39,17 @@ export const ProcessFlowDiagram = () => {
               viewport={{ once: true }}
               transition={{ delay: idx * 0.08, duration: 0.4 }}
               whileHover={{ scale: 1.05, y: -4 }}
-              className="flex flex-col items-center text-center space-y-2 flex-1 min-w-[90px]"
+              className="flex flex-col items-center text-center space-y-2 flex-1 min-w-22.5"
             >
-              <div className={`w-12 h-12 rounded-2xl bg-gradient-to-tr ${step.color} p-0.5 shadow-lg shadow-indigo-500/20`}>
-                <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center text-white">
+              <div className={`w-12 h-12 rounded-2xl bg-linear-to-tr ${step.color} p-0.5 shadow-lg shadow-indigo-500/20`}>
+                <div className="w-full h-full bg-slate-950 rounded-xl flex items-center justify-center text-white">
                   <step.icon size={18} />
                 </div>
               </div>
-              <span className="text-[10px] font-heading font-extrabold text-white uppercase tracking-wider">
+              <span className="text-xs font-heading font-extrabold text-white tracking-wide">
                 {step.title}
               </span>
-              <span className="text-[9px] font-mono text-slate-400 leading-tight">
+              <span className="text-xs font-mono text-slate-400 leading-tight">
                 {step.desc}
               </span>
             </motion.div>

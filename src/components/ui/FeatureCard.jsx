@@ -16,7 +16,7 @@ export const FeatureCard = ({
       whileHover={{ y: -6, scale: 1.02 }}
       transition={{ type: 'spring', stiffness: 400, damping: 25 }}
       className={`
-        relative rounded-3xl p-6 bg-slate-950/80 backdrop-blur-xl 
+        relative rounded-2xl p-6 bg-slate-950/80 backdrop-blur-xl 
         border border-white/10 hover:border-indigo-500/30 
         shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 
         flex flex-col justify-between text-left group transition-all duration-300
@@ -27,12 +27,12 @@ export const FeatureCard = ({
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           {Icon && (
-            <div className={`w-11 h-11 rounded-2xl ${iconBg} border flex items-center justify-center ${iconColor} group-hover:scale-110 transition-transform`}>
+            <div className={`w-11 h-11 rounded-xl ${iconBg} border flex items-center justify-center ${iconColor} group-hover:scale-110 transition-transform`}>
               <Icon size={20} />
             </div>
           )}
           {badge && (
-            <span className="text-[9px] font-mono font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-300">
+            <span className="text-xs font-mono font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-300">
               {badge}
             </span>
           )}
@@ -48,7 +48,7 @@ export const FeatureCard = ({
       </div>
 
       {/* Bottom accent glow bar */}
-      <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-[10px] font-mono text-slate-500 group-hover:text-indigo-400 transition-colors">
+      <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-xs font-mono text-slate-500 group-hover:text-indigo-400 transition-colors">
         <span>Verified Enterprise Feature</span>
         <span className="text-indigo-400 font-bold">&rarr;</span>
       </div>

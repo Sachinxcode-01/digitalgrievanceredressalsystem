@@ -51,16 +51,16 @@ export const AnimatedNavbar = ({ user }) => {
                 <div className="absolute inset-0 rounded-full bg-indigo-500/20 blur-sm group-hover:blur-md transition-all" aria-hidden="true" />
               </div>
               <div className="flex flex-col text-left">
-                <span className="font-heading font-black text-xs tracking-wider bg-linear-to-r from-white via-slate-200 to-indigo-200 bg-clip-text text-transparent uppercase">
+                <span className="font-heading font-black text-sm tracking-wider bg-linear-to-r from-white via-slate-200 to-indigo-200 bg-clip-text text-transparent uppercase">
                   ResolveNow
                 </span>
-                <span className="text-[7.5px] font-mono font-bold tracking-widest text-indigo-400 uppercase -mt-0.5">
+                <span className="text-xs font-mono font-semibold tracking-wider text-indigo-400 -mt-0.5">
                   Redressal Node
                 </span>
               </div>
             </Link>
 
-            <div className="hidden lg:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[9px] font-mono font-bold">
+            <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono font-semibold">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping inline-block" />
               <span>SLA 99.9% Nominal</span>
             </div>
@@ -78,7 +78,7 @@ export const AnimatedNavbar = ({ user }) => {
                   key={link.name}
                   to={link.href}
                   aria-current={isActive ? 'page' : undefined}
-                  className="relative px-3.5 py-1.5 rounded-full text-[11px] font-mono font-bold uppercase tracking-wider text-slate-300 hover:text-white transition-colors"
+                  className="relative px-3.5 py-1.5 rounded-full text-xs font-mono font-semibold tracking-wider text-slate-300 hover:text-white transition-colors"
                 >
                   {isActive && (
                     <motion.div
@@ -104,8 +104,8 @@ export const AnimatedNavbar = ({ user }) => {
               title="Press Ctrl + K to search"
             >
               <Search size={13} className="text-indigo-400" />
-              <span className="text-[11px]">Search...</span>
-              <kbd className="px-1.5 py-0.2 rounded bg-slate-800 border border-white/10 text-[9px] font-bold text-slate-400">
+              <span className="text-xs">Search...</span>
+              <kbd className="px-1.5 py-0.5 rounded bg-slate-800 border border-white/10 text-xs font-semibold text-slate-400">
                 Ctrl K
               </kbd>
             </button>
@@ -130,7 +130,7 @@ export const AnimatedNavbar = ({ user }) => {
                       (user.fullName || user.email || 'U')[0].toUpperCase()
                     )}
                   </div>
-                  <span className="max-w-20 truncate text-[11px] font-bold text-white">
+                  <span className="max-w-20 truncate text-xs font-bold text-white">
                     {user.fullName?.split(' ')[0] || 'Profile'}
                   </span>
                 </Link>

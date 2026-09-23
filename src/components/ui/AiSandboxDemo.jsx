@@ -76,7 +76,7 @@ export const AiSandboxDemo = () => {
   };
 
   return (
-    <div className="w-full p-6 sm:p-8 rounded-[2.5rem] bg-slate-900/90 border border-indigo-500/30 backdrop-blur-2xl shadow-2xl shadow-indigo-500/10 space-y-6 text-left relative overflow-hidden">
+    <div className="w-full p-6 sm:p-8 rounded-2xl bg-slate-900/90 border border-indigo-500/30 backdrop-blur-2xl shadow-2xl shadow-indigo-500/10 space-y-6 text-left relative overflow-hidden">
       {/* Outer ambient glow */}
       <div className="absolute -top-32 -left-32 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-32 -right-32 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
@@ -89,7 +89,7 @@ export const AiSandboxDemo = () => {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] uppercase font-bold tracking-widest bg-indigo-500/20 border border-indigo-500/30 text-indigo-300">
+              <span className="px-2.5 py-0.5 rounded-full text-xs uppercase font-semibold tracking-wider bg-indigo-500/20 border border-indigo-500/30 text-indigo-300">
                 Interactive AI Triage Sandbox
               </span>
             </div>
@@ -103,8 +103,9 @@ export const AiSandboxDemo = () => {
           {PRESETS.map((p, idx) => (
             <button
               key={idx}
+              type="button"
               onClick={() => applyPreset(p)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all border cursor-pointer ${
                 title === p.title
                   ? 'bg-indigo-500 text-white border-indigo-400 shadow-md shadow-indigo-500/20'
                   : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:bg-slate-800'
@@ -125,7 +126,7 @@ export const AiSandboxDemo = () => {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Wi-Fi drops in library..."
-            className="w-full px-4 py-3 rounded-2xl bg-slate-950/70 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 transition-all"
+            className="w-full px-4 py-3 rounded-xl bg-slate-950/70 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 transition-all"
           />
         </div>
 
@@ -134,7 +135,7 @@ export const AiSandboxDemo = () => {
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="w-full px-4 py-3 rounded-2xl bg-slate-950/70 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 transition-all"
+            className="w-full px-4 py-3 rounded-xl bg-slate-950/70 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 transition-all"
           >
             <option value="IT Support">IT Support & Wi-Fi</option>
             <option value="Academic Affairs">Academic Affairs</option>
@@ -150,7 +151,7 @@ export const AiSandboxDemo = () => {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Describe the complaint details..."
-            className="w-full px-4 py-3 rounded-2xl bg-slate-950/70 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 transition-all"
+            className="w-full px-4 py-3 rounded-xl bg-slate-950/70 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 transition-all"
           />
         </div>
       </div>
@@ -162,9 +163,10 @@ export const AiSandboxDemo = () => {
         </p>
 
         <button
+          type="button"
           onClick={handleRunDemo}
           disabled={isAnalyzing}
-          className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-linear-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-bold text-sm shadow-xl shadow-indigo-500/25 transition-all disabled:opacity-50 cursor-pointer ml-auto"
+          className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-linear-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-semibold text-sm shadow-xl shadow-indigo-500/25 transition-all disabled:opacity-50 cursor-pointer ml-auto"
         >
           {isAnalyzing ? (
             <>
@@ -200,17 +202,17 @@ export const AiSandboxDemo = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
-                <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Auto-Routed Dept</span>
+                <span className="text-xs uppercase tracking-wider text-slate-400 font-bold">Auto-Routed Dept</span>
                 <p className="text-sm font-semibold text-indigo-300 mt-1">{result.triage.recommended_department}</p>
               </div>
 
               <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
-                <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Predicted SLA Target</span>
+                <span className="text-xs uppercase tracking-wider text-slate-400 font-bold">Predicted SLA Target</span>
                 <p className="text-sm font-semibold text-emerald-400 mt-1">{result.triage.predicted_sla_hours} Hours Countdown</p>
               </div>
 
               <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
-                <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Sentiment Index</span>
+                <span className="text-xs uppercase tracking-wider text-slate-400 font-bold">Sentiment Index</span>
                 <p className="text-sm font-semibold text-amber-400 mt-1">{result.triage.sentiment || 'Urgent'}</p>
               </div>
             </div>

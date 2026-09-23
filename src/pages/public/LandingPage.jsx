@@ -175,8 +175,8 @@ export const LandingPage = () => {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500" />
               </span>
-              <Award size={12} className="text-indigo-400" />
-              <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em]">
+              <Award size={14} className="text-indigo-400" />
+              <span className="text-xs font-mono font-semibold tracking-wider text-indigo-200">
                 National Redressal Architecture v2.0
               </span>
             </motion.div>
@@ -221,49 +221,54 @@ export const LandingPage = () => {
             Empowering institutions and citizens with an advanced, zero-trust digital redressal framework. Secure, authoritative, and committed to institutional accountability.
           </motion.p>
 
-          {/* CTAs */}
+          {/* CTAs with Clear Visual Hierarchy */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.9 }}
-            className="flex flex-wrap items-center justify-center gap-3 pt-4 relative z-10"
+            className="flex flex-col items-center gap-4 pt-4 relative z-10"
           >
-            <Link to={isAuthenticated ? "/submit-grievance" : "/register"}>
-              <MotionButton variant="glow" size="lg" rightIcon={ArrowRight}>
-                Submit Grievance
-              </MotionButton>
-            </Link>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              {/* Single High-Priority Primary Action */}
+              <Link to={isAuthenticated ? "/submit-grievance" : "/register"}>
+                <MotionButton variant="glow" size="lg" rightIcon={ArrowRight}>
+                  Submit Grievance
+                </MotionButton>
+              </Link>
 
-            <Link to="/public-status">
-              <MotionButton variant="secondary" size="lg" leftIcon={Ticket}>
-                Track Complaint
-              </MotionButton>
-            </Link>
+              {/* Secondary Actions */}
+              <Link to="/public-status">
+                <MotionButton variant="secondary" size="lg" leftIcon={Ticket}>
+                  Track Complaint
+                </MotionButton>
+              </Link>
 
-            <Link to="/admin-login">
-              <MotionButton variant="outline" size="lg" leftIcon={ShieldCheck}>
-                Admin Login
-              </MotionButton>
-            </Link>
+              <a href="#how-it-works">
+                <MotionButton variant="secondary" size="lg" leftIcon={HelpCircle}>
+                  View How It Works
+                </MotionButton>
+              </a>
+            </div>
 
-            <Link to="/transparency">
-              <MotionButton variant="outline" size="lg" leftIcon={Trophy} className="border-amber-500/40 text-amber-300 hover:bg-amber-500/10">
-                Trust Leaderboard
-              </MotionButton>
-            </Link>
-
-            <a href="#how-it-works">
-              <MotionButton variant="ghost" size="lg">
-                View How It Works
-              </MotionButton>
-            </a>
+            {/* Tertiary Institutional Clearance Links */}
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-1 text-xs font-mono text-slate-400">
+              <span className="text-slate-500">Institutional Access:</span>
+              <Link to="/admin-login" className="hover:text-indigo-300 transition-colors flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900/60 border border-white/10 hover:border-indigo-500/40">
+                <ShieldCheck size={13} className="text-indigo-400" />
+                <span>Admin Login</span>
+              </Link>
+              <Link to="/transparency" className="hover:text-amber-300 transition-colors flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900/60 border border-white/10 hover:border-amber-500/40">
+                <Trophy size={13} className="text-amber-400" />
+                <span>Trust Leaderboard</span>
+              </Link>
+            </div>
           </motion.div>
 
           {/* Dashboard Hero Preview & Command Operations Showcase */}
           <div className="pt-8 space-y-12">
             {/* Live Interactive Command Center HUD Preview */}
-            <div className="relative rounded-3xl p-1 bg-linear-to-b from-indigo-500/30 via-white/5 to-transparent border border-white/10 shadow-2xl shadow-indigo-950/50 overflow-hidden group">
-              <div className="relative rounded-[calc(1.5rem-2px)] overflow-hidden bg-slate-950">
+            <div className="relative rounded-2xl p-1 bg-linear-to-b from-indigo-500/30 via-white/5 to-transparent border border-white/10 shadow-2xl shadow-indigo-950/50 overflow-hidden group">
+              <div className="relative rounded-2xl overflow-hidden bg-slate-950">
                 <img 
                   src="/images/hero-command-center.jpg" 
                   alt="ResolveNow Enterprise Incident Command Center" 
@@ -275,19 +280,19 @@ export const LandingPage = () => {
                 <div className="absolute top-4 left-4 sm:top-6 sm:left-6 flex flex-wrap items-center gap-2">
                   <div className="px-3 py-1.5 rounded-full bg-slate-950/85 backdrop-blur-md border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold flex items-center gap-2 shadow-lg">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                    <span>LIVE COMMAND CENTER</span>
+                    <span>Live Command Center</span>
                   </div>
                   <div className="hidden sm:flex px-3 py-1.5 rounded-full bg-slate-950/85 backdrop-blur-md border border-indigo-500/30 text-indigo-300 text-xs font-mono font-bold">
-                    <span>99.4% SLA TIMELINESS</span>
+                    <span>99.4% SLA Timeliness</span>
                   </div>
                   <div className="hidden md:flex px-3 py-1.5 rounded-full bg-slate-950/85 backdrop-blur-md border border-cyan-500/30 text-cyan-300 text-xs font-mono font-bold">
-                    <span>INSTANT AUTO-RESOLUTION</span>
+                    <span>Instant Auto-Resolution</span>
                   </div>
                 </div>
 
                 <div className="absolute bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6 flex flex-col sm:flex-row items-start sm:items-end justify-between gap-3 text-left">
                   <div className="space-y-1">
-                    <span className="text-[10px] font-mono uppercase tracking-widest text-indigo-400 font-bold">
+                    <span className="text-xs font-mono uppercase tracking-wider text-indigo-400 font-semibold">
                       National Redressal Architecture • Real-Time Operations
                     </span>
                     <h3 className="text-lg sm:text-2xl font-heading font-black text-white">
@@ -299,7 +304,7 @@ export const LandingPage = () => {
                   </div>
 
                   <Link to="/public-status">
-                    <MotionButton variant="glow" size="sm" rightIcon={ArrowRight}>
+                    <MotionButton variant="secondary" size="sm" rightIcon={ArrowRight}>
                       Live Ticket HUD
                     </MotionButton>
                   </Link>
@@ -335,10 +340,10 @@ export const LandingPage = () => {
 
                   {/* Overlay Badge Pills */}
                   <div className="absolute top-4 left-4 flex flex-wrap gap-2">
-                    <span className="px-3 py-1 rounded-full bg-slate-950/85 backdrop-blur-md border border-cyan-500/40 text-cyan-300 font-mono text-[10px] font-bold tracking-wider uppercase">
+                    <span className="px-3 py-1 rounded-full bg-slate-950/85 backdrop-blur-md border border-cyan-500/40 text-cyan-300 font-mono text-xs font-semibold tracking-wider">
                       🏛️ Centralized Redressal Tower
                     </span>
-                    <span className="px-3 py-1 rounded-full bg-slate-950/85 backdrop-blur-md border border-indigo-500/40 text-indigo-300 font-mono text-[10px] font-bold tracking-wider uppercase">
+                    <span className="px-3 py-1 rounded-full bg-slate-950/85 backdrop-blur-md border border-indigo-500/40 text-indigo-300 font-mono text-xs font-semibold tracking-wider">
                       Mesh Network
                     </span>
                   </div>
@@ -365,7 +370,7 @@ export const LandingPage = () => {
               />
 
               <p className="text-slate-300 text-sm sm:text-base leading-relaxed font-medium">
-                ResolveNow is a unified digital grievance redresal system engineered for colleges, universities, corporate enterprises, and civic bodies. It replaces lost paper folders, untracked complaints, and silent delays with an automated, auditable resolution lifecycle with zero margin for bureaucratic stagnation.
+                ResolveNow is a unified digital grievance redressal system engineered for colleges, universities, corporate enterprises, and civic bodies. It replaces lost paper folders, untracked complaints, and silent delays with an automated, auditable resolution lifecycle with zero margin for bureaucratic stagnation.
               </p>
 
               {/* 3 Core Architecture Highlights */}
@@ -375,7 +380,7 @@ export const LandingPage = () => {
                     <Cpu size={18} />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-white">AI-Driven Urgency & Auto-Triage</h4>
+                    <h3 className="text-sm font-bold text-white">AI-Driven Urgency & Auto-Triage</h3>
                     <p className="text-xs text-slate-400 leading-relaxed">
                       Gemini AI analyzes natural language, evaluates citizen frustration scores, and auto-dispatches tickets to the exact designated terminal.
                     </p>
@@ -387,7 +392,7 @@ export const LandingPage = () => {
                     <Clock size={18} />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-white">Enforced 24h-48h SLA Escalation Timers</h4>
+                    <h3 className="text-sm font-bold text-white">Enforced 24h-48h SLA Escalation Timers</h3>
                     <p className="text-xs text-slate-400 leading-relaxed">
                       Automated countdown clocks notify officers and trigger supervisor escalations if complaints approach deadline breach.
                     </p>
@@ -399,7 +404,7 @@ export const LandingPage = () => {
                     <ShieldCheck size={18} />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-white">Public Cryptographic Milestone Ledger</h4>
+                    <h3 className="text-sm font-bold text-white">Public Cryptographic Milestone Ledger</h3>
                     <p className="text-xs text-slate-400 leading-relaxed">
                       Users track resolution milestones publicly via reference ticket keys without login, preventing tampering or silent ticket dismissal.
                     </p>
@@ -410,19 +415,19 @@ export const LandingPage = () => {
               {/* Target Spec Badges */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 font-mono text-xs">
                 <div className="p-2.5 rounded-xl bg-slate-950/60 border border-white/10">
-                  <span className="text-slate-400 block uppercase text-[9px]">Target Sector</span>
+                  <span className="text-slate-400 block text-xs">Target Sector</span>
                   <span className="font-bold text-white">Higher Ed & Offices</span>
                 </div>
                 <div className="p-2.5 rounded-xl bg-slate-950/60 border border-white/10">
-                  <span className="text-slate-400 block uppercase text-[9px]">AI Engine</span>
+                  <span className="text-slate-400 block text-xs">AI Engine</span>
                   <span className="font-bold text-indigo-400">Gemini 1.5 Pro</span>
                 </div>
                 <div className="p-2.5 rounded-xl bg-slate-950/60 border border-white/10">
-                  <span className="text-slate-400 block uppercase text-[9px]">Security</span>
+                  <span className="text-slate-400 block text-xs">Security</span>
                   <span className="font-bold text-emerald-400">ISO-27001 RLS</span>
                 </div>
                 <div className="p-2.5 rounded-xl bg-slate-950/60 border border-white/10">
-                  <span className="text-slate-400 block uppercase text-[9px]">Compliance</span>
+                  <span className="text-slate-400 block text-xs">Compliance</span>
                   <span className="font-bold text-cyan-400">48-Hour SLA</span>
                 </div>
               </div>
@@ -473,7 +478,7 @@ export const LandingPage = () => {
             {/* Left Column: Feature highlights */}
             <div className="lg:col-span-5 text-left space-y-5 order-2 lg:order-1">
               <div className="space-y-2">
-                <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono text-[10px] font-bold uppercase tracking-wider">
+                <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono text-xs font-semibold tracking-wider">
                   Next-Gen Citizen Ingestion
                 </span>
                 <h3 className="text-2xl sm:text-3xl font-heading font-black text-white">
@@ -510,7 +515,7 @@ export const LandingPage = () => {
                   </MotionButton>
                 </Link>
                 <Link to="/public-status">
-                  <MotionButton variant="outline" size="md" leftIcon={Search}>
+                  <MotionButton variant="secondary" size="md" leftIcon={Search}>
                     Verify Ticket Ledger
                   </MotionButton>
                 </Link>
@@ -532,9 +537,9 @@ export const LandingPage = () => {
                   <div className="absolute bottom-4 left-4 right-4 flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-slate-950/85 backdrop-blur-md border border-white/10">
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                      <span className="text-[11px] font-mono font-bold text-white">Live Voice Triage Engine: ACTIVE</span>
+                      <span className="text-xs font-mono font-bold text-white">Live Voice Triage Engine: Active</span>
                     </div>
-                    <span className="text-[10px] font-mono text-cyan-300 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-500/30">
+                    <span className="text-xs font-mono text-cyan-300 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-500/30">
                       Urgency: 8.5/10 Critical
                     </span>
                   </div>
@@ -572,7 +577,7 @@ export const LandingPage = () => {
                   <div className="w-8 h-8 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-mono font-bold text-xs shrink-0">
                     {st.num}
                   </div>
-                  <h4 className="text-sm font-bold text-white tracking-wide">{st.title}</h4>
+                  <h3 className="text-sm font-bold text-white tracking-wide">{st.title}</h3>
                 </div>
                 <p className="text-xs text-slate-400 leading-relaxed pl-11">{st.desc}</p>
               </div>
@@ -615,8 +620,8 @@ export const LandingPage = () => {
             {useCases.map((uc, idx) => (
               <GlassPanel key={idx} className="p-5 text-left space-y-2" intensity="medium">
                 <uc.icon size={20} className="text-indigo-400 mb-2" />
-                <h4 className="text-xs font-bold text-white uppercase">{uc.title}</h4>
-                <p className="text-[10px] text-slate-400 leading-relaxed">{uc.desc}</p>
+                <h3 className="text-xs font-bold text-white uppercase">{uc.title}</h3>
+                <p className="text-xs text-slate-300 leading-relaxed">{uc.desc}</p>
               </GlassPanel>
             ))}
           </LandingGrid>
@@ -644,27 +649,15 @@ export const LandingPage = () => {
                 <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-2">
                   <Check size={14} />
                 </div>
-                <h4 className="text-xs font-bold text-white uppercase">{b.title}</h4>
-                <p className="text-[11px] text-slate-400 leading-relaxed">{b.desc}</p>
+                <h3 className="text-xs font-bold text-white uppercase">{b.title}</h3>
+                <p className="text-xs text-slate-300 leading-relaxed">{b.desc}</p>
               </GlassPanel>
             ))}
           </LandingGrid>
         </AnimatedSection>
 
         {/* ========================================================================= */}
-        {/* SECTION 9: DASHBOARD PREVIEW */}
-        {/* ========================================================================= */}
-        <AnimatedSection className="w-full max-w-6xl space-y-6">
-          <ResponsiveTextBlock
-            eyebrow="Product Interface"
-            title="Experience the Command Terminals"
-          />
-
-          <DashboardPreviewMock />
-        </AnimatedSection>
-
-        {/* ========================================================================= */}
-        {/* SECTION 10: TECHNOLOGY STACK BADGES */}
+        {/* SECTION 9: TECHNOLOGY STACK BADGES */}
         {/* ========================================================================= */}
         <AnimatedSection className="w-full max-w-5xl space-y-8">
           <ResponsiveTextBlock
@@ -677,14 +670,14 @@ export const LandingPage = () => {
               <div key={idx} className="px-4 py-2.5 rounded-2xl bg-slate-950/80 border border-white/10 flex items-center gap-2.5 text-xs font-mono font-bold text-white shadow-md">
                 <tech.icon size={16} className="text-indigo-400" />
                 <span>{tech.name}</span>
-                <span className="text-[9px] text-slate-500 font-normal">({tech.desc})</span>
+                <span className="text-xs text-slate-400 font-normal">({tech.desc})</span>
               </div>
             ))}
           </div>
         </AnimatedSection>
 
         {/* ========================================================================= */}
-        {/* SECTION 11: FAQ SECTION (12 Expandable Accordions) */}
+        {/* SECTION 10: FAQ SECTION (12 Expandable Accordions) */}
         {/* ========================================================================= */}
         <AnimatedSection className="w-full max-w-4xl space-y-8">
           <ResponsiveTextBlock
@@ -696,7 +689,7 @@ export const LandingPage = () => {
         </AnimatedSection>
 
         {/* ========================================================================= */}
-        {/* SECTION 12: FOOTER */}
+        {/* SECTION 11: FOOTER */}
         {/* ========================================================================= */}
         <footer className="w-full max-w-6xl pt-12 border-t border-white/10 text-left space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
@@ -715,7 +708,7 @@ export const LandingPage = () => {
             </div>
 
             <div className="space-y-2 text-xs font-mono">
-              <h4 className="font-bold text-white uppercase tracking-wider text-[10px]">Quick Links</h4>
+              <h3 className="font-bold text-white uppercase tracking-wider text-xs">Quick Links</h3>
               <ul className="space-y-1.5 text-slate-400">
                 <li><Link to="/public-status" className="hover:text-white">Track Ticket</Link></li>
                 <li><Link to="/submit-grievance" className="hover:text-white">File Grievance</Link></li>
@@ -732,7 +725,7 @@ export const LandingPage = () => {
             </div>
 
             <div className="space-y-2 text-xs font-mono">
-              <h4 className="font-bold text-white uppercase tracking-wider text-[10px]">Support & Contact</h4>
+              <h3 className="font-bold text-white uppercase tracking-wider text-xs">Support & Contact</h3>
               <ul className="space-y-1.5 text-slate-400">
                 <li>New Delhi, Digital India</li>
                 <li>support@resolvenow.gov.in</li>
@@ -742,8 +735,8 @@ export const LandingPage = () => {
             </div>
 
             <div className="space-y-2 text-xs font-mono">
-              <h4 className="font-bold text-white uppercase tracking-wider text-[10px]">Project Credits</h4>
-              <p className="text-slate-400 text-[11px]">
+              <h3 className="font-bold text-white uppercase tracking-wider text-xs">Project Credits</h3>
+              <p className="text-slate-400 text-xs">
                 Built with React 18, Vite, Framer Motion, GSAP, TailwindCSS, Supabase & Gemini AI.
               </p>
             </div>
