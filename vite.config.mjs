@@ -22,10 +22,18 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor': ['react', 'react-dom', 'react-router-dom'],
-          'ui-libs': ['framer-motion', 'recharts', 'lucide-react', 'canvas-confetti'],
-          'supabase': ['@supabase/supabase-js'],
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('@supabase')) {
+              return 'supabase';
+            }
+            if (id.includes('@clerk')) {
+              return 'clerk';
+            }
+            if (id.includes('jspdf') || id.includes('html2canvas')) {
+              return 'export-libs';
+            }
+          }
         }
       }
     }
