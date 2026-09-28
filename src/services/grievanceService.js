@@ -581,6 +581,65 @@ export const grievanceService = {
         ]
       };
     }
+  },
+
+  /**
+   * Bulk reassign grievances to department and/or officer.
+   */
+  async bulkAssign(ticketIds, { department, assigned_to, notes } = {}) {
+    try {
+      const response = await apiClient.post('/admin/grievances/bulk-assign', {
+        ticketIds,
+        department,
+        assigned_to,
+        notes
+      });
+      return response.data;
+    } catch (err) {
+      console.warn('[grievanceService.bulkAssign fallback to client loop]:', err.message);
+      // Fallback
+      await Promise.all(
+        ticketIds.map(id => this.assign(id, assigned_to, department))
+      );
+      return { success: true, updatedCount: ticketIds.length };
+    }
+  },
+
+  /**
+   * Bulk update status of grievances.
+   */
+  async bulkUpdateStatus(ticketIds, status, notes = '') {
+    try {
+      const response = await apiClient.post('/admin/grievances/bulk-status', {
+        ticketIds,
+        status,
+        notes
+      });
+      return response.data;
+    } catch (err) {
+      console.warn('[grievanceService.bulkUpdateStatus fallback]:', err.message);
+      await Promise.all(
+        ticketIds.map(id => this.updateStatus(id, status, notes))
+      );
+      return { success: true, updatedCount: ticketIds.length };
+    }
+  },
+
+  /**
+   * Rebalance officer ticket workload.
+   */
+  async rebalanceOfficerWorkload(sourceOfficerId, targetOfficerId, limit = null) {
+    try {
+      const response = await apiClient.post('/admin/officers/rebalance', {
+        sourceOfficerId,
+        targetOfficerId,
+        limit
+      });
+      return response.data;
+    } catch (err) {
+      console.error('[grievanceService.rebalanceOfficerWorkload]:', err);
+      throw err;
+    }
   }
 };
 

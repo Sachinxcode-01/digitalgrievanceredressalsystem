@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, AlertTriangle, Clock, CheckCircle, ArrowRight,
-  ChevronLeft, ChevronRight, Loader2, Download, ShieldCheck, Landmark, CheckSquare, Square, Flame
+  ChevronLeft, ChevronRight, Loader2, Download, ShieldCheck, Landmark, CheckSquare, Square, Flame,
+  Users, X
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { grievanceService } from '../../services/grievanceService';
+import { apiClient } from '../../api/apiClient';
 import { supabase } from '../../lib/supabase';
 import { useRealtimeConnection } from '../../hooks/useRealtimeConnection';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -23,6 +25,15 @@ export const AdminGrievancesPage = ({ user, sessionUser }) => {
   // Multi-select & Batch Actions State
   const [selectedTicketIds, setSelectedTicketIds] = useState([]);
   const [batchUpdating, setBatchUpdating] = useState(false);
+
+  // Departments & Officers for Bulk Reassignment
+  const [departments, setDepartments] = useState([]);
+  const [officers, setOfficers] = useState([]);
+  const [showReassignModal, setShowReassignModal] = useState(false);
+  const [reassignDept, setReassignDept] = useState('');
+  const [reassignOfficer, setReassignOfficer] = useState('');
+  const [reassignNotes, setReassignNotes] = useState('');
+  const [isReassigning, setIsReassigning] = useState(false);
 
   // Search & sorting
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,12 +53,33 @@ export const AdminGrievancesPage = ({ user, sessionUser }) => {
     }
   };
 
+  const fetchMetadata = async () => {
+    try {
+      const [deptRes, usersRes] = await Promise.allSettled([
+        apiClient.get('/admin/departments'),
+        apiClient.get('/admin/users')
+      ]);
+      if (deptRes.status === 'fulfilled' && Array.isArray(deptRes.value.data)) {
+        setDepartments(deptRes.value.data);
+      }
+      if (usersRes.status === 'fulfilled' && Array.isArray(usersRes.value.data)) {
+        const officerUsers = usersRes.value.data.filter(u => 
+          ['officer', 'staff', 'faculty', 'admin'].includes((u.role || '').toLowerCase())
+        );
+        setOfficers(officerUsers);
+      }
+    } catch {
+      // non-critical metadata fetch
+    }
+  };
+
   useRealtimeConnection(() => {
     fetchGlobalTickets();
   });
 
   useEffect(() => {
     fetchGlobalTickets();
+    fetchMetadata();
 
     const channel = supabase
       .channel('admin-grievances-live-sync')
@@ -161,8 +193,10 @@ export const AdminGrievancesPage = ({ user, sessionUser }) => {
     if (selectedTicketIds.length === 0) return;
     setBatchUpdating(true);
     try {
-      await Promise.all(
-        selectedTicketIds.map(id => grievanceService.updateStatus(id, newStatus, `Batch updated to ${newStatus}`))
+      await grievanceService.bulkUpdateStatus(
+        selectedTicketIds, 
+        newStatus, 
+        `Batch updated to ${newStatus} by administrator`
       );
       toast.success(`Updated ${selectedTicketIds.length} tickets to ${newStatus}.`);
       setSelectedTicketIds([]);
@@ -171,6 +205,34 @@ export const AdminGrievancesPage = ({ user, sessionUser }) => {
       toast.error('Batch status update failed.');
     } finally {
       setBatchUpdating(false);
+    }
+  };
+
+  const handleBatchReassign = async (e) => {
+    if (e) e.preventDefault();
+    if (selectedTicketIds.length === 0) return;
+    if (!reassignDept && !reassignOfficer) {
+      return toast.error('Please select at least a department or an officer.');
+    }
+
+    setIsReassigning(true);
+    try {
+      await grievanceService.bulkAssign(selectedTicketIds, {
+        department: reassignDept || undefined,
+        assigned_to: reassignOfficer || undefined,
+        notes: reassignNotes || undefined
+      });
+      toast.success(`Successfully reassigned ${selectedTicketIds.length} tickets.`);
+      setSelectedTicketIds([]);
+      setShowReassignModal(false);
+      setReassignDept('');
+      setReassignOfficer('');
+      setReassignNotes('');
+      fetchGlobalTickets();
+    } catch (err) {
+      toast.error(err.message || 'Failed to reassign selected tickets.');
+    } finally {
+      setIsReassigning(false);
     }
   };
 
@@ -455,6 +517,15 @@ export const AdminGrievancesPage = ({ user, sessionUser }) => {
             <div className="h-4 w-px bg-white/20" />
 
             <button
+              onClick={() => setShowReassignModal(true)}
+              disabled={batchUpdating || isReassigning}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-600/30 border border-indigo-400/40 text-indigo-200 hover:bg-indigo-600/40 transition-all cursor-pointer disabled:opacity-50"
+            >
+              <Users size={13} />
+              <span>Reassign...</span>
+            </button>
+
+            <button
               onClick={handleBatchExportSelected}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 border border-white/10 hover:bg-white/10 transition-all cursor-pointer"
             >
@@ -462,6 +533,108 @@ export const AdminGrievancesPage = ({ user, sessionUser }) => {
               <span>Export CSV</span>
             </button>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Bulk Reassign Modal */}
+      <AnimatePresence>
+        {showReassignModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md bg-surface border border-border/80 rounded-2xl shadow-2xl overflow-hidden p-6 space-y-5"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-border/60">
+                <div className="flex items-center gap-2 text-foreground font-heading font-bold">
+                  <Users size={18} className="text-primary-bright" />
+                  <span>Bulk Reassign ({selectedTicketIds.length} Tickets)</span>
+                </div>
+                <button 
+                  onClick={() => setShowReassignModal(false)}
+                  className="p-1 text-muted-foreground hover:text-foreground rounded-lg transition-colors cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <form onSubmit={handleBatchReassign} className="space-y-4 text-xs">
+                <div>
+                  <label className="block font-bold text-muted-foreground mb-1.5 uppercase tracking-wider text-[10px]">
+                    Target Department
+                  </label>
+                  <select
+                    value={reassignDept}
+                    onChange={(e) => setReassignDept(e.target.value)}
+                    className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground outline-none focus:ring-1 focus:ring-primary-bright cursor-pointer"
+                  >
+                    <option value="">-- Keep Current Department --</option>
+                    {departments.map((d) => (
+                      <option key={d.id || d.name} value={d.name}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-muted-foreground mb-1.5 uppercase tracking-wider text-[10px]">
+                    Target Officer
+                  </label>
+                  <select
+                    value={reassignOfficer}
+                    onChange={(e) => setReassignOfficer(e.target.value)}
+                    className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground outline-none focus:ring-1 focus:ring-primary-bright cursor-pointer"
+                  >
+                    <option value="">-- Leave Unassigned / Keep Current --</option>
+                    {officers.map((off) => (
+                      <option key={off.id} value={off.id}>
+                        {off.full_name || off.email} {off.department ? `(${off.department})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-muted-foreground mb-1.5 uppercase tracking-wider text-[10px]">
+                    Triage Note (Optional)
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="e.g., Reassigned to IT Support due to campus network issue cluster..."
+                    value={reassignNotes}
+                    onChange={(e) => setReassignNotes(e.target.value)}
+                    className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground outline-none focus:ring-1 focus:ring-primary-bright resize-none"
+                  />
+                </div>
+
+                <div className="pt-2 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowReassignModal(false)}
+                    className="px-4 py-2 rounded-xl border border-border text-muted-foreground hover:text-foreground font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isReassigning}
+                    className="btn-primary flex items-center gap-1.5 px-4 py-2 font-bold cursor-pointer"
+                  >
+                    {isReassigning ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" />
+                        <span>Reassigning...</span>
+                      </>
+                    ) : (
+                      <span>Confirm Reassignment</span>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

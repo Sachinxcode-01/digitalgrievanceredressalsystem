@@ -1032,6 +1032,190 @@ const getCsatAnalytics = async (req, res, next) => {
   }
 };
 
+/**
+ * Bulk reassign grievances to a department and/or officer
+ */
+const bulkAssignGrievances = async (req, res, next) => {
+  try {
+    const { ticketIds, department, assigned_to, notes } = req.body;
+    if (!Array.isArray(ticketIds) || ticketIds.length === 0) {
+      return res.status(400).json({ error: 'ticketIds must be a non-empty array.' });
+    }
+
+    const updatePayload = {
+      updated_at: new Date().toISOString()
+    };
+    if (department !== undefined) updatePayload.department = department;
+    if (assigned_to !== undefined) updatePayload.assigned_to = assigned_to;
+    if (assigned_to) {
+      updatePayload.assigned_at = new Date().toISOString();
+      updatePayload.status = 'Assigned';
+    }
+
+    const { data, error } = await supabase
+      .from('grievances')
+      .update(updatePayload)
+      .in('id', ticketIds)
+      .select('id, ticket_id, department, assigned_to');
+
+    if (error) throw error;
+
+    // Timeline logs
+    const timelineEntries = ticketIds.map(id => ({
+      grievance_id: id,
+      action: 'BULK_ASSIGNED',
+      description: notes || `Bulk assigned to ${department || 'department'}${assigned_to ? ` (Officer: ${assigned_to})` : ''}`,
+      actor_id: req.user?.id || null,
+      created_at: new Date().toISOString()
+    }));
+    await supabase.from('grievance_timeline').insert(timelineEntries).catch(() => {});
+
+    await logAdminActivity(
+      req.user?.id || 'admin',
+      'BULK_GRIEVANCE_ASSIGN',
+      { count: ticketIds.length, department, assigned_to, ticketIds }
+    );
+
+    res.json({
+      success: true,
+      message: `Successfully reassigned ${ticketIds.length} tickets.`,
+      updatedCount: data ? data.length : ticketIds.length
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Bulk update grievance statuses
+ */
+const bulkUpdateGrievanceStatus = async (req, res, next) => {
+  try {
+    const { ticketIds, status, notes } = req.body;
+    if (!Array.isArray(ticketIds) || ticketIds.length === 0) {
+      return res.status(400).json({ error: 'ticketIds must be a non-empty array.' });
+    }
+    if (!status) {
+      return res.status(400).json({ error: 'status is required.' });
+    }
+
+    const updatePayload = {
+      status,
+      updated_at: new Date().toISOString()
+    };
+    if (notes) {
+      updatePayload.resolution_notes = notes;
+    }
+    if (['Resolved', 'Closed'].includes(status)) {
+      updatePayload.resolved_at = new Date().toISOString();
+    }
+
+    const { data, error } = await supabase
+      .from('grievances')
+      .update(updatePayload)
+      .in('id', ticketIds)
+      .select('id, ticket_id, status');
+
+    if (error) throw error;
+
+    const timelineEntries = ticketIds.map(id => ({
+      grievance_id: id,
+      action: 'BULK_STATUS_CHANGE',
+      description: notes || `Status changed to ${status} via bulk triage`,
+      actor_id: req.user?.id || null,
+      created_at: new Date().toISOString()
+    }));
+    await supabase.from('grievance_timeline').insert(timelineEntries).catch(() => {});
+
+    await logAdminActivity(
+      req.user?.id || 'admin',
+      'BULK_GRIEVANCE_STATUS_UPDATE',
+      { count: ticketIds.length, status, ticketIds }
+    );
+
+    res.json({
+      success: true,
+      message: `Successfully updated status to ${status} for ${ticketIds.length} tickets.`,
+      updatedCount: data ? data.length : ticketIds.length
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Transfers open tickets from an overloaded officer to a target officer
+ */
+const rebalanceOfficerWorkload = async (req, res, next) => {
+  try {
+    const { sourceOfficerId, targetOfficerId, limit } = req.body;
+    if (!sourceOfficerId || !targetOfficerId) {
+      return res.status(400).json({ error: 'sourceOfficerId and targetOfficerId are required.' });
+    }
+    if (sourceOfficerId === targetOfficerId) {
+      return res.status(400).json({ error: 'Source and target officers must be different.' });
+    }
+
+    let query = supabase
+      .from('grievances')
+      .select('id, ticket_id')
+      .eq('assigned_to', sourceOfficerId)
+      .not('status', 'in', '("Resolved","Closed")')
+      .order('created_at', { ascending: true });
+
+    if (limit && Number(limit) > 0) {
+      query = query.limit(Number(limit));
+    }
+
+    const { data: ticketsToMove, error: fetchErr } = await query;
+    if (fetchErr) throw fetchErr;
+
+    if (!ticketsToMove || ticketsToMove.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No open tickets found for the source officer to rebalance.',
+        transferredCount: 0
+      });
+    }
+
+    const ticketIds = ticketsToMove.map(t => t.id);
+
+    const { error: updateErr } = await supabase
+      .from('grievances')
+      .update({
+        assigned_to: targetOfficerId,
+        assigned_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .in('id', ticketIds);
+
+    if (updateErr) throw updateErr;
+
+    const timelineEntries = ticketIds.map(id => ({
+      grievance_id: id,
+      action: 'WORKLOAD_REBALANCED',
+      description: `Rebalanced workload: Reassigned from officer ${sourceOfficerId} to officer ${targetOfficerId}`,
+      actor_id: req.user?.id || null,
+      created_at: new Date().toISOString()
+    }));
+    await supabase.from('grievance_timeline').insert(timelineEntries).catch(() => {});
+
+    await logAdminActivity(
+      req.user?.id || 'admin',
+      'OFFICER_WORKLOAD_REBALANCE',
+      { sourceOfficerId, targetOfficerId, transferredCount: ticketIds.length, ticketIds }
+    );
+
+    res.json({
+      success: true,
+      message: `Successfully transferred ${ticketIds.length} tickets to the target officer.`,
+      transferredCount: ticketIds.length
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   broadcastToAll,
   getHealthMetrics,
@@ -1056,6 +1240,10 @@ module.exports = {
   clearDeadLetterQueue,
   getDatabaseDiagnostics,
   getLiveOpsTelemetry,
-  getCsatAnalytics
+  getCsatAnalytics,
+  bulkAssignGrievances,
+  bulkUpdateGrievanceStatus,
+  rebalanceOfficerWorkload
 };
+
 

@@ -17,7 +17,14 @@ import LoadingSkeleton from '../../components/ui/LoadingSkeleton';
 const SLA_COLORS = { good: 'text-emerald-400', warning: 'text-amber-400', critical: 'text-rose-400' };
 const slaColor = (rate) => rate >= 80 ? SLA_COLORS.good : rate >= 60 ? SLA_COLORS.warning : SLA_COLORS.critical;
 
-const EMPTY_FORM = { name: '', description: '', head_officer_email: '', sla_hours: 48 };
+const EMPTY_FORM = { 
+  name: '', 
+  description: '', 
+  head_officer_email: '', 
+  sla_hours: 48,
+  auto_route_category: '',
+  auto_assign: true
+};
 
 // ─── Stat Card ───────────────────────────────────────────────────────────────
 const StatChip = ({ icon: Icon, label, value, color = 'text-foreground' }) => (
@@ -39,6 +46,8 @@ const DeptRow = ({ dept, tickets, onEdit, onDelete }) => {
     ? Math.round((resolved / deptTickets.length) * 100)
     : 100;
 
+  const routingCategory = dept.assignment_rules?.category || dept.name;
+
   return (
     <motion.div
       layout
@@ -53,7 +62,12 @@ const DeptRow = ({ dept, tickets, onEdit, onDelete }) => {
           <Building2 size={16} className="text-primary-bright" />
         </div>
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-foreground truncate">{dept.name}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-semibold text-foreground truncate">{dept.name}</p>
+            <span className="px-2 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-[9px] font-mono text-indigo-300 font-bold">
+              Route: {routingCategory}
+            </span>
+          </div>
           <p className="text-[10px] text-muted-foreground truncate">{dept.description || 'No description'}</p>
           {dept.head_officer_email && (
             <p className="text-[10px] font-mono text-indigo-400 truncate mt-0.5">
@@ -80,14 +94,14 @@ const DeptRow = ({ dept, tickets, onEdit, onDelete }) => {
       <div className="flex items-center gap-2 shrink-0">
         <button
           onClick={() => onEdit(dept)}
-          className="p-2 rounded-lg text-muted-foreground hover:text-primary-bright hover:bg-primary-bright/10 transition-colors"
+          className="p-2 rounded-lg text-muted-foreground hover:text-primary-bright hover:bg-primary-bright/10 transition-colors cursor-pointer"
           title="Edit department"
         >
           <Edit2 size={14} />
         </button>
         <button
           onClick={() => onDelete(dept)}
-          className="p-2 rounded-lg text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+          className="p-2 rounded-lg text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
           title="Delete department"
         >
           <Trash2 size={14} />
@@ -99,7 +113,11 @@ const DeptRow = ({ dept, tickets, onEdit, onDelete }) => {
 
 // ─── Department Form Modal ───────────────────────────────────────────────────
 const DeptModal = ({ dept, onClose, onSave, saving }) => {
-  const [form, setForm] = useState(dept ? { ...dept } : { ...EMPTY_FORM });
+  const [form, setForm] = useState(dept ? { 
+    ...dept,
+    auto_route_category: dept.assignment_rules?.category || dept.name || '',
+    auto_assign: dept.assignment_rules?.autoAssign ?? true
+  } : { ...EMPTY_FORM });
 
   const handleChange = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
@@ -123,7 +141,7 @@ const DeptModal = ({ dept, onClose, onSave, saving }) => {
           <h3 className="text-base font-bold text-foreground">
             {dept ? 'Edit Department' : 'Add Department'}
           </h3>
-          <button onClick={onClose} className="p-1.5 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-muted/40">
+          <button onClick={onClose} className="p-1.5 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-muted/40 cursor-pointer">
             <X size={16} />
           </button>
         </div>
@@ -150,43 +168,80 @@ const DeptModal = ({ dept, onClose, onSave, saving }) => {
               value={form.description}
               onChange={e => handleChange('description', e.target.value)}
               placeholder="Brief description of this department's responsibilities..."
-              rows={3}
+              rows={2}
               className="w-full px-4 py-2.5 rounded-xl bg-background border border-border text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary-bright focus:ring-1 focus:ring-primary-bright/20 transition-all resize-none"
             />
           </div>
 
-          <div>
-            <label className="block text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest mb-1.5">
-              Head Officer Email
-            </label>
-            <input
-              type="email"
-              value={form.head_officer_email}
-              onChange={e => handleChange('head_officer_email', e.target.value)}
-              placeholder="officer@institution.edu"
-              className="w-full px-4 py-2.5 rounded-xl bg-background border border-border text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary-bright focus:ring-1 focus:ring-primary-bright/20 transition-all"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest mb-1.5">
+                Auto-Route Category
+              </label>
+              <select
+                value={form.auto_route_category}
+                onChange={e => handleChange('auto_route_category', e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary-bright transition-all cursor-pointer"
+              >
+                <option value="">Same as Name ({form.name || 'Default'})</option>
+                <option value="IT Support">IT Support</option>
+                <option value="Maintenance">Maintenance</option>
+                <option value="Academic">Academic</option>
+                <option value="Financial">Financial</option>
+                <option value="Public Infrastructure">Public Infrastructure</option>
+                <option value="Eco-Sustainability">Eco-Sustainability</option>
+                <option value="Social Welfare">Social Welfare</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest mb-1.5">
+                Head Officer Email
+              </label>
+              <input
+                type="email"
+                value={form.head_officer_email}
+                onChange={e => handleChange('head_officer_email', e.target.value)}
+                placeholder="officer@institution.edu"
+                className="w-full px-4 py-2.5 rounded-xl bg-background border border-border text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary-bright transition-all"
+              />
+            </div>
           </div>
 
-          <div>
-            <label className="block text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest mb-1.5">
-              SLA Hours (default: 48)
-            </label>
-            <input
-              type="number"
-              min={1}
-              max={720}
-              value={form.sla_hours}
-              onChange={e => handleChange('sla_hours', parseInt(e.target.value, 10) || 48)}
-              className="w-full px-4 py-2.5 rounded-xl bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary-bright focus:ring-1 focus:ring-primary-bright/20 transition-all"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+            <div>
+              <label className="block text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest mb-1.5">
+                SLA Hours (default: 48)
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={720}
+                value={form.sla_hours}
+                onChange={e => handleChange('sla_hours', parseInt(e.target.value, 10) || 48)}
+                className="w-full px-4 py-2.5 rounded-xl bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary-bright transition-all"
+              />
+            </div>
+
+            <div className="flex items-center gap-3 pt-4">
+              <input
+                type="checkbox"
+                id="autoAssignCheckbox"
+                checked={form.auto_assign}
+                onChange={e => handleChange('auto_assign', e.target.checked)}
+                className="rounded border-border text-primary-bright focus:ring-primary-bright cursor-pointer"
+              />
+              <label htmlFor="autoAssignCheckbox" className="text-xs text-foreground cursor-pointer font-medium">
+                Auto-Assign Incoming Tickets
+              </label>
+            </div>
           </div>
         </div>
 
         <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-border/50">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground rounded-xl hover:bg-muted/40 transition-colors"
+            className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground rounded-xl hover:bg-muted/40 transition-colors cursor-pointer"
           >
             Cancel
           </button>

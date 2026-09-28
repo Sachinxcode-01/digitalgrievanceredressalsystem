@@ -337,8 +337,13 @@ const grievanceService = {
     }
 
     const isAdmin = user.role === 'admin' || user.role === 'super admin';
-    const isAssignee = ticket.assigned_to === user.id || (user.email && ticket.assigned_to === user.email);
-    const isOfficer = user.role === 'officer' && (user.department === ticket.department || !ticket.department || isAssignee);
+    const isAssignee = ticket.assigned_to === user.id || 
+                       (user.email && ticket.assigned_to === user.email) ||
+                       (ticket.officer_email && user.email && ticket.officer_email.toLowerCase() === user.email.toLowerCase());
+    const isDepartmentMatch = !ticket.department || 
+                              !user.department || 
+                              (user.department && ticket.department && user.department.trim().toLowerCase() === ticket.department.trim().toLowerCase());
+    const isOfficer = (user.role === 'officer' || user.role === 'staff') && (isAssignee || isDepartmentMatch);
     const isOwner = ticket.user_id === user.id || (user.email && ticket.email === user.email);
 
     if (!isAdmin && !isAssignee && !isOfficer && !isOwner) {

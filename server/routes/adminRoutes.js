@@ -24,7 +24,10 @@ const {
   clearDeadLetterQueue,
   getDatabaseDiagnostics,
   getLiveOpsTelemetry,
-  getCsatAnalytics
+  getCsatAnalytics,
+  bulkAssignGrievances,
+  bulkUpdateGrievanceStatus,
+  rebalanceOfficerWorkload
 } = require('../controllers/adminController');
 const { authenticateToken, authorizeRoles, authorizePermissions } = require('../middleware/authMiddleware');
 const { 
@@ -232,4 +235,10 @@ router.get('/telemetry/live-matrix', authorizePermissions('view_analytics'), get
 // --- 10. Student Grievance Feedback & CSAT Analytics ---
 router.get('/analytics/csat', authorizePermissions('view_analytics'), getCsatAnalytics);
 
+// --- 11. Bulk Grievance Management & Officer Workload Rebalancing ---
+router.post('/grievances/bulk-assign', authorizePermissions('manage_users', 'manage_settings'), bulkAssignGrievances);
+router.post('/grievances/bulk-status', authorizePermissions('manage_users', 'manage_settings'), bulkUpdateGrievanceStatus);
+router.post('/officers/rebalance', authorizePermissions('manage_users', 'manage_settings'), rebalanceOfficerWorkload);
+
 module.exports = router;
+

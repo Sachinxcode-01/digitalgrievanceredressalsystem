@@ -36,6 +36,7 @@ const authenticateToken = async (req, res, next) => {
         id: decoded.id,
         email: decoded.email,
         role: userRole,
+        department: decoded.department,
         full_name: decoded.full_name,
         session_id: decoded.session_id
       };
@@ -150,6 +151,7 @@ const authenticateToken = async (req, res, next) => {
           id: dbUser.id,
           email: dbUser.email,
           role: dbUser.role,
+          department: dbUser.department,
           full_name: dbUser.full_name || fullName,
           clerk_id: userId
         };

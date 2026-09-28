@@ -3,10 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   UserCheck, Search, Shield, ShieldOff, Plus, Edit2, X, Save,
   Loader2, Building2, Ticket, Clock, AlertTriangle, Mail,
-  ChevronDown, Filter, RefreshCw, Eye
+  ChevronDown, Filter, RefreshCw, Eye, ArrowRightLeft, SlidersHorizontal
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { apiClient } from '../../api/apiClient';
+import { grievanceService } from '../../services/grievanceService';
 import AnimatedPage from '../../components/ui/AnimatedPage';
 import GlassPanel from '../../components/ui/GlassPanel';
 import AnimatedButton from '../../components/ui/AnimatedButton';
@@ -29,7 +30,7 @@ const OfficerStatusBadge = ({ status }) => {
 };
 
 // ─── Officer Card ─────────────────────────────────────────────────────────────
-const OfficerCard = ({ officer, ticketCount, onEdit, onToggleStatus, onViewActivity }) => (
+const OfficerCard = ({ officer, ticketCount, onEdit, onToggleStatus, onViewActivity, onRebalance }) => (
   <motion.div
     layout
     initial={{ opacity: 0, y: 8 }}
@@ -92,23 +93,36 @@ const OfficerCard = ({ officer, ticketCount, onEdit, onToggleStatus, onViewActiv
 
     {/* Actions */}
     <div className="flex items-center gap-1.5 shrink-0">
+      {ticketCount > 0 && (
+        <button
+          onClick={() => onRebalance(officer)}
+          className={`p-2 rounded-lg transition-colors flex items-center gap-1 cursor-pointer ${
+            ticketCount >= 5 
+              ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-500/10' 
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+          }`}
+          title="Rebalance tickets to another officer"
+        >
+          <ArrowRightLeft size={14} />
+        </button>
+      )}
       <button
         onClick={() => onViewActivity(officer)}
-        className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+        className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors cursor-pointer"
         title="View activity"
       >
         <Eye size={14} />
       </button>
       <button
         onClick={() => onEdit(officer)}
-        className="p-2 rounded-lg text-muted-foreground hover:text-primary-bright hover:bg-primary-bright/10 transition-colors"
+        className="p-2 rounded-lg text-muted-foreground hover:text-primary-bright hover:bg-primary-bright/10 transition-colors cursor-pointer"
         title="Edit officer"
       >
         <Edit2 size={14} />
       </button>
       <button
         onClick={() => onToggleStatus(officer)}
-        className={`p-2 rounded-lg transition-colors ${
+        className={`p-2 rounded-lg transition-colors cursor-pointer ${
           officer.status === 'active'
             ? 'text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10'
             : 'text-muted-foreground hover:text-emerald-400 hover:bg-emerald-500/10'
@@ -120,6 +134,104 @@ const OfficerCard = ({ officer, ticketCount, onEdit, onToggleStatus, onViewActiv
     </div>
   </motion.div>
 );
+
+// ─── Workload Rebalance Modal ──────────────────────────────────────────────────
+const RebalanceModal = ({ sourceOfficer, officers, ticketCount, onClose, onConfirm, rebalancing }) => {
+  const [targetOfficerId, setTargetOfficerId] = useState('');
+  const [ticketLimit, setTicketLimit] = useState(Math.min(ticketCount || 1, 3));
+
+  const eligibleTargets = officers.filter(o => o.id !== sourceOfficer?.id && o.status === 'active');
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 16 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 16 }}
+        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+        className="relative z-10 w-full max-w-md bg-surface border border-border rounded-3xl shadow-2xl p-6 space-y-5"
+      >
+        <div className="flex items-center justify-between pb-3 border-b border-border/60">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+              <ArrowRightLeft size={16} />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-foreground">Rebalance Officer Workload</h3>
+              <p className="text-[10px] text-muted-foreground font-mono">Transfer active tickets to relieve bottlenecks</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/40 transition-colors cursor-pointer">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="space-y-4 text-xs">
+          <div className="p-3 rounded-xl bg-background/60 border border-border/60">
+            <span className="text-[10px] font-mono text-muted-foreground uppercase font-bold block mb-1">Source Officer</span>
+            <p className="font-semibold text-foreground">{sourceOfficer?.full_name || sourceOfficer?.email}</p>
+            <p className="text-[10px] font-mono text-amber-400 mt-0.5">{ticketCount} Active Tickets Assigned</p>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest mb-1.5">
+              Target Recipient Officer
+            </label>
+            <select
+              value={targetOfficerId}
+              onChange={e => setTargetOfficerId(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl bg-background border border-border text-foreground outline-none focus:ring-1 focus:ring-primary-bright cursor-pointer"
+            >
+              <option value="">— Select Available Officer —</option>
+              {eligibleTargets.map(t => (
+                <option key={t.id} value={t.id}>
+                  {t.full_name || t.email} ({t.department || 'General'})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest mb-1.5">
+              Tickets to Transfer (Oldest First)
+            </label>
+            <input
+              type="number"
+              min={1}
+              max={ticketCount || 1}
+              value={ticketLimit}
+              onChange={e => setTicketLimit(Math.max(1, Math.min(ticketCount || 1, parseInt(e.target.value) || 1)))}
+              className="w-full px-3 py-2 rounded-xl bg-background border border-border text-foreground outline-none focus:ring-1 focus:ring-primary-bright"
+            />
+            <span className="text-[10px] text-muted-foreground mt-1 block">
+              Will transfer {ticketLimit} open ticket(s) to the selected officer.
+            </span>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-border/50">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground rounded-xl hover:bg-muted/40 transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <AnimatedButton
+              onClick={() => onConfirm(targetOfficerId, ticketLimit)}
+              variant="primary"
+              size="sm"
+              isLoading={rebalancing}
+              disabled={!targetOfficerId || rebalancing}
+            >
+              Confirm Rebalance
+            </AnimatedButton>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
 
 // ─── Officer Form Modal ───────────────────────────────────────────────────────
 const OfficerModal = ({ officer, departments, onClose, onSave, saving }) => {
@@ -225,12 +337,16 @@ export const AdminOfficersPage = () => {
   const [editingOfficer, setEditingOfficer] = useState(null);
   const [saving, setSaving] = useState(false);
 
+  const [rebalanceModalOpen, setRebalanceModalOpen] = useState(false);
+  const [rebalanceSourceOfficer, setRebalanceSourceOfficer] = useState(null);
+  const [rebalancing, setRebalancing] = useState(false);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [usersRes, ticketRes, deptRes] = await Promise.allSettled([
         apiClient.get('/admin/users'),
-        import('../../services/grievanceService').then(m => m.grievanceService.getAll()),
+        grievanceService.getAll(),
         apiClient.get('/admin/departments')
       ]);
 
@@ -250,7 +366,7 @@ export const AdminOfficersPage = () => {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const getTicketCount = (officer) =>
-    tickets.filter(t => t.assigned_to === officer.id || t.assigned_to === officer.email || t.officer_email === officer.email).length;
+    tickets.filter(t => (t.assigned_to === officer.id || t.assigned_to === officer.email || t.officer_email === officer.email) && !['Resolved', 'Closed'].includes(t.status)).length;
 
   const filtered = officers.filter(o => {
     const q = searchQuery.toLowerCase();
@@ -298,9 +414,37 @@ export const AdminOfficersPage = () => {
     toast(`Viewing activity for ${officer.full_name || officer.email}`, { icon: '📋' });
   };
 
-  // Summary
+  const handleRebalanceOpen = (officer) => {
+    setRebalanceSourceOfficer(officer);
+    setRebalanceModalOpen(true);
+  };
+
+  const handleConfirmRebalance = async (targetOfficerId, ticketLimit) => {
+    if (!rebalanceSourceOfficer || !targetOfficerId) return;
+    setRebalancing(true);
+    try {
+      const res = await grievanceService.rebalanceOfficerWorkload(
+        rebalanceSourceOfficer.id,
+        targetOfficerId,
+        ticketLimit
+      );
+      toast.success(res.message || 'Workload rebalanced successfully.');
+      setRebalanceModalOpen(false);
+      setRebalanceSourceOfficer(null);
+      fetchData();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || err.message || 'Failed to rebalance workload.');
+    } finally {
+      setRebalancing(false);
+    }
+  };
+
+  // Summary & Heatmap load tiers
   const activeCount = officers.filter(o => o.status !== 'inactive').length;
   const uniqueDepts = [...new Set(officers.map(o => o.department).filter(Boolean))];
+  const availableOfficers = officers.filter(o => getTicketCount(o) < 4);
+  const balancedOfficers = officers.filter(o => { const c = getTicketCount(o); return c >= 4 && c < 8; });
+  const overloadedOfficers = officers.filter(o => getTicketCount(o) >= 8);
 
   return (
     <AnimatedPage>
@@ -342,6 +486,41 @@ export const AdminOfficersPage = () => {
           ))}
         </div>
 
+        {/* Workload Balancing Heatmap Banner */}
+        <GlassPanel className="p-4 sm:p-5 border border-indigo-500/20 bg-linear-to-r from-surface/80 via-indigo-950/20 to-surface/80">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal size={16} className="text-indigo-400" />
+                <h2 className="text-sm font-heading font-black text-foreground uppercase tracking-wider">
+                  Workload Balancing Heatmap
+                </h2>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5 font-sans">
+                Live caseload distribution across active redressal personnel to eliminate bottlenecks.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-emerald-400 font-bold">{availableOfficers.length}</span>
+                <span className="text-muted-foreground text-[10px]">Available (&lt;4)</span>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                <span className="w-2 h-2 rounded-full bg-amber-400" />
+                <span className="text-amber-400 font-bold">{balancedOfficers.length}</span>
+                <span className="text-muted-foreground text-[10px]">Balanced (4-7)</span>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/20">
+                <span className="w-2 h-2 rounded-full bg-rose-400" />
+                <span className="text-rose-400 font-bold">{overloadedOfficers.length}</span>
+                <span className="text-muted-foreground text-[10px]">High / Alert (&ge;8)</span>
+              </div>
+            </div>
+          </div>
+        </GlassPanel>
+
         {/* Filters + List */}
         <GlassPanel className="p-4 sm:p-6 space-y-4">
           <div className="flex flex-col sm:flex-row gap-3">
@@ -360,7 +539,7 @@ export const AdminOfficersPage = () => {
               <option value="All">All Departments</option>
               {uniqueDepts.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
-            <button onClick={fetchData} className="p-2 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors" title="Refresh">
+            <button onClick={fetchData} className="p-2 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors cursor-pointer" title="Refresh">
               <RefreshCw size={14} />
             </button>
           </div>
@@ -387,6 +566,7 @@ export const AdminOfficersPage = () => {
                     onEdit={o => { setEditingOfficer(o); setShowModal(true); }}
                     onToggleStatus={handleToggleStatus}
                     onViewActivity={handleViewActivity}
+                    onRebalance={handleRebalanceOpen}
                   />
                 ))}
               </div>
@@ -409,6 +589,19 @@ export const AdminOfficersPage = () => {
             onClose={() => { setShowModal(false); setEditingOfficer(null); }}
             onSave={handleSave}
             saving={saving}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {rebalanceModalOpen && (
+          <RebalanceModal
+            sourceOfficer={rebalanceSourceOfficer}
+            officers={officers}
+            ticketCount={rebalanceSourceOfficer ? getTicketCount(rebalanceSourceOfficer) : 0}
+            onClose={() => { setRebalanceModalOpen(false); setRebalanceSourceOfficer(null); }}
+            onConfirm={handleConfirmRebalance}
+            rebalancing={rebalancing}
           />
         )}
       </AnimatePresence>
