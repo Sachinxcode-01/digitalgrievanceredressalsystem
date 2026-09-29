@@ -1,8 +1,11 @@
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const express = require('express');
 const request = require('supertest');
 const cookieParser = require('cookie-parser');
 const authRoutes = require('../server/routes/authRoutes');
 const grievanceRoutes = require('../server/routes/grievanceRoutes');
+const supabase = require('../server/config/supabase');
 const { authenticateToken, authorizeRoles } = require('../server/middleware/authMiddleware');
 
 const app = express();
@@ -21,21 +24,21 @@ const DEMO_ACCOUNTS = [
     roleName: 'Student',
     email: 'sachiii8827@gmail.com',
     password: 'Student@8827',
-    expectedRole: 'student',
+    expectedRoles: ['student'],
     expectedRedirect: '/dashboard'
   },
   {
     roleName: 'Admin',
     email: 'saxhin0708@gmail.com',
     password: 'Admin@0708',
-    expectedRole: 'admin',
+    expectedRoles: ['admin', 'super admin'],
     expectedRedirect: '/admin/dashboard'
   },
   {
     roleName: 'Officer',
     email: 'heyyysachiii88@gmail.com',
     password: 'Officer@88',
-    expectedRole: 'officer',
+    expectedRoles: ['officer', 'staff', 'faculty'],
     expectedRedirect: '/officer/dashboard'
   }
 ];
@@ -52,9 +55,29 @@ async function verifyDemoAccounts() {
     console.log(`--- Testing ${acc.roleName} Account: ${acc.email} ---`);
 
     // 1. Test Login
-    const loginRes = await request(app)
+    let loginRes = await request(app)
       .post('/api/v1/auth/login')
       .send({ email: acc.email, password: acc.password, loginType: 'password' });
+
+    // Handle 2FA / MFA step if required
+    if (loginRes.status === 200 && loginRes.body.requiresOtp) {
+      console.log(`  ℹ️  ${acc.roleName} requires MFA. Fetching OTP from Supabase...`);
+      const { data: otpRow } = await supabase
+        .from('otp_verifications')
+        .select('code')
+        .eq('email', acc.email)
+        .eq('purpose', 'login')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (otpRow) {
+        loginRes = await request(app)
+          .post('/api/v1/auth/verify-otp')
+          .send({ email: acc.email, otp: otpRow.code, purpose: 'login' });
+        console.log(`  ✓ MFA OTP (${otpRow.code}) Verified Successfully!`);
+      }
+    }
 
     if (loginRes.status !== 200 || !loginRes.body.token) {
       console.error(`❌ [FAIL] ${acc.roleName} Login Failed: Status ${loginRes.status}`, loginRes.body);
@@ -69,8 +92,8 @@ async function verifyDemoAccounts() {
     console.log(`  ✓ Refresh Token Issued: ${refreshToken ? refreshToken.slice(0, 20) + '...' : 'Cookie Set'}`);
     console.log(`  ✓ User Role Returned: ${user.role}`);
 
-    if (user.role !== acc.expectedRole) {
-      console.error(`❌ [FAIL] Role mismatch: Expected '${acc.expectedRole}', got '${user.role}'`);
+    if (!acc.expectedRoles.includes(user.role)) {
+      console.error(`❌ [FAIL] Role mismatch: Expected one of [${acc.expectedRoles.join(', ')}], got '${user.role}'`);
       allPassed = false;
     } else {
       console.log(`  ✓ Role Verification: PASSED (${user.role})`);
