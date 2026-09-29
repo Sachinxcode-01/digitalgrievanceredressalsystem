@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=./.vscode/render.schema.json
 services:
   - type: web
     name: digital-grievance-backend

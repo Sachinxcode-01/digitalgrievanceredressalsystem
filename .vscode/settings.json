@@ -1,0 +1,6 @@
+{
+  "css.lint.unknownAtRules": "ignore",
+  "yaml.schemas": {
+    "./.vscode/render.schema.json": "render.yaml"
+  }
+}
