@@ -1,5 +1,5 @@
 import React from 'react';
-import { Route } from 'react-router-dom';
+import { Route, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from './guards/ProtectedRoute';
 import { Layout } from '../app/layouts/Layout';
 
@@ -32,6 +32,7 @@ export const getGrievanceRoutes = ({ user, logout, theme, setTheme }) => (
         </ProtectedRoute>
       }
     />
+    <Route path="/grievances/submit" element={<Navigate to="/submit" replace />} />
     <Route
       path="/my-grievances"
       element={
@@ -42,6 +43,7 @@ export const getGrievanceRoutes = ({ user, logout, theme, setTheme }) => (
         </ProtectedRoute>
       }
     />
+    <Route path="/grievances" element={<Navigate to="/my-grievances" replace />} />
     <Route
       path="/grievance/:id"
       element={

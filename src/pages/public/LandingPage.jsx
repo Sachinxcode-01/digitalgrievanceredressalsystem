@@ -710,15 +710,18 @@ export const LandingPage = () => {
             <div className="space-y-2 text-xs font-mono">
               <h3 className="font-bold text-white uppercase tracking-wider text-xs">Quick Links</h3>
               <ul className="space-y-1.5 text-slate-400">
+                <li><Link to="/about" className="hover:text-white">About ResolveNow</Link></li>
+                <li><Link to="/how-it-works" className="hover:text-white">How It Works (SOP)</Link></li>
                 <li><Link to="/public-status" className="hover:text-white">Track Ticket</Link></li>
-                <li><Link to="/submit-grievance" className="hover:text-white">File Grievance</Link></li>
+                <li><Link to="/submit" className="hover:text-white">File Grievance</Link></li>
                 <li><Link to="/officers" className="hover:text-white">Officers Directory</Link></li>
                 <li><Link to="/whistleblower" className="hover:text-white">Whistleblower Vault</Link></li>
                 <li><Link to="/emergency" className="hover:text-white">Emergency & Safety</Link></li>
                 <li><Link to="/feedback" className="hover:text-white">CSAT & Feedback</Link></li>
                 <li><Link to="/appeal" className="hover:text-white">File Formal Appeal</Link></li>
+                <li><Link to="/accessibility" className="hover:text-white">Accessibility Statement</Link></li>
                 <li><Link to="/privacy" className="hover:text-white">Privacy Policy</Link></li>
-                <li><Link to="/terms" className="hover:text-white">Citizen Charter</Link></li>
+                <li><Link to="/terms-of-service" className="hover:text-white">Terms of Service</Link></li>
                 <li><Link to="/login" className="hover:text-white">Portal Sign In</Link></li>
                 <li><Link to="/admin-login" className="hover:text-white">Admin Clearance</Link></li>
               </ul>
@@ -728,6 +731,7 @@ export const LandingPage = () => {
               <h3 className="font-bold text-white uppercase tracking-wider text-xs">Support & Contact</h3>
               <ul className="space-y-1.5 text-slate-400">
                 <li>New Delhi, Digital India</li>
+                <li><Link to="/contact" className="hover:text-white text-cyan-400">Central Helpdesk & Offices →</Link></li>
                 <li>support@resolvenow.gov.in</li>
                 <li>Toll Free: 1800-REDRESS</li>
                 <li>SLA Due: 24-48 Hours</li>
@@ -747,7 +751,15 @@ export const LandingPage = () => {
               <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               <span>ResolveNow Kernel v2.0 • ISO-27001 Certified</span>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
+              <Link to="/about" className="hover:text-slate-300 transition-colors">About</Link>
+              <span>•</span>
+              <Link to="/how-it-works" className="hover:text-slate-300 transition-colors">How It Works</Link>
+              <span>•</span>
+              <Link to="/contact" className="hover:text-slate-300 transition-colors">Contact</Link>
+              <span>•</span>
+              <Link to="/accessibility" className="hover:text-slate-300 transition-colors">Accessibility</Link>
+              <span>•</span>
               <Link to="/feedback" className="hover:text-slate-300 transition-colors">Feedback</Link>
               <span>•</span>
               <Link to="/appeal" className="hover:text-slate-300 transition-colors">Appeal</Link>
@@ -758,7 +770,7 @@ export const LandingPage = () => {
               <span>•</span>
               <Link to="/privacy" className="hover:text-slate-300 transition-colors">Privacy</Link>
               <span>•</span>
-              <Link to="/terms" className="hover:text-slate-300 transition-colors">Charter</Link>
+              <Link to="/terms-of-service" className="hover:text-slate-300 transition-colors">Terms</Link>
               <span>•</span>
               <p>© {new Date().getFullYear()} Government of Digital India. All rights reserved.</p>
             </div>

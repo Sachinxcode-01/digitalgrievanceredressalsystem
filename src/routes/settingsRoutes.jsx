@@ -1,5 +1,5 @@
 import React from 'react';
-import { Route } from 'react-router-dom';
+import { Route, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from './guards/ProtectedRoute';
 import { Layout } from '../app/layouts/Layout';
 
@@ -12,6 +12,7 @@ const NotFoundPage = React.lazy(() => import('../pages/public/NotFoundPage'));
 
 export const getSettingsAndSystemRoutes = ({ user, logout, theme, setTheme }) => (
   <>
+    <Route path="/security" element={<Navigate to="/settings/security" replace />} />
     <Route
       path="/profile"
       element={

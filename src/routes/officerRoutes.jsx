@@ -36,6 +36,7 @@ export const getOfficerRoutes = ({ user, logout, theme, setTheme }) => (
         </ProtectedRoute>
       }
     />
+    <Route path="/officer/grievances" element={<Navigate to="/officer/queue" replace />} />
     <Route
       path="/officer/grievance/:id"
       element={
