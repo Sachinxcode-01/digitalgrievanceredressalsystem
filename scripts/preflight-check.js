@@ -15,7 +15,6 @@ const REQUIRED_ENV_VARS = [
 
 const RECOMMENDED_ENV_VARS = [
   'SUPABASE_URL',
-  'SUPABASE_KEY',
   'SMTP_EMAIL',
   'SMTP_PASSWORD'
 ];
@@ -38,6 +37,9 @@ async function runPreflight() {
   }
 
   const missingRecommended = RECOMMENDED_ENV_VARS.filter(key => !process.env[key]);
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY && !process.env.SUPABASE_KEY) {
+    missingRecommended.push('SUPABASE_SERVICE_ROLE_KEY');
+  }
   if (missingRecommended.length > 0) {
     console.warn(`  ⚠️ Missing recommended variables (will use fallbacks): ${missingRecommended.join(', ')}`);
   } else {

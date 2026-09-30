@@ -1,0 +1,13 @@
+node_modules
+.git
+.env
+.env.*
+dist
+backups
+uploads
+.kilo
+.agents
+.claude
+.gemini
+scratch
+*.log
